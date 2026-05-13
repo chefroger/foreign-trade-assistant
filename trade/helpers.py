@@ -63,13 +63,13 @@ def get_agent_kwargs() -> dict:
     model = model_cfg.get("default", "")
     base_url = model_cfg.get("base_url", "")
 
-    # ── base_url: env var overrides config.yaml ──────────────────────────
-    env_url = os.getenv("MINIMAX_CN_BASE_URL", "").strip()
-    if not env_url and provider:
+    # ── base_url: from PROVIDER_REGISTRY, env var overrides config.yaml ──
+    env_url = ""
+    if provider:
         try:
             from hermes_cli.auth import PROVIDER_REGISTRY
             pconfig = PROVIDER_REGISTRY.get(provider)
-            if pconfig and hasattr(pconfig, 'base_url_env_var'):
+            if pconfig:
                 brv = getattr(pconfig, 'base_url_env_var', '')
                 if brv:
                     env_url = os.getenv(brv, "").strip()
@@ -78,9 +78,9 @@ def get_agent_kwargs() -> dict:
     if env_url:
         base_url = env_url
 
-    # ── api_key: per-provider → common fallback ──────────────────────────
-    api_key = os.getenv("MINIMAX_CN_API_KEY", "").strip()
-    if not api_key and provider:
+    # ── api_key: per-provider via PROVIDER_REGISTRY → common fallbacks ────
+    api_key = ""
+    if provider:
         try:
             from hermes_cli.auth import PROVIDER_REGISTRY
             pconfig = PROVIDER_REGISTRY.get(provider)
@@ -126,8 +126,6 @@ def create_agent(
         RuntimeError: provider 未配置或 API key 缺失
     """
     from run_agent import AIAgent
-
-    os.environ["HERMES_YOLO_MODE"] = "true"
 
     kwargs = get_agent_kwargs()
     err = check_provider()

@@ -30,9 +30,14 @@ def _get_db_path() -> Path:
 
 
 def get_connection() -> sqlite3.Connection:
-    """Return a connection to trade.db with WAL mode and foreign keys enabled."""
+    """Return a connection to trade.db with WAL mode, foreign keys, and Row factory.
+
+    sqlite3.Row 使查询结果支持按列名访问（row["id"] 而非 row[0]），
+    避免 schema 顺序变更导致的位置索引 bug。
+    """
     db_path = _get_db_path()
     conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn

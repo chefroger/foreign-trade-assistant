@@ -365,19 +365,19 @@ def delete(company_id: int) -> bool:
         conn.close()
 
 
-def _row_to_company(row: tuple) -> dict:
+def _row_to_company(row) -> dict:
     return {
-        "id": row[0],
-        "name": row[1],
-        "slug": row[2],
-        "logo_url": row[3],
-        "website": row[4],
-        "contact_name": row[5],
-        "contact_email": row[6],
-        "address": row[7],
-        "is_active": bool(row[8]),
-        "created_at": row[9],
-        "updated_at": row[10],
+        "id": row["id"],
+        "name": row["name"],
+        "slug": row["slug"],
+        "logo_url": row["logo_url"],
+        "website": row["website"],
+        "contact_name": row["contact_name"],
+        "contact_email": row["contact_email"],
+        "address": row["address"],
+        "is_active": bool(row["is_active"]),
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
     }
 
 
@@ -451,11 +451,11 @@ def get_agent_identity(company_id: int) -> str:
     return ""
 
 
-def _row_to_tc(row: tuple) -> dict:
+def _row_to_tc(row) -> dict:
     return {
-        "company_id": row[0],
-        "data_dir": row[1],
-        "agent_identity_md": row[2],
-        "is_active": bool(row[3]),
-        "created_at": row[4],
+        "company_id": row["company_id"],
+        "data_dir": row["data_dir"],
+        "agent_identity_md": row["agent_identity_md"],
+        "is_active": bool(row["is_active"]),
+        "created_at": row["created_at"],
     }

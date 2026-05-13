@@ -15,6 +15,9 @@ dependencies = [
   "fastapi>=0.104.0",
   "uvicorn[standard]>=0.24.0",
   "python-multipart>=0.0.9",
+  # Explicit — needed for SKILL.md frontmatter parsing and version checks
+  "pyyaml>=6.0",
+  "packaging>=23.0",
   # Hermes Agent — AI engine, tools, memory, skills.
   # MUST be installed from chefroger/hermes-agent fork (the only supported source).
   # Pin to exact git tag for deterministic installs.

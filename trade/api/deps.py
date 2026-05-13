@@ -1,19 +1,54 @@
 """
 Trade AI Assistant — API 依赖函数。
 
-提供 company_id 解析和验证的共享 helpers，被所有 API 子模块使用。
+提供 session token 校验和 company_id 解析的共享依赖，
+被所有 /api/trade/* 路由使用。
 """
 
 from __future__ import annotations
 
+import os
 from typing import Optional
 
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Request, Depends
 
 from trade import company as company_module
 
 
-def require_company(x_company_id: Optional[str] = Header(None, alias="X-Company-ID")) -> int:
+# ── Session token ────────────────────────────────────────────────────────────
+
+# 由 server.py 在启动时设置
+_SESSION_TOKEN: str = ""
+
+
+def set_session_token(token: str) -> None:
+    """设置当前会话的 token（server.py 启动时调用）。"""
+    global _SESSION_TOKEN
+    _SESSION_TOKEN = token
+
+
+def require_session(request: Request) -> None:
+    """校验 X-Hermes-Session-Token。
+
+    所有 /api/trade/* 路由共享此依赖，确保只有持有 token 的
+    本机浏览器会话可以访问 API。
+
+    Raises:
+        HTTPException(401): token 缺失或不匹配
+    """
+    token = request.headers.get("X-Hermes-Session-Token", "")
+    if not _SESSION_TOKEN:
+        # 未初始化（不应发生，防御性编程）
+        raise HTTPException(status_code=500, detail="Server not initialized.")
+    if not token or token != _SESSION_TOKEN:
+        raise HTTPException(status_code=401, detail="Invalid or missing session token.")
+
+
+# ── Company ID ────────────────────────────────────────────────────────────────
+
+def require_company(
+    x_company_id: Optional[str] = Header(None, alias="X-Company-ID"),
+) -> int:
     """解析并验证 X-Company-ID header，返回 company_id。
 
     验证步骤：
@@ -44,11 +79,13 @@ def require_company(x_company_id: Optional[str] = Header(None, alias="X-Company-
     return cid
 
 
-def opt_company(x_company_id: Optional[str] = Header(None, alias="X-Company-ID")) -> Optional[int]:
+def opt_company(
+    x_company_id: Optional[str] = Header(None, alias="X-Company-ID"),
+) -> Optional[int]:
     """解析 X-Company-ID header，返回 company_id 或 None。
 
-    与 require_company 的区别：header 缺失时返回 None 而非抛 401。
-    用于可选 company scope 的端点（如 memory/status）。
+    与 require_company 的区别：header 缺失时不抛异常。
+    仅用于不涉及公司数据隔离的非敏感端点（如 /memory/status）。
 
     Raises:
         HTTPException(401): header 存在但无法解析为整数

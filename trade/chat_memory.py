@@ -269,15 +269,15 @@ def search_history(
         conn.close()
 
 
-def _row_to_dict(row: tuple) -> dict:
+def _row_to_dict(row) -> dict:
     return {
-        "id": row[0],
-        "company_id": row[1],
-        "library_id": row[2],
-        "query": row[3],
-        "response": row[4],
-        "files_read": json.loads(row[5]) if row[5] else [],
-        "created_at": row[6],
+        "id": row["id"],
+        "company_id": row["company_id"],
+        "library_id": row["library_id"],
+        "query": row["query"],
+        "response": row["response"],
+        "files_read": json.loads(row["files_read"]) if row["files_read"] else [],
+        "created_at": row["created_at"],
     }
 
 

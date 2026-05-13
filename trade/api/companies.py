@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Depends
 
 from trade import company as company_module
 from trade.api.deps import require_company, opt_company
@@ -64,7 +64,7 @@ def get_company(company_id: int):
 @router.put("/companies/{company_id}")
 def update_company(
     company_id: int,
-    x_company_id: Optional[str] = Header(None, alias="X-Company-ID"),
+    x_company_id: int = Depends(require_company),
     name: Optional[str] = None,
     logo_url: Optional[str] = None,
     website: Optional[str] = None,
@@ -73,10 +73,8 @@ def update_company(
     address: Optional[str] = None,
     is_active: Optional[bool] = None,
 ):
-    """更新公司字段。需要 X-Company-ID 与目标公司匹配。"""
-    cid = opt_company(x_company_id)
-    # 跨公司操作保护：不允许通过 A 公司身份修改 B 公司
-    if cid is not None and cid != company_id:
+    """更新公司字段。X-Company-ID 必须与目标公司匹配。"""
+    if x_company_id != company_id:
         raise HTTPException(status_code=403, detail="Cannot update another company's record.")
     result = company_module.update(
         company_id, name=name, logo_url=logo_url, website=website,
@@ -108,13 +106,11 @@ def get_company_agent_identity(company_id: int):
 @router.put("/companies/{company_id}/agent-identity")
 def update_company_agent_identity(
     company_id: int,
-    x_company_id: Optional[str] = Header(None, alias="X-Company-ID"),
+    x_company_id: int = Depends(require_company),
     agent_identity_md: str = "",
 ):
     """更新公司的 Agent 身份（写入 DB 缓存）。"""
-    cid = opt_company(x_company_id)
-    # 跨公司操作保护
-    if cid is not None and cid != company_id:
+    if x_company_id != company_id:
         raise HTTPException(status_code=403, detail="Cannot update another company's identity.")
     result = company_module.update_trade_company(
         company_id, agent_identity_md=agent_identity_md

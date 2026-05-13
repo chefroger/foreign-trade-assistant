@@ -13,9 +13,8 @@ import json as _json
 import logging
 import queue
 import time
-from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 
 from trade import chat_memory
@@ -33,7 +32,7 @@ router = APIRouter(tags=["chat"])
 @router.post("/chat")
 async def trade_chat(
     body: dict,
-    x_company_id: Optional[str] = Header(None, alias="X-Company-ID"),
+    x_company_id: int = Depends(require_company),
 ):
     """向 AI Agent 发送查询并同步等待结果。
 
@@ -97,7 +96,7 @@ async def trade_chat(
 @router.post("/chat/stream")
 async def trade_chat_stream(
     body: dict,
-    x_company_id: Optional[str] = Header(None, alias="X-Company-ID"),
+    x_company_id: int = Depends(require_company),
 ):
     """SSE 流式聊天，实时推送 Agent 工具调用进度。
 

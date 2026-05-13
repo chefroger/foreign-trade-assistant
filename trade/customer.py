@@ -200,27 +200,27 @@ def get_libraries(customer_id: int, company_id: int) -> list[dict]:
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
-def _row_to_dict(row: tuple) -> dict:
+def _row_to_dict(row) -> dict:
     return {
-        "id": row[0],
-        "company_id": row[1],
-        "name": row[2],
-        "contact": row[3],
-        "note": row[4],
-        "created_at": row[5],
-        "updated_at": row[6],
+        "id": row["id"],
+        "company_id": row["company_id"],
+        "name": row["name"],
+        "contact": row["contact"],
+        "note": row["note"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
     }
 
 
-def _library_row_to_dict(row: tuple) -> dict:
+def _library_row_to_dict(row) -> dict:
     return {
-        "id": row[0],
-        "company_id": row[1],
-        "name": row[2],
-        "root_path": row[3],
-        "description": row[4],
-        "created_at": row[5],
-        "updated_at": row[6],
+        "id": row["id"],
+        "company_id": row["company_id"],
+        "name": row["name"],
+        "root_path": row["root_path"],
+        "description": row["description"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
     }
 
 

@@ -129,34 +129,16 @@ def count_files(library_id: int) -> int:
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
-def _row_to_dict(row: tuple) -> dict:
+def _row_to_dict(row) -> dict:
     return {
-        "id": row[0],
-        "company_id": row[1],
-        "name": row[2],
-        "root_path": row[3],
-        "description": row[4],
-        "created_at": row[5],
-        "updated_at": row[6],
+        "id": row["id"],
+        "company_id": row["company_id"],
+        "name": row["name"],
+        "root_path": row["root_path"],
+        "description": row["description"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
     }
 
 
-# ── CLI smoke test ───────────────────────────────────────────────────────────
-
-if __name__ == "__main__":
-    from trade.database import init_db
-    init_db()
-
-    # Create a test library for company 1
-    lib = create("Test Library", "/tmp/test_docs", "A test document library", company_id=1)
-    print("Created:", json.dumps(lib, indent=2, ensure_ascii=False))
-
-    # List by company
-    all_libs = list_by_company(1)
-    print(f"\nLibraries for company 1 ({len(all_libs)}):")
-    for l in all_libs:
-        print(f"  [{l['id']}] {l['name']} → {l['root_path']}")
-
-    # Clean up
-    delete(lib["id"], company_id=1)
     print("\nCleaned up test library.")
