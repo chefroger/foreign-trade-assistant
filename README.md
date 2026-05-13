@@ -1,234 +1,211 @@
 # Foreign Trade Assistant
 
-B2B document Q&A for trade and manufacturing sales teams.  
-Built on [Hermes Agent](https://github.com/NousResearch/hermes-agent).
+外贸公司的 AI 销售助手 — 覆盖「引流 → 转化」全链路的智能销售系统。
 
-## Architecture
+基于 [Hermes Agent](https://github.com/chefroger/hermes-agent)（chefroger fork），
+为外贸业务员提供 B2B 平台诊断、社媒获客、客户背调、开发信生成、报价谈判、文档分析、
+定时任务自动化等 14 项专业能力。
 
-```
-Foreign Trade Assistant (独立项目)
-├── trade/                  B2B 业务层
-│   ├── company.py           多公司注册与配置
-│   ├── library.py           文档库（按公司隔离）
-│   ├── customer.py          客户管理（按公司隔离）
-│   └── chat_memory.py       对话历史（按公司隔离）
-├── skills/                  Hermes-compatible skills (安装到 ~/.hermes/skills/)
-├── .trade-template/         公司数据目录模板（安装到 ~/.trade/）
-├── static/trade_chat.html   多公司聊天 SPA
-└── server.py               FastAPI 入口
+---
 
-        ↓ import
+## 空白电脑从头安装
 
-Hermes Agent (pip install hermes-agent)
-├── AIAgent                  对话引擎
-├── Tools                    工具执行
-├── Memory (cognee)          知识图谱记忆
-└── Skills                   技能系统
-```
+以下步骤适用于 **macOS / Linux / WSL2**。Windows 原生安装见下方。
 
-## Quick Start
+### 方式一：一键安装（推荐）
 
 ```bash
-# 1. Install Hermes Agent
-git clone https://github.com/chefroger/hermes-agent.git
-cd hermes-agent && pip install -e ".[all]" && cd ..
+curl -fsSL https://raw.githubusercontent.com/chefroger/foreign-trade-assistant/main/scripts/install.sh | bash
+```
 
-# 2. Install Foreign Trade Assistant
-cd "Foreign Trade Assistant"
-pip install -e .
+脚本会自动完成：
+1. 检查 Python >= 3.11
+2. 安装 hermes-agent（chefroger fork）
+3. 安装 foreign-trade-assistant
+4. 安装 14 个 B2B skills 到 Hermes
+5. 初始化数据库和数据目录
 
-# 3. Install B2B skills into Hermes (copies skills/ → ~/.hermes/skills/)
+### 方式二：手动安装
+
+#### 前置条件
+
+| 软件 | 版本 | 安装方式 |
+|------|------|---------|
+| Python | >= 3.11 | `brew install python@3.12` (macOS) 或 `apt install python3.12` (Ubuntu) |
+| Git | 任意 | 系统自带 或 `apt install git` |
+| LLM API Key | — | 自备（OpenAI / Anthropic / DeepSeek 等），配置在 `~/.hermes/.env` |
+
+#### 步骤
+
+```bash
+# 1. 安装 hermes-agent（必须使用 chefroger fork）
+git clone --branch main https://github.com/chefroger/hermes-agent.git ~/.hermes/hermes-agent
+cd ~/.hermes/hermes-agent
+pip install -e "."
+
+# 2. 配置 Hermes（选择 LLM 提供商和模型）
+hermes setup
+# 按提示选择 provider、填入 API Key
+# 或手动编辑 ~/.hermes/config.yaml 和 ~/.hermes/.env
+
+# 3. 安装 Foreign Trade Assistant
+git clone --branch main https://github.com/chefroger/foreign-trade-assistant.git ~/.trade/foreign-trade-assistant
+cd ~/.trade/foreign-trade-assistant
+pip install -e "."
+
+# 4. 安装 B2B skills 到 Hermes
 install-trade-skills
 
-# 4. Initialize database
-python -m trade.database
-
-# 5. Start
+# 5. 启动
 python server.py
-# → http://127.0.0.1:9119/trade
+# → 浏览器打开 http://127.0.0.1:9119/trade
 ```
 
-**Skills 安装说明**：
-- `install-trade-skills` 是项目 console script，安装时自动注册
-- 将 `skills/b2b-*/` 下的 11 个 B2B skills 复制到 `~/.hermes/skills/b2b-*/`
-- Hermes 运行时从 `~/.hermes/skills/` 发现并加载这些 skills
-- 手动单独运行：`python -m trade.post_install`
+### Windows 原生安装
 
-**运行时数据位置**：
-- Skills：`~/.hermes/skills/`（macOS/Linux）或 `%LOCALAPPDATA%\hermes\skills\`（Windows）
-- 用户数据：`~/.trade/`（macOS/Linux）或 `%LOCALAPPDATA%\trade\`（Windows）
+```powershell
+# PowerShell（以普通用户运行，无需管理员）
+# 1. 安装 hermes-agent
+git clone --branch main https://github.com/chefroger/hermes-agent.git $env:LOCALAPPDATA\hermes\hermes-agent
+cd $env:LOCALAPPDATA\hermes\hermes-agent
+pip install -e "."
+hermes setup
 
-## Environment
+# 2. 安装 Foreign Trade Assistant
+git clone --branch main https://github.com/chefroger/foreign-trade-assistant.git $env:LOCALAPPDATA\trade\foreign-trade-assistant
+cd $env:LOCALAPPDATA\trade\foreign-trade-assistant
+pip install -e "."
+install-trade-skills
 
-Trade reads Hermes config from `~/.hermes/config.yaml` and `~/.hermes/.env`.  
-Run `hermes setup` (or `trade setup`) to configure LLM provider and API keys.
-
-## Project Structure
-
-```
-trade/
-├── prompt.py          System prompt for B2B agent behavior
-├── helpers.py         Provider check + agent kwarg construction
-├── database.py        SQLite connection + schema (data/trade.db)
-├── library.py         Document library CRUD
-├── customer.py        Customer CRUD + library associations
-├── chat_memory.py     Conversation log + Hindsight bridge
-├── memory.py          Hindsight long-term memory client
-└── api.py             FastAPI router (/api/trade/*)
-
-static/
-└── trade_chat.html    B2B chat SPA (sidebar + streaming chat)
-
-skills/
-├── b2b-document/           B2B 文档分析 — 报价单/规格书/合同/检验报告
-├── b2b-platform/           B2B平台诊断 — 阿里国际站/中国制造网店铺优化
-├── b2b-social-media/       社媒内容策略 — Facebook/Instagram/TikTok/YouTube
-├── b2b-linkedin-marketing/ LinkedIn营销 — Profile优化/开发信/内容策略
-├── b2b-lead-generation/    客户开发 — 分类/分析/冷邮件/跟进/报价/谈判
-├── b2b-customs-data/        海关数据挖掘 — 进出口数据/采购商分析/广交会
-├── b2b-onboarding/          新公司部署 — 全套营销启动方案
-├── b2b-customer-mgmt/       客户管理 — 生命周期/报价单/订单/关系维护
-├── b2b-daily-automation/    每日自动化 — 早安简报/定时发布/晚间报告
-├── b2b-data-directory/      标准化数据目录 — ~/.trade/ 目录结构初始化
-└── b2b-doc-generation/      业务文档生成 — PPTX/DOCX/XLSX 专业商务文档
-
-.trade-template/              安装后 ~/.trade/ 的目录骨架模板
-├── config.yaml                配置文件
-├── companies/                 公司目录（每公司一个子目录）
-├── prompts/                  系统提示词备份
-└── skills/                   Trade专属技能（可覆盖Hermes内置）
+# 3. 启动
+python server.py
 ```
 
-## API
+---
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET/POST | `/api/trade/libraries` | List / Create document libraries |
-| GET/PUT/DELETE | `/api/trade/libraries/{id}` | Get / Update / Delete library |
-| GET/POST | `/api/trade/customers` | List / Create customers |
-| GET/PUT/DELETE | `/api/trade/customers/{id}` | Get / Update / Delete customer |
-| POST/DELETE | `/api/trade/customers/{id}/libraries/{id}` | Link / Unlink |
-| POST | `/api/trade/chat` | Send query to AI Agent |
-| POST | `/api/trade/chat/stream` | Streaming chat with SSE tool progress |
-| GET/POST | `/api/trade/conversations` | List / Save conversations |
-| GET | `/api/trade/memory/status` | Hindsight memory status |
-| GET | `/api/trade/memory/recall` | Search long-term memory |
-| GET | `/api/trade/models/providers` | Available LLM providers |
-
-## Skills
-
-全部14个skills均为行业通用设计，适用于任何B2B外贸行业。
-
-| Skill | 功能 | 核心场景 |
-|-------|------|---------|
-| **b2b-document** | B2B 文档分析 | 分析报价单、产品规格书、合同、检验报告中的条款和数据 |
-| **b2b-platform** | B2B平台诊断与优化 | 阿里国际站、中国制造网等平台的产品分析、关键词优化、店铺诊断 |
-| **b2b-social-media** | 社媒内容策略 | Facebook、Instagram、TikTok、YouTube 多平台内容日历、竞争对手分析 |
-| **b2b-linkedin-marketing** | LinkedIn营销 | Profile优化、Content Strategy、开发信模板、行业群组开发 |
-| **b2b-lead-generation** | 客户开发与管理 | 客户分类分级、Account IQ分析、冷邮件序列、跟进策略、报价谈判 |
-| **b2b-customs-data** | 海关数据挖掘 | 进出口海关数据、进口商筛选、贸易模式分析、广交会采购商分析 |
-| **b2b-onboarding** | 新公司营销部署 | 公司介绍、产品资料、竞争对手对比、定价策略的全套启动方案 |
-| **b2b-customer-mgmt** | 客户全生命周期管理 | 报价单模板、订单跟单流程、客户满意度追踪、复购激活 |
-| **b2b-daily-automation** | 每日自动化任务 | 早安简报、社媒定时发布、客户询盘处理、晚间总结报告 |
-| **b2b-data-directory** | 标准化数据目录 | `~/.trade/` 目录结构初始化、公司/客户/文档库文件模板 |
-| **b2b-doc-generation** | 专业业务文档生成 | PPTX提案/DOCX合同/XLSX报价单，附格式化规范和验证流程 |
-| **b2b-osint** | OSINT 客户背调 | WHOIS 域名年龄 + 企业邮箱验证 + 制裁名单筛查 + LinkedIn 交叉验证 |
-| **chat-memory** | 对话长期记忆 | 历史查询工具，按时间范围查询 DB，支持 Hindsight 向量检索 |
-| **b2b-email-intel** | 邮箱背景调查 | 120+平台注册检测、社交档案提取、真实性评估 |
-
-每个skill均可独立使用，也可组合形成完整的外贸业务工作流。
-
-## Runtime Data & Skills Locations
-
-Foreign Trade Assistant uses two separate runtime directories:
-
-### Skills Location — `~/.hermes/skills/`
-
-> Installed by `install-trade-skills` from `skills/` in the project repository.
-
-| 平台 | Skills 运行时路径 |
-|------|----------------|
-| macOS / Linux / WSL2 | `~/.hermes/skills/` |
-| Windows native | `%LOCALAPPDATA%\hermes\skills\` |
-
-安装后 Skills 结构：
-```
-~/.hermes/skills/
-├── b2b-document/           # B2B 文档分析
-├── b2b-platform/           # B2B平台诊断
-├── b2b-social-media/       # 社媒内容策略
-├── b2b-linkedin-marketing/ # LinkedIn营销
-├── b2b-lead-generation/    # 客户开发
-├── b2b-customs-data/       # 海关数据
-├── b2b-onboarding/         # 新公司部署
-├── b2b-customer-mgmt/      # 客户管理
-├── b2b-daily-automation/   # 每日自动化
-├── b2b-data-directory/     # 数据目录
-├── b2b-doc-generation/      # 文档生成
-└── b2b-email-intel/        # 邮箱背景调查
-```
-
-Hermes 通过 `skills_list()` / `skill_view()` 工具发现和加载这些 skills，与 Hermes 内置 skills 完全兼容。
-
-### User Data Location — `~/.trade/`
-
-> 用户公司和客户数据，安装后由 `install-trade-skills` 从 `.trade-template/` 复制初始化。
-
-| 平台 | 用户数据路径 |
-|------|------------|
-| macOS / Linux / WSL2 | `~/.trade/` |
-| Windows native | `%LOCALAPPDATA%\trade\` |
-
-```
-~/.trade/                        # 或 %LOCALAPPDATA%\trade\ (Windows)
-├── config.yaml                  # 当前激活公司等配置
-├── companies/                   # 公司目录（通过 trade init-company 创建）
-│   └── {company-slug}/
-│       ├── company-profile.md  # [必需] 公司介绍
-│       ├── products.md         # [必需] 产品目录
-│       ├── business-scope.md   # [必需] 业务范围
-│       ├── agent-identity.md   # [必需] Agent 角色定义
-│       ├── competitors.md      # [可选] 同行分析
-│       ├── certifications.md   # [可选] 资质认证
-│       ├── marketing-strategy.md [可选] 营销策略
-│       ├── sales-playbook.md   # [可选] 销售手册
-│       ├── libraries/         # 文档库
-│       │   └── {lib-slug}/
-│       │       ├── index.md
-│       │       ├── changelog.md
-│       │       ├── metadata.md
-│       │       └── extracts/   # 文档分析切片
-│       └── clients/          # 客户目录
-│           └── {client-slug}/
-│               ├── profile.md   # [必需] 客户画像
-│               ├── contacts.md  # [必需] 联系人
-│               ├── interactions.md [必需] 沟通记录
-│               ├── requirements.md [可选] 需求
-│               ├── quotes.md    # [可选] 报价历史
-│               ├── orders.md   # [可选] 订单
-│               └── notes.md    # [可选] 备注
-```
-
-### 初始化公司
+## 启动
 
 ```bash
-trade init-company --name "公司名" --slug "company-slug"
+cd ~/.trade/foreign-trade-assistant   # 或项目目录
+python server.py                       # 默认 http://127.0.0.1:9119/trade
+python server.py --port 8080           # 自定义端口
+python server.py --no-browser          # 不自动打开浏览器
 ```
 
-### 仓库模板 vs 运行时目录
+## 打包为独立应用（无需命令行）
 
-| | 仓库（`.trade-template/`） | 运行时（`~/.trade/`） |
-|--|--------------------------|----------------------|
-| 位置 | 项目仓库根目录 | 用户 home 目录 |
-| 用途 | 展示目录骨架 + 模板文件 | 实际存储用户数据 |
-| 版本控制 | 是（.gitignore 已排除运行时目录） | 否（运行时自动创建） |
+```bash
+pip install pyinstaller
+./scripts/build.sh          # macOS → dist/Foreign Trade Assistant.app
+# Windows:
+powershell -File scripts/build.ps1  # → dist/Foreign Trade Assistant.exe
+```
 
-> 仓库中 `.trade-template/` 为模板，安装时通过 `install-trade-skills` 复制到用户 home 目录创建 `~/.trade/`。
+打包后可双击启动，不依赖终端。
 
-## Documentation
+---
+
+## 数据存储位置
+
+| 数据 | macOS / Linux | Windows |
+|------|--------------|---------|
+| 数据库 | `~/.trade/data/trade.db` | `%LOCALAPPDATA%\trade\data\trade.db` |
+| 公司数据 | `~/.trade/companies/{slug}/` | `%LOCALAPPDATA%\trade\companies\{slug}\` |
+| 桌面工作目录 | `~/Desktop/{公司名}/` | `%USERPROFILE%\Desktop\{公司名}\` |
+| Skills | `~/.hermes/skills/b2b-*/` | `%LOCALAPPDATA%\hermes\skills\b2b-*\` |
+| Hermes 配置 | `~/.hermes/config.yaml` | `%LOCALAPPDATA%\hermes\config.yaml` |
+| LLM API Key | `~/.hermes/.env` | `%LOCALAPPDATA%\hermes\.env` |
+
+所有用户数据存储在本地，不上传任何服务器（除调用 LLM API 外）。
+
+---
+
+## 功能概览
+
+| 功能 | 入口 | 说明 |
+|------|------|------|
+| 今日简报 | 侧边栏 → 工作台 | Agent 对话，自动加载近期上下文 |
+| 客户开发 | 侧边栏 → 获客引流 | 分析客户信息、生成开发信和跟进序列 |
+| 平台诊断 | 侧边栏 → 获客引流 | 分析阿里国际站/中国制造网产品页面 |
+| 社媒营销 | 侧边栏 → 获客引流 | 生成 Facebook/Instagram/TikTok/YouTube 内容日历 |
+| LinkedIn | 侧边栏 → 获客引流 | Profile 优化、内容策略、InMail 模板 |
+| 海关数据 | 侧边栏 → 获客引流 | 分析进出口数据、筛选采购商 |
+| 客户管理 | 侧边栏 → 销售转化 | 客户表格（A/B/C 分级）、详情面板、文档库关联 |
+| 文档库 | 侧边栏 → 销售转化 | 按目录读取本地文档，Agent 自动分析 |
+| 文档生成 | 侧边栏 → 销售转化 | 生成 PPTX/DOCX/XLSX 专业商务文档 |
+| 客户背调 | 侧边栏 → 工具 | WHOIS + 邮箱验证 + 制裁名单 + 技术栈 + LinkedIn 交叉验证 |
+| 定时任务 | 侧边栏 → 工具 | 7 个工作日自动化任务（早安简报/开发信/社媒等） |
+| 数据目录 | 侧边栏 → 工具 | 浏览 `~/.trade/` 目录结构和文件 |
+| 对话记录 | 侧边栏 → 历史 | 查看/搜索/删除历史对话 |
+
+---
+
+## 项目结构
+
+```
+trade/                     B2B 业务层
+├── api/                   FastAPI 路由（按业务域拆分）
+│   ├── chat.py              AI 对话（sync + SSE stream）
+│   ├── companies.py         公司管理
+│   ├── libraries.py         文档库管理
+│   ├── customers.py         客户管理
+│   ├── conversations.py     对话记录
+│   ├── memory.py            Hindsight 记忆 + LLM 提供商
+│   ├── onboarding.py        首次引导
+│   └── deps.py              共享依赖
+├── osint/                 客户背调模块（6 层检测）
+│   ├── whois.py             域名 WHOIS
+│   ├── email_verify.py      企业邮箱验证
+│   ├── sanctions.py         制裁名单筛查
+│   ├── tech_stack.py        技术栈检测
+│   ├── linkedin_verify.py   LinkedIn 验证
+│   ├── scoring.py           风险评分
+│   └── orchestrator.py      编排器
+├── database.py             SQLite 连接 + schema + 迁移
+├── company.py              公司 CRUD + 桌面工作目录
+├── library.py              文档库 CRUD
+├── customer.py             客户 CRUD
+├── chat_memory.py          对话记录 + Hindsight 桥接
+├── memory.py               Hindsight 客户端
+├── helpers.py              Provider 检查 + Agent 工厂 + Prompt 构建
+├── prompt.py               System prompt 模板
+├── prompts.py              Prompt 文件加载器（mtime 缓存）
+├── skill_router.py         Skill 匹配引擎 + 注入
+├── skill_registry.py       14 个 skill 注册表（纯数据）
+├── onboarding.py           首次引导逻辑
+├── email_intel.py          holehe 邮箱平台检测
+└── post_install.py         Skills 安装到 Hermes
+
+skills/                     14 个 B2B skills（安装到 ~/.hermes/skills/）
+tests/                      119 个测试（database/business/api/osint）
+static/trade_chat.html      Chat SPA 前端
+scripts/
+├── install.sh              一键安装脚本（macOS/Linux）
+├── install.ps1             一键安装脚本（Windows）
+├── build.sh                打包构建（macOS）
+├── build.ps1               打包构建（Windows）
+├── install_prereqs.sh      前置依赖安装（macOS/Linux）
+└── install_prereqs.ps1     前置依赖安装（Windows）
+pyinstaller.spec            PyInstaller 打包配置
+pyproject.toml              pip 安装配置
+server.py                   FastAPI 入口
+```
+
+---
+
+## 开发
+
+```bash
+pip install -e ".[dev]"
+python -m pytest tests/ -v       # 运行 119 个测试
+python -m trade.database          # 初始化/检查数据库
+```
+
+## 文档
 
 - [项目需求文档](项目需求文档.md)
-- [业务概览](业务概览.md)          ← 开发者视角：模块架构、数据流向、API总表
-- [Trade-Hermes 耦合评估](Trade-Hermes耦合评估.md)
-- [Trade-Hermes 解耦可行性](Trade-Hermes解耦可行性.md)
-- [代码复用评估](代码复用评估.md)
+- [业务概览](业务概览.md)
+- [外贸业务知识库](外贸业务知识库.md)
+- [外贸业务方法总结](外贸业务方法总结.md)
+- [Trade 数据目录结构设计](Trade数据目录结构设计.md)
+- [COMPATIBILITY.md](COMPATIBILITY.md) — Hermes 版本兼容性记录
