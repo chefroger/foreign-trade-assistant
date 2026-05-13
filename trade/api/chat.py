@@ -11,7 +11,6 @@ from __future__ import annotations
 import asyncio
 import json as _json
 import logging
-import os
 import queue
 import time
 from typing import Optional
@@ -22,7 +21,7 @@ from fastapi.responses import StreamingResponse
 from trade import chat_memory
 from trade import library as library_module
 from trade.api.deps import require_company
-from trade.helpers import check_provider, get_agent_kwargs, build_query
+from trade.helpers import create_agent, build_query
 
 _log = logging.getLogger(__name__)
 
@@ -57,30 +56,14 @@ async def trade_chat(
     full_query = build_query(cid, library_id, query)
 
     def _call_agent():
-        """在线程池中调用 Hermes AIAgent（同步阻塞）。"""
+        """在线程池中调用 Hermes Agent（同步阻塞）。"""
         try:
-            from run_agent import AIAgent
-        except ImportError:
-            return "⚠️ AI Agent 模块未加载。"
-
-        err = check_provider()
-        if err:
-            return f"⚠️ {err}"
-
-        try:
-            kwargs = get_agent_kwargs()
-            os.environ["HERMES_YOLO_MODE"] = "true"
-            agent = AIAgent(
-                quiet_mode=True,
-                max_iterations=90,
-                provider=kwargs["provider"] or None,
-                base_url=kwargs["base_url"] or None,
-                model=kwargs["model"] or None,
-                api_key=kwargs["api_key"] or None,
-            )
+            agent = create_agent()
             return agent.chat(full_query) or "Agent 返回了空响应。"
         except ImportError:
             return "⚠️ AI Agent 模块未加载。"
+        except RuntimeError as e:
+            return f"⚠️ {e}"
         except Exception as e:
             _log.exception("Agent call failed")
             return f"⚠️ Agent 调用失败：{e}"
@@ -154,30 +137,10 @@ async def trade_chat_stream(
         })
 
     def _run_agent() -> str | None:
-        """在线程池中运行 AIAgent，通过回调推送到事件队列。"""
+        """在线程池中运行 Agent，通过回调推送到事件队列。"""
         try:
-            from run_agent import AIAgent
-        except ImportError:
-            _emit("error", {"message": "AI Agent 模块未加载。"})
-            return None
-
-        err = check_provider()
-        if err:
-            _emit("error", {"message": err})
-            return None
-
-        try:
-            kwargs = get_agent_kwargs()
             _emit("thinking", {"message": "正在分析问题..."})
-
-            os.environ["HERMES_YOLO_MODE"] = "true"
-            agent = AIAgent(
-                quiet_mode=True,
-                max_iterations=90,
-                provider=kwargs["provider"] or None,
-                base_url=kwargs["base_url"] or None,
-                model=kwargs["model"] or None,
-                api_key=kwargs["api_key"] or None,
+            agent = create_agent(
                 tool_start_callback=_tool_start,
                 tool_complete_callback=_tool_complete,
             )
@@ -210,6 +173,8 @@ async def trade_chat_stream(
             return result
         except ImportError:
             _emit("error", {"message": "AI Agent 模块未加载。"})
+        except RuntimeError as e:
+            _emit("error", {"message": str(e)})
         except Exception as e:
             _log.exception("Agent stream failed")
             _emit("error", {"message": f"Agent 调用失败：{e}"})

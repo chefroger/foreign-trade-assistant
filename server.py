@@ -97,6 +97,57 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Skills sync check ───────────────────────────────────────────────────────
+import hashlib
+
+def _sync_b2b_skills():
+    """Ensure Hermes has the latest B2B skills from the project.
+
+    Compares each b2b-* skill in the project's skills/ directory with the
+    installed copy in ~/.hermes/skills/.  Missing or outdated skills are
+    copied over.  New skills are installed; removed skills are NOT deleted
+    (the user may have added their own).
+    """
+    _project_skills = Path(__file__).parent / "skills"
+    if not _project_skills.is_dir():
+        return
+
+    _hermes_skills = get_hermes_home() / "skills"
+    _hermes_skills.mkdir(parents=True, exist_ok=True)
+
+    _synced = 0
+    for _skill_dir in sorted(_project_skills.iterdir()):
+        if not _skill_dir.is_dir() or not _skill_dir.name.startswith("b2b-"):
+            continue
+
+        _src = _skill_dir / "SKILL.md"
+        if not _src.is_file():
+            continue
+
+        _dst_dir = _hermes_skills / _skill_dir.name
+        _dst = _dst_dir / "SKILL.md"
+
+        # Compare content hash
+        _need_copy = True
+        if _dst.is_file():
+            _src_hash = hashlib.sha256(_src.read_bytes()).hexdigest()
+            _dst_hash = hashlib.sha256(_dst.read_bytes()).hexdigest()
+            _need_copy = _src_hash != _dst_hash
+
+        if _need_copy:
+            _dst_dir.mkdir(parents=True, exist_ok=True)
+            import shutil
+            shutil.copy2(_src, _dst)
+            _synced += 1
+            print(f"  ↻ Updated skill: {_skill_dir.name}")
+
+    if _synced > 0:
+        print(f"  Skills synced: {_synced} updated (Hermes will pick up changes on next request)")
+    else:
+        print(f"  Skills: up-to-date")
+
+_sync_b2b_skills()
+
 # ── Database initialization ──────────────────────────────────────────────────
 # Must run before any API endpoint that touches the DB.
 # On fresh install: creates all tables.

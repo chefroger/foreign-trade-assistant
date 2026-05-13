@@ -11,3 +11,7 @@ dist/
 build/
 # Runtime data directory — NOT tracked (created on install/init)
 .trade/
+
+# Misc local files
+*.md.tmp
+文件类型处理方法整理.md

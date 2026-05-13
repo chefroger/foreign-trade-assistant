@@ -103,6 +103,49 @@ def get_agent_kwargs() -> dict:
             "base_url": base_url, "api_key": api_key}
 
 
+# ── Agent factory ─────────────────────────────────────────────────────────────
+
+def create_agent(
+    tool_start_callback=None,
+    tool_complete_callback=None,
+):
+    """创建 Hermes AIAgent 实例的统一入口。
+
+    Trade 中所有对 Hermes Agent 的调用都通过此函数，不直接 import AIAgent。
+    当 Hermes 升级改变模块路径或构造签名时，只需修改此一处。
+
+    Args:
+        tool_start_callback: Hermes 工具开始回调（用于 SSE 流式进度）
+        tool_complete_callback: Hermes 工具完成回调
+
+    Returns:
+        AIAgent 实例，已配置好 quiet_mode / max_iterations / provider 等参数。
+
+    Raises:
+        ImportError: hermes-agent 未安装
+        RuntimeError: provider 未配置或 API key 缺失
+    """
+    from run_agent import AIAgent
+
+    os.environ["HERMES_YOLO_MODE"] = "true"
+
+    kwargs = get_agent_kwargs()
+    err = check_provider()
+    if err:
+        raise RuntimeError(err)
+
+    return AIAgent(
+        quiet_mode=True,
+        max_iterations=90,
+        provider=kwargs["provider"] or None,
+        base_url=kwargs["base_url"] or None,
+        model=kwargs["model"] or None,
+        api_key=kwargs["api_key"] or None,
+        tool_start_callback=tool_start_callback,
+        tool_complete_callback=tool_complete_callback,
+    )
+
+
 # ── Token estimation helpers ──────────────────────────────────────────────────
 
 def _estimate_tokens(text: str) -> int:

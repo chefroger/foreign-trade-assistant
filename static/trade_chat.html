@@ -583,6 +583,12 @@ function esc(s) { const d = document.createElement('div'); d.textContent = s||''
 const viewCache = {};
 
 function navToView(view, chatCtx, chatName) {
+    // 未选择公司时，所有菜单点击都显示固定提示页
+    if (!currentCompanyId) {
+        renderNoCompanyPage();
+        return;
+    }
+
     currentView = view;
     if (chatCtx) { currentChatContext = chatCtx; currentChatName = chatName || ''; }
     saveState();
@@ -1279,15 +1285,31 @@ function renderConversationsList(data) {
         return;
     }
     container.innerHTML = data.map(c => `
-        <div class="conv-list-item" onclick="showConversationDetail(${c.id})">
-            <div class="conv-meta">
-                <span>${esc((c.created_at||'').slice(0,16))}</span>
-                ${c.library_id ? '<span style="background:#EFF6FF;color:var(--primary);padding:2px 6px;border-radius:4px;">📁 文档库</span>' : ''}
+        <div class="conv-list-item" style="display:flex;align-items:flex-start;gap:8px;">
+            <div style="flex:1;min-width:0;" onclick="showConversationDetail(${c.id})">
+                <div class="conv-meta">
+                    <span>${esc((c.created_at||'').slice(0,16))}</span>
+                    ${c.library_id ? '<span style="background:#EFF6FF;color:var(--primary);padding:2px 6px;border-radius:4px;">📁 文档库</span>' : ''}
+                </div>
+                <div class="conv-q">${esc(c.query||'').slice(0,100)}</div>
+                <div class="conv-a">${esc(c.response||'').slice(0,150)}</div>
             </div>
-            <div class="conv-q">${esc(c.query||'').slice(0,100)}</div>
-            <div class="conv-a">${esc(c.response||'').slice(0,150)}</div>
+            <button class="btn-xs" style="color:var(--accent-red);border-color:var(--accent-red);flex-shrink:0;margin-top:2px;"
+                onclick="event.stopPropagation();deleteConversation(${c.id})" title="删除此对话">🗑</button>
         </div>
     `).join('');
+}
+
+async function deleteConversation(cid) {
+    if (!confirm('确定删除这条对话记录？此操作不可恢复。')) return;
+    const r = await api('DELETE', `/api/trade/conversations/${cid}`);
+    if (r && r.ok) {
+        toast('对话已删除');
+        allConversations = allConversations.filter(c => c.id !== cid);
+        renderConversationsList(allConversations);
+    } else {
+        toast(r?.detail || '删除失败');
+    }
 }
 
 function filterConversations() {
@@ -1389,7 +1411,7 @@ async function deleteCompany(id) {
 }
 
 function onCompanyChange(cid) {
-    // 清空视图缓存（切换公司后旧数据不能保留）
+    // 清空视图缓存
     for (const key in viewCache) {
         viewCache[key].element.remove();
         delete viewCache[key];
@@ -1401,7 +1423,7 @@ function onCompanyChange(cid) {
     } else {
         currentCompanyId = null;
         saveState();
-        $('main-content').innerHTML = `<div class="empty-state"><div class="empty-icon">🏢</div><h2>请先选择或创建公司</h2><p>Trade AI 为多公司隔离架构</p><button onclick="showAddCompanyModal()">➕ 创建公司</button></div>`;
+        renderNoCompanyPage();
     }
 }
 
@@ -1437,9 +1459,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         saveState();
         navToView('chat', 'daily', '今日简报');
     } else {
-        $('main-content').innerHTML = `<div class="empty-state"><div class="empty-icon">🏢</div><h2>请先选择或创建公司</h2><p>Trade AI 为多公司隔离架构</p><button onclick="showAddCompanyModal()">➕ 创建公司</button></div>`;
+        renderNoCompanyPage();
     }
 });
+
+function renderNoCompanyPage() {
+    // 清除视图缓存
+    for (const key in viewCache) {
+        viewCache[key].element.remove();
+        delete viewCache[key];
+    }
+    $('main-content').innerHTML = `<div class="empty-state"><div class="empty-icon">🏢</div><h2>请先选择或创建公司</h2><p>Trade AI 为多公司隔离架构</p><button onclick="showAddCompanyModal()">➕ 创建公司</button></div>`;
+}
 </script>
 </body>
 </html>
