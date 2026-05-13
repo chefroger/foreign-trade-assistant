@@ -24,16 +24,16 @@
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     background: var(--bg-main); color: var(--text-primary); height: 100vh; display: flex;
-    font-size: 14px; line-height: 1.5; overflow: hidden;
+    font-size: 15px; line-height: 1.6; overflow: hidden;
 }
 
 /* ── Sidebar ─────────────────────────────────────────────────────────── */
 .sidebar {
-    width: 260px; background: var(--sidebar-bg); display: flex; flex-direction: column;
+    width: 270px; background: var(--sidebar-bg); display: flex; flex-direction: column;
     flex-shrink: 0; overflow-y: auto; z-index: 10;
 }
 .sidebar-header { padding: 16px 16px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-.sidebar-header .logo { font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+.sidebar-header .logo { font-size: 17px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
 .sidebar-header .logo span { color: var(--primary-light); }
 .company-select { margin-top: 12px; }
 .company-select select {
@@ -53,17 +53,17 @@ body {
 .sidebar-nav { flex: 1; padding: 8px 8px 16px; }
 .nav-section { margin-top: 12px; }
 .nav-section-title {
-    font-size: 11px; font-weight: 600; color: var(--sidebar-section);
+    font-size: 12px; font-weight: 600; color: var(--sidebar-section);
     text-transform: uppercase; letter-spacing: 0.06em; padding: 6px 10px 4px;
 }
 .nav-item {
     display: flex; align-items: center; padding: 8px 10px; border-radius: var(--radius-sm);
     cursor: pointer; gap: 10px; transition: all 0.15s var(--ease);
-    font-size: 13.5px; color: var(--sidebar-text); margin-bottom: 1px; position: relative;
+    font-size: 14.5px; color: var(--sidebar-text); margin-bottom: 1px; position: relative;
 }
 .nav-item:hover { background: var(--sidebar-hover); color: #E2E8F0; }
 .nav-item.active { background: var(--sidebar-active); color: var(--sidebar-text-active); font-weight: 500; }
-.nav-item .nav-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+.nav-item .nav-icon { font-size: 16px; width: 22px; text-align: center; flex-shrink: 0; }
 .nav-item .nav-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nav-item .nav-badge {
     font-size: 10px; padding: 2px 6px; border-radius: 999px; background: var(--accent-red);
@@ -85,7 +85,7 @@ body {
     padding: 12px 20px; background: var(--bg-card); border-bottom: 1px solid var(--border);
     display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
 }
-.chat-topbar h2 { font-size: 15px; font-weight: 600; }
+.chat-topbar h2 { font-size: 16px; font-weight: 600; }
 .chat-topbar .chat-badges { display: flex; align-items: center; gap: 8px; }
 .chat-context-tag {
     font-size: 12px; padding: 3px 10px; border-radius: 999px; background: #EFF6FF; color: var(--primary);
@@ -111,7 +111,7 @@ body {
 }
 .message.user .msg-avatar { background: var(--primary); color: #fff; }
 .message.assistant .msg-avatar { background: #E2E8F0; color: var(--text-secondary); }
-.msg-body { font-size: 14px; line-height: 1.7; min-width: 0; }
+.msg-body { font-size: 15px; line-height: 1.75; min-width: 0; }
 .message.user .msg-body { color: var(--primary); font-weight: 500; }
 .msg-body p { margin: 0 0 8px 0; }
 .msg-body p:last-child { margin-bottom: 0; }
@@ -126,7 +126,7 @@ body {
 .sources-title { font-weight: 600; margin-bottom: 4px; }
 
 .chat-input-area {
-    position: fixed; bottom: 0; left: 260px; right: 0;
+    position: fixed; bottom: 0; left: 270px; right: 0;
     padding: 12px 20px 16px; z-index: 50; display: flex; gap: 10px;
 }
 .chat-input-inner {
@@ -134,14 +134,14 @@ body {
     border-radius: var(--radius-lg); padding: 8px 12px; box-shadow: var(--shadow-md); align-items: center;
 }
 .chat-input-inner textarea {
-    flex: 1; border: none; outline: none; resize: none; font-size: 14px;
+    flex: 1; border: none; outline: none; resize: none; font-size: 15px;
     font-family: inherit; line-height: 1.5; height: 44px; padding: 4px 0;
     background: transparent;
 }
 .chat-input-inner textarea::placeholder { color: var(--text-muted); }
 .chat-input-inner button {
-    height: 38px; padding: 0 18px; border-radius: var(--radius-sm);
-    background: var(--primary); color: #fff; border: none; font-size: 14px;
+    height: 40px; padding: 0 20px; border-radius: var(--radius-sm);
+    background: var(--primary); color: #fff; border: none; font-size: 15px;
     font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap;
 }
 .chat-input-inner button:hover { background: var(--primary-dark); }
@@ -153,9 +153,9 @@ body {
     justify-content: center; text-align: center; padding: 40px; color: var(--text-secondary);
 }
 .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.8; }
-.empty-state h2 { font-size: 18px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
-.empty-state p { font-size: 14px; margin-bottom: 20px; max-width: 400px; }
-.empty-state button { padding: 10px 20px; border-radius: var(--radius-sm); background: var(--primary); color: #fff; border: none; font-size: 14px; font-weight: 600; cursor: pointer; }
+.empty-state h2 { font-size: 19px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+.empty-state p { font-size: 15px; margin-bottom: 20px; max-width: 400px; }
+.empty-state button { padding: 11px 22px; border-radius: var(--radius-sm); background: var(--primary); color: #fff; border: none; font-size: 15px; font-weight: 600; cursor: pointer; }
 
 /* ── Panel Views (Customers / Tasks / Directory / History) ──────────── */
 .panel-view { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -163,7 +163,7 @@ body {
     padding: 14px 20px; background: var(--bg-card); border-bottom: 1px solid var(--border);
     display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; gap: 12px;
 }
-.panel-topbar h2 { font-size: 15px; font-weight: 600; }
+.panel-topbar h2 { font-size: 16px; font-weight: 600; }
 .panel-topbar-actions { display: flex; gap: 8px; align-items: center; }
 .panel-search {
     padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -175,12 +175,12 @@ body {
 /* ── Table (Customers) ──────────────────────────────────────────────── */
 .data-table { width: 100%; border-collapse: collapse; background: var(--bg-card); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
 .data-table th {
-    padding: 10px 14px; text-align: left; font-size: 12px; font-weight: 600;
+    padding: 10px 14px; text-align: left; font-size: 13px; font-weight: 600;
     color: var(--text-secondary); background: var(--bg-input); border-bottom: 2px solid var(--border);
     white-space: nowrap;
 }
 .data-table td {
-    padding: 10px 14px; font-size: 13px; border-bottom: 1px solid var(--border-light);
+    padding: 10px 14px; font-size: 14px; border-bottom: 1px solid var(--border-light);
     white-space: nowrap;
 }
 .data-table tr:hover td { background: #F8FAFC; }
@@ -248,7 +248,7 @@ body {
 }
 .task-card:hover { box-shadow: var(--shadow); }
 .task-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.task-card-name { font-size: 14px; font-weight: 600; }
+.task-card-name { font-size: 15px; font-weight: 600; }
 .task-card-schedule { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
 .task-card-cron { font-size: 11px; color: var(--text-muted); font-family: monospace; margin-bottom: 10px; }
 .task-card-next { font-size: 12px; color: var(--accent-green); margin-bottom: 10px; }
@@ -299,7 +299,7 @@ body {
 }
 .conv-list-item:hover { border-color: var(--primary); }
 .conv-list-item .conv-meta { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-.conv-list-item .conv-q { font-size: 13px; color: var(--text-primary); font-weight: 500; margin-bottom: 2px; }
+.conv-list-item .conv-q { font-size: 14px; color: var(--text-primary); font-weight: 500; margin-bottom: 2px; }
 .conv-list-item .conv-a { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── Modal ─────────────────────────────────────────────────────────── */
@@ -312,7 +312,7 @@ body {
     width: 480px; max-width: 90vw; max-height: 85vh; overflow-y: auto; box-shadow: var(--shadow-lg);
 }
 .modal.wide { width: 640px; }
-.modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+.modal h3 { font-size: 17px; font-weight: 600; margin-bottom: 16px; }
 .modal-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
 .modal-tab {
     padding: 8px 16px; border: none; background: none; cursor: pointer; font-size: 13px;
@@ -321,10 +321,10 @@ body {
 }
 .modal-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
 .form-group { margin-bottom: 14px; }
-.form-group label { display: block; font-weight: 500; margin-bottom: 4px; font-size: 13px; color: var(--text-secondary); }
+.form-group label { display: block; font-weight: 500; margin-bottom: 4px; font-size: 14px; color: var(--text-secondary); }
 .form-group input, .form-group textarea, .form-group select {
-    width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
-    font-size: 13px; font-family: inherit; background: var(--bg-input); outline: none;
+    width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 14px; font-family: inherit; background: var(--bg-input); outline: none;
 }
 .form-group input:focus, .form-group textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(59,130,246,0.1); }
 .form-group textarea { resize: vertical; min-height: 120px; }
@@ -446,9 +446,6 @@ body {
         </div>
     </nav>
 
-    <div class="sidebar-footer">
-        <button onclick="showAddCompanyModal()">🏢 公司设置</button>
-    </div>
 </aside>
 
 <!-- ═════════════════════ MAIN ═════════════════════ -->
@@ -553,8 +550,15 @@ async function api(method, path, body) {
     try {
         const r = await fetch(path, opts);
         clearTimeout(tid);
-        if (r.status === 401) { toast('请先选择公司'); return null; }
-        if (r.status === 403) { toast('无权限'); return null; }
+        if (!r.ok) {
+            const err = await r.json().catch(() => ({}));
+            const msg = err.detail || `请求失败 (${r.status})`;
+            if (r.status === 401) toast('请先选择公司');
+            else if (r.status === 404) toast(msg);
+            else if (r.status === 409) toast(msg);
+            else toast(msg);
+            return null;
+        }
         return r.json();
     } catch(e) {
         clearTimeout(tid);
@@ -1341,12 +1345,13 @@ function loadCompanyListUI() {
 async function createCompany() {
     const name = $('co-name').value.trim();
     if (!name) { toast('请填写公司名称'); return; }
-    const slug = $('co-slug').value.trim() || undefined;
+    const slug = $('co-slug').value.trim();
     const params = new URLSearchParams({name});
     if (slug) params.set('slug',slug);
     ['contact_name','contact_email','website'].forEach(f => {
-        const v = $('co-'+f.replace('_','-')).value.trim();
-        if (v) params.set(f,v);
+        const elId = 'co-' + f.replace(/_/g, '-');
+        const v = (document.getElementById(elId)?.value || '').trim();
+        if (v) params.set(f, v);
     });
     const r = await api('POST', '/api/trade/companies?'+params.toString());
     if (r?.id) {
@@ -1394,7 +1399,11 @@ async function saveCompanyIdentity() {
 
 // ═════════════════════ INIT ═════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
-    await loadCompanies();
+    try {
+        await loadCompanies();
+    } catch(e) {
+        console.error('Init loadCompanies failed:', e);
+    }
     const savedCid = loadSavedCid();
     if (savedCid && companies.find(c => c.id === savedCid)) {
         currentCompanyId = savedCid;

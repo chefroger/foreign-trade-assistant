@@ -18,16 +18,21 @@ import os
 import sys
 from pathlib import Path
 
-# ── Bootstrap: ensure Hermes Agent is importable ──────────────────────────
-# When hermes-agent is published as a standalone pip package, this block
+# ── Bootstrap: ensure Foreign Trade Assistant imports BEFORE Hermes ──────
+# Hermes also has a `trade/` package; our `trade/` must take priority.
+# NOTE: When hermes-agent is published as a standalone pip package, this block
 # can be removed — just `pip install hermes-agent` and import normally.
+_TRADE_ROOT = str(Path(__file__).resolve().parent)
+if _TRADE_ROOT not in sys.path:
+    sys.path.insert(0, _TRADE_ROOT)
+
 _HERMES_CHECKOUT = os.environ.get(
     "HERMES_HOME",
     str(Path(__file__).resolve().parent.parent / "trade_ai_assistant"),
 )
 if _HERMES_CHECKOUT and Path(_HERMES_CHECKOUT).is_dir():
     if _HERMES_CHECKOUT not in sys.path:
-        sys.path.insert(0, _HERMES_CHECKOUT)
+        sys.path.append(_HERMES_CHECKOUT)  # append, not insert — our trade/ must come first
 
 # ── Hermes version check ────────────────────────────────────────────────
 _MIN_HERMES_VERSION = "0.12.0"
