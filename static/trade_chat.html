@@ -599,10 +599,17 @@ function navToView(view, chatCtx, chatName) {
                        document.querySelector(`.nav-item[data-view="${view}"]`);
     if (activeItem) activeItem.classList.add('active');
 
-    // 隐藏所有视图
+    // 隐藏所有视图，并清除非缓存内容（如 empty state）
     const main = $('main-content');
     for (const key in viewCache) {
         viewCache[key].element.style.display = 'none';
+    }
+    // 移除 main 中不属于视图缓存的子元素（首次从 empty state 切换时）
+    const cachedIds = new Set(Object.keys(viewCache).map(k => 'view-' + k));
+    for (const child of Array.from(main.children)) {
+        if (!cachedIds.has(child.id)) {
+            child.remove();
+        }
     }
 
     // 构建缓存 key
@@ -655,10 +662,13 @@ function renderChatViewInto(container, ctx, name) {
         osint: '输入邮箱/域名/公司名，我来做全面的背景调查...',
     };
 
+    const coName = currentCompanyId ? (companies.find(c => c.id === currentCompanyId)?.name || '') : '';
+
     container.innerHTML = `
         <div class="chat-topbar">
             <div style="display:flex;align-items:center;gap:8px;">
                 <h2>${esc(name)}</h2>
+                ${coName ? `<span class="company-badge" style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:rgba(59,130,246,0.08);color:var(--primary);border-radius:999px;font-size:12px;font-weight:500;">🏢 ${esc(coName)}</span>` : ''}
                 <span class="chat-context-tag" id="chat-context-tag"></span>
             </div>
             <div class="chat-topbar-actions">
@@ -864,9 +874,10 @@ async function sendMsg() {
 
 // ═════════════════════ CUSTOMERS VIEW ═════════════════════
 async function renderCustomersViewInto(container) {
+    const coName = currentCompanyId ? (companies.find(c => c.id === currentCompanyId)?.name || '') : '';
     container.innerHTML = `
         <div class="panel-topbar">
-            <h2>👥 客户管理</h2>
+            <h2>👥 客户管理${coName ? `<span style="margin-left:10px;padding:3px 10px;background:rgba(59,130,246,0.08);color:var(--primary);border-radius:999px;font-size:12px;font-weight:500;">🏢 ${esc(coName)}</span>` : ''}</h2>
             <div class="panel-topbar-actions">
                 <input class="panel-search" id="cust-search" placeholder="搜索客户..." oninput="filterCustomers()">
                 <select id="cust-tier-filter" onchange="filterCustomers()" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--bg-card);">
@@ -1125,20 +1136,21 @@ async function saveCustomer() {
 // ═════════════════════ TASKS VIEW ═════════════════════
 function renderTasksViewInto(container) {
     const tasks = [
-        {id:1,name:'早安简报',time:'08:00',cron:'0 8 * * 1-5',desc:'总结昨日互动 + 今日待跟进清单 + 客户时区提醒',active:true,next:'明天 08:00'},
-        {id:2,name:'LinkedIn 内容发布',time:'09:30',cron:'30 9 * * 1-5',desc:'生成本日 Post + Article 草稿，可直接复制粘贴',active:true,next:'明天 09:30'},
-        {id:3,name:'欧洲客户开发信',time:'10:00',cron:'0 10 * * 1-5',desc:'筛选欧洲客户 → 生成跟进邮件',active:false,next:'--'},
-        {id:4,name:'B2B 平台数据检查',time:'11:00',cron:'0 11 * * 1-5',desc:'检查平台询盘、产品排名、同行动态',active:true,next:'明天 11:00'},
-        {id:5,name:'社媒内容发布',time:'14:00',cron:'0 14 * * 1-5',desc:'生成 FB / Ins / TikTok 帖子',active:false,next:'--'},
-        {id:6,name:'北美客户开发信',time:'16:00',cron:'0 16 * * 1-5',desc:'筛选北美客户 → 生成跟进邮件',active:false,next:'--'},
-        {id:7,name:'每日工作总结',time:'17:30',cron:'30 17 * * 1-5',desc:'汇总今日数据 → 追加到工作日报；周五自动生成周报',active:true,next:'今天 17:30'},
+        {id:1,name:'早安简报',time:'08:00',cron:'0 8 * * 1-5',desc:'总结昨日互动 + 今日待跟进清单 + 客户时区提醒',runPrompt:'请生成今天的早安简报：汇总昨日客户互动、今日待跟进事项、各目标市场时区窗口提醒'},
+        {id:2,name:'LinkedIn 内容发布',time:'09:30',cron:'30 9 * * 1-5',desc:'生成本日 LinkedIn Post + Article 草稿',runPrompt:'请生成本日的 LinkedIn 帖子：行业洞察 + 产品价值 + 互动提问，带 5 个 hashtag，可直接复制粘贴发布'},
+        {id:3,name:'欧洲客户开发信',time:'10:00',cron:'0 10 * * 1-5',desc:'筛选欧洲客户 → 生成跟进邮件',runPrompt:'请筛选欧洲客户中需要跟进的，为每个客户生成个性化的开发信或跟进邮件'},
+        {id:4,name:'B2B 平台数据检查',time:'11:00',cron:'0 11 * * 1-5',desc:'检查平台询盘、产品排名、同行动态',runPrompt:'请检查 B2B 平台最新情况：新询盘数量、产品排名变化、同行动态，并给出今日优化建议'},
+        {id:5,name:'社媒内容发布',time:'14:00',cron:'0 14 * * 1-5',desc:'生成 FB / Ins / TikTok 帖子',runPrompt:'请生成本日社媒发布内容：包含 1 条 Facebook 帖子 + 1 个 Instagram 文案 + 1 个 TikTok 脚本，配图/视频建议和标签'},
+        {id:6,name:'北美客户开发信',time:'16:00',cron:'0 16 * * 1-5',desc:'筛选北美客户 → 生成跟进邮件',runPrompt:'请筛选北美/美国客户中需要跟进的，为每个客户生成个性化的开发信或跟进邮件，注意北美时区'},
+        {id:7,name:'每日工作总结',time:'17:30',cron:'30 17 * * 1-5',desc:'汇总今日数据 → 追加到工作日报（周五生成周报）',runPrompt:'请生成今日工作总结：今日完成事项（询盘/报价/跟进/订单/社媒）、明日待办优先级、今日 KPI 数据汇总。如果是周五，同时生成本周周报'},
     ];
 
+    const coName = currentCompanyId ? (companies.find(c => c.id === currentCompanyId)?.name || '') : '';
     container.innerHTML = `
         <div class="panel-topbar">
-            <h2>⏰ 定时任务</h2>
+            <h2>⏰ 定时任务${coName ? `<span style="margin-left:10px;padding:3px 10px;background:rgba(59,130,246,0.08);color:var(--primary);border-radius:999px;font-size:12px;font-weight:500;">🏢 ${esc(coName)}</span>` : ''}</h2>
             <div class="panel-topbar-actions">
-                <button class="btn btn-primary" onclick="toast('请通过 Hermes cron 系统管理任务')">⚡ 一键初始化</button>
+                <button class="btn btn-primary" onclick="setupAllCronTasks()">⚡ 一键初始化全部定时任务</button>
             </div>
         </div>
         <div class="panel-body">
@@ -1147,34 +1159,50 @@ function renderTasksViewInto(container) {
                 <div class="task-card">
                     <div class="task-card-header">
                         <span class="task-card-name">${t.name}</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" ${t.active?'checked':''} onchange="toggleTask(${t.id},this.checked)">
-                            <span class="toggle-slider"></span>
-                        </label>
                     </div>
-                    <div class="task-card-schedule">🕐 ${t.time}（工作日）</div>
-                    <div class="task-card-cron">cron: ${t.cron}</div>
-                    <div class="task-card-next">▶ 下次运行：${t.next}</div>
+                    <div class="task-card-schedule">🕐 每天 ${t.time}（工作日）</div>
                     <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">${t.desc}</div>
                     <div class="task-card-actions">
-                        <button onclick="toast('任务已触发，请查看聊天窗口')">▶ 立即执行</button>
-                        <button onclick="toast('功能开发中')">⚙ 编辑</button>
-                        <button onclick="toast('功能开发中')">📋 日志</button>
+                        <button onclick="runSingleTask('${esc(t.name)}', \`${t.runPrompt}\`)">▶ 手动执行</button>
                     </div>
                 </div>`).join('')}
             </div>
         </div>`;
 }
 
-function toggleTask(id, active) {
-    toast(`任务 #${id} ${active?'已启用':'已停用'}（功能开发中）`);
+function runSingleTask(taskName, prompt) {
+    if (!currentCompanyId) { toast('请先选择公司'); return; }
+    // 切换到聊天视图并自动发送 prompt
+    navToView('chat', 'daily', taskName);
+    // 等视图渲染后填入 prompt 并发送
+    setTimeout(() => {
+        const input = document.getElementById('msg-input');
+        if (input) {
+            input.value = prompt;
+            // 触发发送
+            sendMsg();
+        }
+    }, 300);
+}
+
+function setupAllCronTasks() {
+    if (!currentCompanyId) { toast('请先选择公司'); return; }
+    navToView('chat', 'daily', '定时任务初始化');
+    setTimeout(() => {
+        const input = document.getElementById('msg-input');
+        if (input) {
+            input.value = '请使用 cronjob 工具为我创建 7 个工作日定时任务，根据我公司的行业和目标市场生成合适的 system prompt：\\n1. 08:00 早安简报\\n2. 09:30 LinkedIn 内容发布\\n3. 10:00 欧洲客户开发信\\n4. 11:00 B2B 平台数据检查\\n5. 14:00 社媒内容发布\\n6. 16:00 北美客户开发信\\n7. 17:30 每日工作总结（周五生成周报）\\n\\nschedule 格式使用标准 cron 表达式，如 "0 8 * * 1-5"。deliver 目标设为当前对话。';
+            sendMsg();
+        }
+    }, 300);
 }
 
 // ═════════════════════ DIRECTORY VIEW ═════════════════════
 function renderDirectoryViewInto(container) {
+    const coName = currentCompanyId ? (companies.find(c => c.id === currentCompanyId)?.name || '') : '';
     container.innerHTML = `
         <div class="panel-topbar">
-            <h2>📂 数据目录</h2>
+            <h2>📂 数据目录${coName ? `<span style="margin-left:10px;padding:3px 10px;background:rgba(59,130,246,0.08);color:var(--primary);border-radius:999px;font-size:12px;font-weight:500;">🏢 ${esc(coName)}</span>` : ''}</h2>
             <div class="panel-topbar-actions">
                 <button class="btn" onclick="toast('功能开发中：将在文件管理器中打开')">📂 打开目录</button>
             </div>
@@ -1256,9 +1284,10 @@ function previewFile(name) {
 
 // ═════════════════════ HISTORY VIEW ═════════════════════
 async function renderHistoryViewInto(container) {
+    const coName = currentCompanyId ? (companies.find(c => c.id === currentCompanyId)?.name || '') : '';
     container.innerHTML = `
         <div class="panel-topbar">
-            <h2>💬 对话记录</h2>
+            <h2>💬 对话记录${coName ? `<span style="margin-left:10px;padding:3px 10px;background:rgba(59,130,246,0.08);color:var(--primary);border-radius:999px;font-size:12px;font-weight:500;">🏢 ${esc(coName)}</span>` : ''}</h2>
             <div class="panel-topbar-actions">
                 <input class="panel-search" id="conv-search" placeholder="搜索对话..." oninput="filterConversations()">
             </div>

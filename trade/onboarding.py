@@ -126,12 +126,10 @@ def create_first_company(
     contact_name: str = "",
     contact_email: str = "",
     identity_data: Optional[dict] = None,
+    *,
+    work_dir_name: str = "",
 ) -> dict:
     """创建第一个公司并配置其 Agent 身份（原子操作）。
-
-    相当于以下两步的合并，但保证原子性：
-      1. company.create(name=company_name, ...)
-      2. update_trade_company(agent_identity_md=...)
 
     参数：
         company_name: 公司名称（必填）
@@ -139,6 +137,7 @@ def create_first_company(
         contact_email: 联系人邮箱（可选）
         identity_data: Agent 身份配置字典（可选），
             含 role/products/differentiation/target_region
+        work_dir_name: 桌面工作目录名称（目录已存在时用户指定的新名字）
 
     返回：
         {"company": {...}, "trade_company": {...}}
@@ -155,12 +154,12 @@ def create_first_company(
         identity_data or {},
     )
 
-    # Step 1: 创建公司记录（自动创建 ~/.trade/{slug}/ 目录）
-    # company.create() 会同时创建 trade_companies 记录（data_dir 已设好）
+    # Step 1: 创建公司记录 + 桌面工作目录 + 文档库
     company = _company_module.create(
         name=company_name.strip(),
         contact_name=contact_name.strip(),
         contact_email=contact_email.strip(),
+        work_dir_name=work_dir_name,
     )
 
     # Step 2: 将 agent_identity_md 写入 trade_companies（覆盖空值）

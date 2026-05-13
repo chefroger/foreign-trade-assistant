@@ -27,17 +27,18 @@ def get_onboarding_status():
 def create_first_company(body: dict):
     """一体化创建第一个公司并配置 Agent 身份（原子操作）。
 
-    将公司创建 + Agent 身份配置合并为一步，避免两步操作导致状态不完整。
-    仅当系统尚未有任何活跃公司时才能调用；已有公司时返回 409。
+    将公司创建 + Agent 身份配置 + 桌面工作目录合并为一步。
 
     Body 参数：
         company_name   (str, 必填): 公司名称
         contact_name   (str, 可选): 联系人姓名
         contact_email  (str, 可选): 联系人邮箱
         identity_data  (dict, 可选): Agent 身份配置
+        work_dir_name  (str, 可选): 桌面工作目录名称（目录已存在时用户指定新名字）
 
     返回：
-        {"company": {...}, "trade_company": {...}}
+        {"company": {...}, "trade_company": {...},
+         "work_dir": str, "work_dir_is_new": bool, "libraries": [...]}
 
     状态码：
         200: 创建成功
@@ -61,6 +62,7 @@ def create_first_company(body: dict):
             contact_name=body.get("contact_name", ""),
             contact_email=body.get("contact_email", ""),
             identity_data=body.get("identity_data"),
+            work_dir_name=body.get("work_dir_name", ""),
         )
         return result
     except ValueError as e:

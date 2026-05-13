@@ -174,14 +174,18 @@ class TestLibraryCRUD:
         assert lib["company_id"] == company_id
 
     def test_list_by_company(self, test_db, company_id):
-        """列出特定公司的文档库。"""
+        """列出特定公司的文档库（含自动创建的工作目录库）。"""
         from trade import library
+        # company.create() 自动创建了 8 个工作子目录库
+        auto_libs = library.list_by_company(company_id)
+        auto_count = len(auto_libs)
+
         library.create("Lib A", "/tmp/a", company_id=company_id)
         library.create("Lib B", "/tmp/b", company_id=company_id)
 
         libs = library.list_by_company(company_id)
-        assert len(libs) == 2
-        assert {l["name"] for l in libs} == {"Lib A", "Lib B"}
+        assert len(libs) == auto_count + 2
+        assert {"Lib A", "Lib B"}.issubset({l["name"] for l in libs})
 
     def test_data_isolation(self, test_db):
         """不同公司的文档库应隔离。"""
@@ -192,8 +196,14 @@ class TestLibraryCRUD:
         library.create("C1 Lib", "/tmp/c1", company_id=c1["id"])
         library.create("C2 Lib", "/tmp/c2", company_id=c2["id"])
 
-        assert len(library.list_by_company(c1["id"])) == 1
-        assert len(library.list_by_company(c2["id"])) == 1
+        c1_libs = library.list_by_company(c1["id"])
+        c2_libs = library.list_by_company(c2["id"])
+        # 各有自动创建的 8 个工作目录库 + 1 个手动库
+        assert len(c1_libs) >= 1
+        assert len(c2_libs) >= 1
+        # C2 看不到 C1 的库
+        c1_lib_names = {l["name"] for l in c1_libs}
+        assert "C2 Lib" not in c1_lib_names
 
     def test_get_with_company_scope(self, test_db, company_id):
         """跨公司查询应返回 None。"""

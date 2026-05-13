@@ -13,11 +13,10 @@ Trade AI Assistant — 文档库管理 API 路由。
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, File, Header, HTTPException, UploadFile
+from fastapi import APIRouter, Header, HTTPException
 
 from trade import library as library_module
 from trade.api.deps import require_company, opt_company
@@ -89,29 +88,6 @@ def delete_library(
     if not library_module.delete(library_id, company_id=cid):
         raise HTTPException(status_code=404, detail="Library not found")
     return {"ok": True}
-
-
-@router.post("/libraries/{library_id}/upload")
-async def upload_file_to_library(
-    library_id: int,
-    file: UploadFile = File(...),
-    x_company_id: Optional[str] = Header(None, alias="X-Company-ID"),
-):
-    """上传文件到文档库的 root_path 目录。"""
-    cid = require_company(x_company_id)
-    lib = library_module.get(library_id, company_id=cid)
-    if not lib:
-        raise HTTPException(status_code=404, detail="Library not found")
-
-    root = Path(lib["root_path"])
-    if not root.is_dir():
-        root.mkdir(parents=True, exist_ok=True)
-
-    dest = root / file.filename
-    with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-
-    return {"ok": True, "filename": file.filename, "path": str(dest)}
 
 
 @router.get("/libraries/{library_id}/files")

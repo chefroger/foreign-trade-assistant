@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 from trade.database import get_connection
+from trade import library as _library_module
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -147,6 +148,99 @@ def get_by_slug(slug: str) -> Optional[dict]:
         conn.close()
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 桌面工作目录（按外贸业务流程分类）
+# ─────────────────────────────────────────────────────────────────────────────
+
+# 每个公司自动在桌面创建的工作目录结构，每个子目录对应一条 library 记录
+_WORK_DIR_CATEGORIES: list[tuple[str, str]] = [
+    ("报价单", "客户报价、价格谈判记录"),
+    ("合同", "销售合同、采购合同、协议"),
+    ("客户资料", "客户公司信息、联系人、需求"),
+    ("产品规格", "产品参数表、规格书、技术文档"),
+    ("发票", "商业发票、形式发票"),
+    ("物流单据", "装箱单、提单、报关单、货运记录"),
+    ("认证资质", "ISO认证、CE证书、检测报告"),
+    ("营销素材", "产品图片、视频、公司介绍PPT、社媒素材"),
+]
+
+
+def _setup_work_directory(company_name: str, slug: str, suggested_name: str = "") -> tuple[Path, bool]:
+    """在桌面创建公司工作目录，包含外贸业务流程分类子目录。
+
+    如果目标目录已存在，尝试加数字后缀（如 "科辰电力-2"）。
+
+    Args:
+        company_name: 公司名称
+        slug: 公司 slug
+        suggested_name: 用户指定的替代目录名（重命名场景），为空则用公司名
+
+    Returns:
+        (work_dir_path, is_new) — 目录路径 + 是否为新创建（False = 目录已存在，用了后缀名）
+    """
+    desktop = Path.home() / "Desktop"
+    # macOS 中文桌面
+    if not desktop.is_dir():
+        desktop = Path.home() / "桌面"
+    if not desktop.is_dir():
+        desktop = Path.home()
+
+    # 确定目录名
+    dir_name = suggested_name.strip() if suggested_name.strip() else company_name.strip()
+    # 清理文件名中的非法字符
+    dir_name = re.sub(r'[<>:"/\\|?*]', '-', dir_name)
+    dir_name = dir_name.strip()
+
+    work_dir = desktop / dir_name
+    is_new = True
+
+    # 如果目录已存在，尝试加后缀
+    if work_dir.exists():
+        suffix = 2
+        while True:
+            alt_name = f"{dir_name}-{suffix}"
+            alt_dir = desktop / alt_name
+            if not alt_dir.exists():
+                work_dir = alt_dir
+                break
+            suffix += 1
+            if suffix > 99:
+                # 极端情况：使用 slug 作为后备
+                work_dir = desktop / slug
+                break
+        is_new = False
+
+    # 创建目录结构
+    work_dir.mkdir(parents=True, exist_ok=True)
+    for cat_name, _ in _WORK_DIR_CATEGORIES:
+        (work_dir / cat_name).mkdir(parents=True, exist_ok=True)
+
+    return work_dir, is_new
+
+
+def _register_work_libraries(company_id: int, work_dir: Path) -> list[dict]:
+    """将工作目录的每个子目录注册为 document library。
+
+    Args:
+        company_id: 公司 ID
+        work_dir: 工作目录根路径
+
+    Returns:
+        创建的 library 记录列表
+    """
+    libraries = []
+    for cat_name, cat_desc in _WORK_DIR_CATEGORIES:
+        cat_path = work_dir / cat_name
+        lib = _library_module.create(
+            name=cat_name,
+            root_path=str(cat_path),
+            description=cat_desc,
+            company_id=company_id,
+        )
+        libraries.append(lib)
+    return libraries
+
+
 def create(
     name: str,
     slug: Optional[str] = None,
@@ -155,8 +249,25 @@ def create(
     contact_name: str = "",
     contact_email: str = "",
     address: str = "",
+    *,
+    work_dir_name: str = "",
 ) -> dict:
-    """Create a new company and its trade_companies entry."""
+    """创建新公司及其 trade_companies 记录 + 桌面工作目录 + 文档库。
+
+    Args:
+        name: 公司名称
+        slug: URL 标识（省略时从 name 自动生成）
+        work_dir_name: 桌面工作目录名称。目录已存在时自动加后缀。
+                       为空则用公司名称。
+
+    Returns:
+        {
+            "id": int, "name": str, "slug": str, ...,
+            "work_dir": str,           # 桌面工作目录绝对路径
+            "work_dir_is_new": bool,   # 是否为新创建（用于前端提示）
+            "libraries": [dict, ...],  # 自动创建的文档库列表
+        }
+    """
     if not slug:
         slug = _slugify(name)
     # Ensure slug is unique
@@ -167,7 +278,15 @@ def create(
         ).fetchone()
         if existing:
             raise ValueError(f"Company with slug '{slug}' already exists")
+
+        # 创建 ~/.trade/{slug}/ 数据目录
         data_dir = str(_ensure_data_dir(slug))
+
+        # 创建桌面工作目录
+        work_dir, is_new = _setup_work_directory(
+            name, slug, suggested_name=work_dir_name
+        )
+
         cursor = conn.execute(
             "INSERT INTO companies (name, slug, logo_url, website, contact_name, "
             "contact_email, address) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -179,7 +298,16 @@ def create(
             (company_id, data_dir),
         )
         conn.commit()
-        return get(company_id)
+
+        # 注册桌面工作目录下的文档库
+        libs = _register_work_libraries(company_id, work_dir)
+
+        result = get(company_id)
+        if result:
+            result["work_dir"] = str(work_dir)
+            result["work_dir_is_new"] = is_new
+            result["libraries"] = libs
+        return result
     finally:
         conn.close()
 
