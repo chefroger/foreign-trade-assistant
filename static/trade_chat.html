@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade AI Assistant — 智能外贸销售助手</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>marked.setOptions({ breaks: true, gfm: true });</script>
+    <style>
+        :root {
+            --primary: #0891B2; --primary-dark: #0E7490; --primary-light: #22D3EE;
+            --accent: #F59E0B;
+            --bg-primary: #FFFFFF; --bg-secondary: #F8FAFC; --bg-tertiary: #F1F5F9;
+            --text-primary: #0F172A; --text-secondary: #475569; --text-muted: #94A3B8;
+            --success: #10B981; --warning: #F59E0B; --error: #EF4444;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+            --ease-out: cubic-bezier(0.33,1,0.68,1);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-secondary); color: var(--text-primary); height: 100vh;
+            display: flex; flex-direction: column; font-size: 1rem; line-height: 1.5;
+        }
+        .app-container { display: flex; flex: 1; overflow: hidden; height: 100%; }
+        /* Sidebar */
+        .sidebar {
+            width: 300px; background: var(--bg-secondary); border-right: 1px solid rgba(0,0,0,0.1);
+            display: flex; flex-direction: column; flex-shrink: 0;
+        }
+        .sidebar-header { padding: 1rem; }
+        .sidebar-header h1 { font-size: 1.0625rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 0.5rem; }
+        .company-selector {
+            margin-top: 0.625rem; display: flex; align-items: center; gap: 0.5rem;
+        }
+        .company-selector select {
+            flex: 1; padding: 0.45rem 0.6rem; background: var(--bg-primary);
+            border: 1px solid rgba(0,0,0,0.12); border-radius: 0.5rem;
+            font-size: 0.875rem; color: var(--text-primary); cursor: pointer;
+        }
+        .company-selector select:focus { outline: none; border-color: var(--primary); }
+        .company-selector .btn-sm { height: 30px; padding: 0 0.5rem; font-size: 0.8125rem; border-radius: 0.5rem; }
+        .sidebar-content { flex: 1; overflow-y: auto; padding: 0.75rem; }
+        .sidebar-section-title { font-size: 0.8125rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 0.5rem 0.75rem; font-weight: 600; }
+        .sidebar-footer { padding: 0.75rem 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+        .nav-item {
+            display: flex; align-items: center; padding: 0.7rem 0.75rem; border-radius: 0.625rem;
+            cursor: pointer; gap: 0.5rem; transition: all 0.2s var(--ease-out); position: relative;
+            font-size: 0.9375rem;
+        }
+        .nav-item:hover { background: rgba(8,145,178,0.08); }
+        .nav-item.active { background: rgba(8,145,178,0.12); color: var(--primary); font-weight: 600; }
+        .nav-item .icon { font-size: 1.25rem; }
+        .nav-item .name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .nav-item .delete-btn { display: none; padding: 0.15rem 0.4rem; border-radius: 0.25rem; background: #ef4444; color: white; font-size: 0.75rem; cursor: pointer; position: absolute; right: 0.5rem; }
+        .nav-item:hover .delete-btn { display: block; }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem;
+            height: 40px; padding: 0 1rem; border-radius: 0.5rem; font-size: 0.875rem;
+            font-weight: 600; cursor: pointer; transition: all 0.2s var(--ease-out); border: none;
+        }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 14px rgba(8,145,178,0.39); }
+        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+        .btn-secondary { background: var(--bg-primary); color: var(--text-secondary); border: 1px solid rgba(0,0,0,0.08); }
+        .btn-secondary:hover { background: var(--bg-tertiary); }
+        .btn-block { width: 100%; }
+        .btn-sm { height: 36px; padding: 0 0.75rem; font-size: 0.8125rem; }
+        /* Main */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .top-bar { background: var(--bg-secondary); padding: 0.75rem 1.25rem; border-bottom: 1px solid rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        .top-bar h2 { font-size: 0.9375rem; font-weight: 600; }
+        .badge { display: inline-flex; align-items: center; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.8125rem; background: var(--bg-tertiary); color: var(--text-secondary); margin-left: 0.5rem; }
+        /* Chat */
+        .chat-area { flex: 1; overflow-y: auto; padding: 1rem 1.5rem; padding-bottom: 75px; display: flex; flex-direction: column; gap: 0.75rem; }
+        .message { display: flex; gap: 0.75rem; max-width: 100%; animation: msgIn 0.3s var(--ease-out); }
+        @keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .message.user { flex-direction: row-reverse; }
+        .message-avatar { width: 2.25rem; height: 2.25rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; flex-shrink: 0; font-size: 0.875rem; }
+        .message.user .message-avatar { background: var(--primary); color: white; }
+        .message.assistant .message-avatar { background: var(--bg-tertiary); }
+        .message-content { font-size: 0.9375rem; line-height: 1.65; }
+        .message.user .message-content { color: var(--primary); font-weight: 500; }
+        .message-content p { margin: 0 0 0.5rem 0; }
+        .message-content p:last-child { margin-bottom: 0; }
+        .message-content table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.875rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; overflow: hidden; }
+        .message-content th, .message-content td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .message-content th { background: var(--bg-tertiary); font-weight: 600; }
+        .message-content code { background: #f1f5f9; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.875em; }
+        .message-content pre { background: #f1f5f9; padding: 0.75rem; border-radius: 0.5rem; overflow-x: auto; }
+        .message-content pre code { background: none; padding: 0; }
+        .sources { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(0,0,0,0.06); font-size: 0.8125rem; color: var(--text-muted); }
+        .sources-title { font-weight: 600; margin-bottom: 0.25rem; }
+        /* Input */
+        .input-area { position: fixed; bottom: 0; left: 300px; right: 0; background: transparent; padding: 0.625rem 1.5rem; z-index: 100; display: flex; gap: 0.75rem; align-items: center; }
+        .input-area textarea { flex: 1; padding: 0.75rem 1rem; background: var(--bg-tertiary); border: 1px solid rgba(0,0,0,0.1); border-radius: 0.5rem; font-size: 0.9375rem; resize: none; font-family: inherit; height: 44px; line-height: 22px; }
+        .input-area textarea:focus { outline: none; background: var(--bg-primary); box-shadow: 0 0 0 2px rgba(8,145,178,0.15); }
+        /* Welcome */
+        .welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; }
+        .welcome h2 { font-size: 1.25rem; margin-bottom: 0.5rem; color: var(--primary); }
+        .welcome p { color: var(--text-muted); margin-bottom: 1.5rem; max-width: 450px; font-size: 0.9375rem; }
+        /* Modal */
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.6); display: flex; align-items: center; justify-content: center; z-index: 200; }
+        .modal { background: var(--bg-primary); padding: 1.5rem; border-radius: 1rem; max-width: 500px; width: 90%; box-shadow: var(--shadow-lg); }
+        .modal.wide { max-width: 700px; }
+        .modal h3 { font-size: 1.0625rem; font-weight: 600; margin-bottom: 1rem; }
+        .modal-tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; border-bottom: 1px solid rgba(0,0,0,0.08); }
+        .modal-tab { padding: 0.5rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.875rem; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+        .modal-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-weight: 500; margin-bottom: 0.25rem; font-size: 0.875rem; color: var(--text-secondary); }
+        .form-group input, .form-group textarea { width: 100%; padding: 0.625rem 0.75rem; background: var(--bg-secondary); border: 1px solid rgba(0,0,0,0.1); border-radius: 0.5rem; font-size: 0.9375rem; font-family: inherit; }
+        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(8,145,178,0.1); }
+        .form-group textarea { resize: vertical; min-height: 120px; }
+        .form-row { display: flex; gap: 0.75rem; }
+        .form-row .form-group { flex: 1; }
+        .hint { font-size: 0.8125rem; color: var(--text-muted); margin-top: 0.25rem; }
+        .hidden { display: none !important; }
+        .spinner { width: 1.25rem; height: 1.25rem; border: 2px solid var(--bg-tertiary); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading { display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted); font-size: 0.9375rem; }
+        .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; padding: 0.75rem 1.25rem; background: var(--text-primary); color: white; border-radius: 0.75rem; font-size: 0.875rem; z-index: 300; animation: slideIn 0.3s var(--ease-out); }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(1rem); } to { opacity: 1; transform: translateY(0); } }
+        /* Tool progress */
+        .tool-progress { margin: 0.25rem 0; border: 1px solid rgba(0,0,0,0.06); border-radius: 0.5rem; overflow: hidden; }
+        .tool-item { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.45rem 0.6rem; font-size: 0.8125rem; border-bottom: 1px solid rgba(0,0,0,0.04); transition: background 0.2s; }
+        .tool-item:last-child { border-bottom: none; }
+        .tool-item .tool-icon { width: 1.125rem; height: 1.125rem; flex-shrink: 0; margin-top: 0.1rem; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; }
+        .tool-item .tool-body { flex: 1; min-width: 0; }
+        .tool-item .tool-name { font-weight: 600; color: var(--text-primary); }
+        .tool-item .tool-detail { color: var(--text-muted); font-size: 0.75rem; margin-top: 0.125rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tool-item.running { background: rgba(8,145,178,0.04); }
+        .tool-item.running .tool-icon { color: var(--primary); animation: spin 0.8s linear infinite; }
+        .tool-item.done { background: transparent; }
+        .tool-item.done .tool-icon { color: var(--success); }
+        .tool-item.failed .tool-icon { color: var(--error); }
+        /* No-company state */
+        .no-company { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; }
+        .no-company h2 { font-size: 1.125rem; margin-bottom: 0.5rem; color: var(--text-secondary); }
+        .no-company p { color: var(--text-muted); margin-bottom: 1.25rem; font-size: 0.9375rem; }
+        /* Company badge */
+        .company-badge { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.2rem 0.6rem; background: rgba(8,145,178,0.08); color: var(--primary); border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+    </style>
+</head>
+<body>
+<div class="app-container">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <h1>📄 Trade AI</h1>
+        <div class="company-selector">
+            <select id="company-select" onchange="onCompanyChange(this.value)">
+                <option value="">— 选择公司 —</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="showModal('company-modal')" title="添加公司">➕</button>
+        </div>
+    </div>
+    <div class="sidebar-content">
+        <div class="nav-item active" id="nav-default" onclick="switchChat(null,null,'默认对话')">
+            <span class="icon">💬</span><span class="name">聊一聊</span>
+        </div>
+        <div class="sidebar-section-title">📁 文档库</div>
+        <div id="library-list">
+            <div class="nav-item" onclick="showLibraryModal()"><span class="icon">➕</span><span>新建文档库</span></div>
+        </div>
+        <div class="sidebar-section-title">👤 客户</div>
+        <div id="customer-list">
+            <div class="nav-item" onclick="showCustomerModal()"><span class="icon">➕</span><span>添加客户</span></div>
+        </div>
+    </div>
+    <div class="sidebar-footer">
+        <button class="btn btn-secondary btn-block btn-sm" onclick="showModal('company-modal')">🏢 公司设置</button>
+        <button class="btn btn-secondary btn-block btn-sm" onclick="location.href='/dashboard'">⚙️ 管理面板</button>
+    </div>
+</aside>
+
+<!-- Main -->
+<main class="main-content">
+    <!-- No company selected -->
+    <div id="no-company-page" class="no-company">
+        <div style="font-size:2.5rem;margin-bottom:1rem;">🏢</div>
+        <h2>请先选择或创建公司</h2>
+        <p>Trade AI 为多公司隔离架构，每个公司有独立的文档库、客户和对话记录。</p>
+        <div style="display:flex;gap:0.75rem;">
+            <button class="btn btn-primary" onclick="showModal('company-modal')">➕ 创建公司</button>
+            <button class="btn btn-secondary" onclick="loadCompanies()">🔄 刷新公司列表</button>
+        </div>
+    </div>
+
+    <!-- Welcome -->
+    <div id="welcome-page" class="welcome hidden">
+        <div style="font-size:3rem;margin-bottom:1rem;">📄</div>
+        <h2>Trade AI Assistant</h2>
+        <p id="welcome-company-name"></p>
+        <div style="display:flex;gap:1rem;">
+            <button class="btn btn-primary" onclick="showLibraryModal()">➕ 新建文档库</button>
+            <button class="btn btn-secondary" onclick="switchChat(null,null,'默认对话')">💬 开始对话</button>
+        </div>
+    </div>
+
+    <!-- Chat -->
+    <div id="chat-page" class="hidden" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+        <div class="top-bar">
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+                <h2 id="chat-title">默认对话</h2>
+                <span class="badge hidden" id="chat-badge"></span>
+                <span class="company-badge hidden" id="company-badge"></span>
+            </div>
+            <div style="display:flex;gap:0.5rem;">
+                <button class="btn btn-secondary btn-sm" onclick="showCompanyChatSettings()" title="公司身份配置">🏢</button>
+                <button class="btn btn-secondary btn-sm" onclick="clearChat()">🗑️ 清空</button>
+            </div>
+        </div>
+        <div class="chat-area" id="chat-messages"></div>
+        <div class="input-area">
+            <textarea id="msg-input" placeholder="输入您的问题..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"></textarea>
+            <button class="btn btn-primary" onclick="sendMsg()">发送</button>
+        </div>
+    </div>
+</main>
+</div>
+
+<!-- Company Modal -->
+<div class="modal-backdrop hidden" id="company-modal">
+    <div class="modal wide">
+        <h3>🏢 公司设置</h3>
+        <div class="modal-tabs">
+            <button class="modal-tab active" onclick="switchModalTab('tab-companies')" id="tab-btn-companies">公司列表</button>
+            <button class="modal-tab" onclick="switchModalTab('tab-identity')" id="tab-btn-identity">Agent 身份配置</button>
+        </div>
+        <!-- Tab: Companies -->
+        <div id="tab-companies">
+            <div id="company-list-ui" style="margin-bottom:1rem;"></div>
+            <hr style="border:none;border-top:1px solid rgba(0,0,0,0.08);margin:1rem 0;">
+            <h4 style="font-size:0.875rem;font-weight:600;margin-bottom:0.75rem;">添加新公司</h4>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>公司名称 *</label>
+                    <input type="text" id="co-name" placeholder="例如：科辰电力出口部">
+                </div>
+                <div class="form-group">
+                    <label>Slug（URL标识）</label>
+                    <input type="text" id="co-slug" placeholder="auto-generated">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>联系人</label>
+                    <input type="text" id="co-contact-name" placeholder="姓名">
+                </div>
+                <div class="form-group">
+                    <label>联系邮箱</label>
+                    <input type="email" id="co-contact-email" placeholder="email@example.com">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>公司网站</label>
+                <input type="text" id="co-website" placeholder="https://...">
+            </div>
+            <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
+                <button class="btn btn-secondary" onclick="hideModal('company-modal')">关闭</button>
+                <button class="btn btn-primary" onclick="createCompany()">创建公司</button>
+            </div>
+        </div>
+        <!-- Tab: Agent Identity -->
+        <div id="tab-identity" class="hidden">
+            <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1rem;">配置当前选中公司的 AI Agent 身份。系统会在对话时将此内容注入 AI 的系统提示词。</p>
+            <div class="form-group">
+                <label>Agent 身份配置 (Markdown)</label>
+                <textarea id="identity-editor" placeholder="粘贴 agent-identity.md 内容，或手动编辑..."></textarea>
+            </div>
+            <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
+                <button class="btn btn-secondary" onclick="hideModal('company-modal')">关闭</button>
+                <button class="btn btn-primary" onclick="saveCompanyIdentity()">保存身份配置</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Library Modal -->
+<div class="modal-backdrop hidden" id="library-modal">
+    <div class="modal">
+        <h3>新建文档库</h3>
+        <div class="form-group"><label>库名称</label><input type="text" id="lib-name" placeholder="例如：产品报价库"></div>
+        <div class="form-group"><label>文档目录路径</label><input type="text" id="lib-path" placeholder="/Users/xxx/Documents/客户资料"><p class="hint">📌 Mac: 文件夹上右键→Option键→复制路径名</p></div>
+        <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
+            <button class="btn btn-secondary" onclick="hideModal('library-modal')">取消</button>
+            <button class="btn btn-primary" onclick="createLibrary()">创建</button>
+        </div>
+    </div>
+</div>
+
+<!-- Customer Modal -->
+<div class="modal-backdrop hidden" id="customer-modal">
+    <div class="modal">
+        <h3>添加客户</h3>
+        <div class="form-group"><label>客户名称 *</label><input type="text" id="cust-name" placeholder="公司名称"></div>
+        <div class="form-group"><label>联系方式</label><input type="text" id="cust-contact" placeholder="邮箱或电话"></div>
+        <div class="form-group"><label>备注</label><input type="text" id="cust-note" placeholder="可选"></div>
+        <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
+            <button class="btn btn-secondary" onclick="hideModal('customer-modal')">取消</button>
+            <button class="btn btn-primary" onclick="createCustomer()">添加</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+// ── State ───────────────────────────────────────────────────────────────────
+let companies = [];           // [{id, name, slug, ...}]
+let currentCompanyId = null;   // sessionStorage
+let currentLibraryId = null;
+let currentCustomerId = null;
+let currentChatName = '默认对话';
+
+// ── Persistence ──────────────────────────────────────────────────────────────
+function saveCurrentCompany() {
+    if (currentCompanyId) sessionStorage.setItem('trade_company_id', currentCompanyId);
+    else sessionStorage.removeItem('trade_company_id');
+}
+function loadSavedCompany() {
+    return parseInt(sessionStorage.getItem('trade_company_id') || '0') || null;
+}
+
+// ── API helpers ─────────────────────────────────────────────────────────────
+const TOKEN = localStorage.getItem('trade_token') || '';
+async function api(method, path, body) {
+    const opts = { method, headers: {} };
+    if (TOKEN) opts.headers['X-Hermes-Session-Token'] = TOKEN;
+    if (currentCompanyId) opts.headers['X-Company-ID'] = String(currentCompanyId);
+    if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 300000);
+    opts.signal = controller.signal;
+    try {
+        const r = await fetch(path, opts);
+        clearTimeout(timeoutId);
+        if (r.status === 401) { toast('请先选择公司，或刷新重试'); return null; }
+        if (r.status === 403) { toast('无权限操作（公司不匹配）'); return null; }
+        return r.json();
+    } catch(e) {
+        clearTimeout(timeoutId);
+        if (e.name === 'AbortError') throw new Error('请求超时（5分钟）');
+        throw e;
+    }
+}
+
+// ── UI helpers ──────────────────────────────────────────────────────────────
+function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function hideModal(id) { document.getElementById(id).classList.add('hidden'); }
+function toast(msg) {
+    const c = document.getElementById('toast-container');
+    const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+    c.appendChild(t); setTimeout(() => t.remove(), 3000);
+}
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
+
+function switchModalTab(tab) {
+    document.getElementById('tab-companies').classList.toggle('hidden', tab !== 'tab-companies');
+    document.getElementById('tab-identity').classList.toggle('hidden', tab !== 'tab-identity');
+    document.getElementById('tab-btn-companies').classList.toggle('active', tab === 'tab-companies');
+    document.getElementById('tab-btn-identity').classList.toggle('active', tab === 'tab-identity');
+    if (tab === 'tab-identity') loadIdentityForCurrentCompany();
+}
+
+// ── Company management ──────────────────────────────────────────────────────
+async function loadCompanies() {
+    companies = await api('GET', '/api/trade/companies') || [];
+    renderCompanySelect();
+    renderCompanyListUI();
+}
+
+function renderCompanySelect() {
+    const sel = document.getElementById('company-select');
+    const prev = parseInt(sel.value) || null;
+    sel.innerHTML = '<option value="">— 选择公司 —</option>' +
+        companies.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    if (prev && companies.find(c => c.id === prev)) sel.value = prev;
+}
+
+function renderCompanyListUI() {
+    const container = document.getElementById('company-list-ui');
+    if (!companies.length) {
+        container.innerHTML = '<p style="color:var(--text-muted);font-size:0.875rem;">暂无公司，请下方创建。</p>';
+        return;
+    }
+    container.innerHTML = companies.map(c => `
+        <div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid rgba(0,0,0,0.05);">
+            <div style="flex:1;">
+                <div style="font-weight:600;font-size:0.9375rem;">${escapeHtml(c.name)}</div>
+                <div style="font-size:0.8125rem;color:var(--text-muted);">${escapeHtml(c.slug)} · ${c.contact_email || '无邮箱'}</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="deleteCompany(${c.id})" style="height:28px;color:var(--error);border-color:var(--error);">删除</button>
+        </div>
+    `).join('');
+}
+
+async function createCompany() {
+    const name = document.getElementById('co-name').value.trim();
+    if (!name) { toast('请填写公司名称'); return; }
+    const slug = document.getElementById('co-slug').value.trim() || undefined;
+    const contact_name = document.getElementById('co-contact-name').value.trim();
+    const contact_email = document.getElementById('co-contact-email').value.trim();
+    const website = document.getElementById('co-website').value.trim();
+    const r = await api('POST',
+        `/api/trade/companies?name=${encodeURIComponent(name)}` +
+        `&slug=${encodeURIComponent(slug||'')}` +
+        `&contact_name=${encodeURIComponent(contact_name)}` +
+        `&contact_email=${encodeURIComponent(contact_email)}` +
+        `&website=${encodeURIComponent(website)}`
+    );
+    if (r && r.id) {
+        toast('公司创建成功');
+        // Clear form
+        ['co-name','co-slug','co-contact-name','co-contact-email','co-website'].forEach(id => document.getElementById(id).value = '');
+        await loadCompanies();
+        // Auto-switch to new company
+        onCompanyChange(r.id);
+    } else {
+        toast(r?.detail || '创建失败');
+    }
+}
+
+async function deleteCompany(id) {
+    if (!confirm('确定删除该公司？所有文档库、客户和对话记录将一并删除！')) return;
+    const r = await api('DELETE', `/api/trade/companies/${id}`);
+    if (r && r.ok) {
+        toast('公司已删除');
+        if (currentCompanyId === id) switchCompany(null);
+        await loadCompanies();
+    } else {
+        toast(r?.detail || '删除失败');
+    }
+}
+
+function switchCompany(cid) {
+    currentCompanyId = cid ? parseInt(cid) : null;
+    currentLibraryId = null;
+    currentCustomerId = null;
+    saveCurrentCompany();
+
+    // Update selector
+    document.getElementById('company-select').value = cid || '';
+
+    // Show/hide pages
+    const noCo = document.getElementById('no-company-page');
+    const welcome = document.getElementById('welcome-page');
+    const chat = document.getElementById('chat-page');
+
+    if (!cid) {
+        noCo.classList.remove('hidden'); noCo.style.display = 'flex';
+        welcome.classList.add('hidden'); welcome.style.display = '';
+        chat.classList.add('hidden'); chat.style.display = '';
+        document.getElementById('library-list').innerHTML = '<div class="nav-item" onclick="showLibraryModal()"><span class="icon">➕</span><span>新建文档库</span></div>';
+        document.getElementById('customer-list').innerHTML = '<div class="nav-item" onclick="showCustomerModal()"><span class="icon">➕</span><span>添加客户</span></div>';
+    } else {
+        noCo.classList.add('hidden'); noCo.style.display = '';
+        welcome.classList.remove('hidden'); welcome.style.display = '';
+        chat.classList.add('hidden'); chat.style.display = '';
+        const co = companies.find(c => c.id === cid);
+        document.getElementById('welcome-company-name').textContent = co ? co.name : '';
+        document.getElementById('nav-default').classList.add('active');
+        loadLibraries();
+        loadCustomers();
+    }
+}
+
+function onCompanyChange(cid) {
+    switchCompany(cid);
+}
+
+async function showCompanyChatSettings() {
+    if (!currentCompanyId) { toast('请先选择公司'); return; }
+    switchModalTab('tab-identity');
+    showModal('company-modal');
+}
+
+async function loadIdentityForCurrentCompany() {
+    if (!currentCompanyId) return;
+    const r = await api('GET', `/api/trade/companies/${currentCompanyId}/agent-identity`);
+    if (r) document.getElementById('identity-editor').value = r.agent_identity_md || '';
+}
+
+async function saveCompanyIdentity() {
+    if (!currentCompanyId) return;
+    const identity = document.getElementById('identity-editor').value;
+    const r = await api('PUT', `/api/trade/companies/${currentCompanyId}/agent-identity`, { agent_identity_md: identity });
+    if (r && r.company_id) { toast('身份配置已保存'); hideModal('company-modal'); }
+    else toast(r?.detail || '保存失败');
+}
+
+// ── Navigation ──────────────────────────────────────────────────────────────
+function switchChat(libId, custId, name) {
+    currentLibraryId = libId; currentCustomerId = custId; currentChatName = name;
+    document.getElementById('welcome-page').classList.add('hidden');
+    document.getElementById('welcome-page').style.display = '';
+    document.getElementById('chat-page').classList.remove('hidden');
+    document.getElementById('chat-page').style.display = '';
+    document.getElementById('chat-title').textContent = name;
+    const badge = document.getElementById('chat-badge');
+    badge.textContent = libId ? '📁 文档库对话' : (custId ? '👤 客户对话' : '💬 默认对话');
+    badge.classList.remove('hidden');
+    const coBadge = document.getElementById('company-badge');
+    const co = companies.find(c => c.id === currentCompanyId);
+    if (co) { coBadge.textContent = co.name; coBadge.classList.remove('hidden'); }
+    else coBadge.classList.add('hidden');
+    document.getElementById('chat-messages').innerHTML = '';
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    document.getElementById('nav-default').classList.toggle('active', !libId && !custId);
+    loadChatHistory();
+}
+
+async function clearChat() {
+    if (!confirm('确定清空当前对话记录显示？')) return;
+    document.getElementById('chat-messages').innerHTML = '';
+}
+
+// ── Library CRUD ────────────────────────────────────────────────────────────
+function showLibraryModal() {
+    document.getElementById('lib-name').value=''; document.getElementById('lib-path').value='';
+    showModal('library-modal');
+}
+async function createLibrary() {
+    const name = document.getElementById('lib-name').value.trim();
+    const path = document.getElementById('lib-path').value.trim();
+    if (!name || !path) { toast('请填写完整信息'); return; }
+    const r = await api('POST', `/api/trade/libraries?name=${encodeURIComponent(name)}&root_path=${encodeURIComponent(path)}`);
+    if (r && r.id) { toast('文档库创建成功'); hideModal('library-modal'); loadLibraries(); }
+    else { toast(r?.detail || '创建失败'); }
+}
+async function deleteLibrary(id) {
+    if (!confirm('确定删除？')) return;
+    await api('DELETE', `/api/trade/libraries/${id}`);
+    if (currentLibraryId === id) switchChat(null, null, '默认对话');
+    loadLibraries();
+}
+async function loadLibraries() {
+    if (!currentCompanyId) return;
+    const data = await api('GET', '/api/trade/libraries');
+    const container = document.getElementById('library-list');
+    if (!data || !data.length) { container.innerHTML = '<div class="nav-item" onclick="showLibraryModal()"><span class="icon">➕</span><span>新建文档库</span></div>'; return; }
+    container.innerHTML = data.map(l => `
+        <div class="nav-item ${currentLibraryId===l.id?'active':''}" onclick="switchChat(${l.id},null,'${escapeHtml(l.name)}')">
+            <span class="icon">📁</span><span class="name">${escapeHtml(l.name)}</span>
+            <button class="delete-btn" onclick="event.stopPropagation();deleteLibrary(${l.id})">×</button>
+        </div>
+    `).join('') + '<div class="nav-item" onclick="showLibraryModal()"><span class="icon">➕</span><span>新建文档库</span></div>';
+}
+
+// ── Customer CRUD ───────────────────────────────────────────────────────────
+function showCustomerModal() {
+    ['cust-name','cust-contact','cust-note'].forEach(id => document.getElementById(id).value='');
+    showModal('customer-modal');
+}
+async function createCustomer() {
+    const name = document.getElementById('cust-name').value.trim();
+    if (!name) { toast('请填写客户名称'); return; }
+    const contact = document.getElementById('cust-contact').value.trim();
+    const note = document.getElementById('cust-note').value.trim();
+    const r = await api('POST', `/api/trade/customers?name=${encodeURIComponent(name)}&contact=${encodeURIComponent(contact)}&note=${encodeURIComponent(note)}`);
+    if (r && r.id) { toast('客户添加成功'); hideModal('customer-modal'); loadCustomers(); }
+    else { toast(r?.detail || '添加失败'); }
+}
+async function deleteCustomer(id) {
+    if (!confirm('确定删除？')) return;
+    await api('DELETE', `/api/trade/customers/${id}`);
+    loadCustomers();
+}
+async function loadCustomers() {
+    if (!currentCompanyId) return;
+    const data = await api('GET', '/api/trade/customers');
+    const container = document.getElementById('customer-list');
+    if (!data || !data.length) { container.innerHTML = '<div class="nav-item" onclick="showCustomerModal()"><span class="icon">➕</span><span>添加客户</span></div>'; return; }
+    container.innerHTML = data.map(c => `
+        <div class="nav-item" onclick="switchChat(null,${c.id},'${escapeHtml(c.name)}')">
+            <span class="icon">👤</span><span class="name">${escapeHtml(c.name)}</span>
+            <button class="delete-btn" onclick="event.stopPropagation();deleteCustomer(${c.id})">×</button>
+        </div>
+    `).join('') + '<div class="nav-item" onclick="showCustomerModal()"><span class="icon">➕</span><span>添加客户</span></div>';
+}
+
+// ── Chat ────────────────────────────────────────────────────────────────────
+async function loadChatHistory() {
+    if (!currentCompanyId) return;
+    const params = currentLibraryId
+        ? `?library_id=${currentLibraryId}&limit=50`
+        : `?limit=50`;
+    const data = await api('GET', `/api/trade/conversations${params}`);
+    if (!data || !data.length) return;
+    const container = document.getElementById('chat-messages');
+    container.innerHTML = '';
+    data.reverse().forEach(c => {
+        if (c.query) addMsg('user', c.query, c.files_read ? JSON.parse(c.files_read) : [], false);
+        if (c.response) addMsg('assistant', c.response, null, false);
+    });
+    container.scrollTop = container.scrollHeight;
+}
+function addMsg(role, content, files, save=true) {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.textContent = role === 'user' ? '👤' : '🤖';
+    const body = document.createElement('div');
+    body.className = 'message-content';
+    body.innerHTML = marked.parse(content || '');
+    if (files && files.length) {
+        const s = document.createElement('div'); s.className = 'sources';
+        s.innerHTML = '<div class="sources-title">📄 参考文件：</div>' + files.map(f => `<div>📎 ${escapeHtml(f.file || f)}</div>`).join('');
+        body.appendChild(s);
+    }
+    div.appendChild(avatar); div.appendChild(body);
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+// ── Tool display ────────────────────────────────────────────────────────────
+const TOOL_NAMES = {
+    read_file: '📄 读取文件', list_files: '📂 列出文件', file_extract: '📋 提取文档',
+    web_search: '🌐 搜索网页', web_fetch: '📥 抓取网页', memory_recall: '🧠 回忆记忆',
+    memory_retain: '💾 保存记忆', execute_code: '💻 执行代码', terminal: '🖥️ 终端命令',
+    delegate_task: '🤖 委派子任务', vision: '👁️ 图像分析', skill_load: '📦 加载技能',
+};
+function fmtToolName(name) { return TOOL_NAMES[name] || `🔧 ${name.replace(/_/g, ' ')}`; }
+function fmtToolArg(val) {
+    if (typeof val === 'string') return val.length > 80 ? val.slice(0,77)+'...' : val;
+    return JSON.stringify(val).slice(0,80);
+}
+
+// ── Streaming send ──────────────────────────────────────────────────────────
+async function sendMsg() {
+    if (!currentCompanyId) { toast('请先选择公司'); return; }
+    const input = document.getElementById('msg-input');
+    const query = input.value.trim();
+    if (!query) return;
+    addMsg('user', query, null);
+    input.value = '';
+
+    const container = document.getElementById('chat-messages');
+    const progDiv = document.createElement('div');
+    progDiv.className = 'message assistant';
+    progDiv.id = 'prog-' + Date.now();
+    progDiv.innerHTML = '<div class="message-avatar">🤖</div>';
+    container.appendChild(progDiv);
+    container.scrollTop = container.scrollHeight;
+
+    const toolEls = {};
+    let progressDiv = null;
+    let responseText = '';
+
+    function ensureProgress() {
+        if (!progressDiv) {
+            progressDiv = document.createElement('div');
+            progressDiv.className = 'tool-progress';
+            progDiv.appendChild(progressDiv);
+        }
+        return progressDiv;
+    }
+
+    function addToolItem(tcId, name, status, detail) {
+        const div = ensureProgress();
+        const el = document.createElement('div');
+        el.className = `tool-item ${status}`;
+        el.id = `tool-${tcId}`;
+        el.innerHTML = `<span class="tool-icon">${status==='running'?'◌':status==='done'?'✓':'✗'}</span>
+            <div class="tool-body"><div class="tool-name">${fmtToolName(name)}</div>
+            <div class="tool-detail">${detail||''}</div></div>`;
+        div.appendChild(el);
+        container.scrollTop = container.scrollHeight;
+        toolEls[tcId] = el;
+        return el;
+    }
+
+    function updateTool(tcId, status, detail) {
+        const el = toolEls[tcId];
+        if (!el) return;
+        el.className = `tool-item ${status}`;
+        el.querySelector('.tool-icon').textContent = status==='running'?'◌':status==='done'?'✓':'✗';
+        if (detail) el.querySelector('.tool-detail').textContent = detail;
+        container.scrollTop = container.scrollHeight;
+    }
+
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 600000);
+        const r = await fetch('/api/trade/chat/stream', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Hermes-Session-Token': TOKEN,
+                'X-Company-ID': String(currentCompanyId),
+            },
+            body: JSON.stringify({ library_id: currentLibraryId, customer_id: currentCustomerId, query }),
+            signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (!r.ok) {
+            progDiv.remove();
+            const err = await r.json().catch(() => ({}));
+            addMsg('assistant', `⚠️ 请求失败 (${r.status}): ${err.detail||''}`, null);
+            return;
+        }
+
+        const reader = r.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            let eventType = '', dataStr = '';
+            for (const raw of lines) {
+                const line = raw.replace(/\r$/, '');
+                if (line.startsWith('event: ')) { eventType = line.slice(7).trim(); continue; }
+                if (line.startsWith('data: ')) { dataStr = line.slice(6).trimStart(); continue; }
+                if (line === '' && eventType && dataStr) {
+                    let data;
+                    try { data = JSON.parse(dataStr); } catch(e) { eventType=''; dataStr=''; continue; }
+                    switch (eventType) {
+                    case 'tool_start':
+                        addToolItem(data.tool_call_id, data.name, 'running',
+                            data.args ? Object.entries(data.args).map(([k,v]) => `${k}=${fmtToolArg(v)}`).join(', ') : '');
+                        break;
+                    case 'tool_complete':
+                        updateTool(data.tool_call_id, 'done', data.result_preview || '完成');
+                        break;
+                    case 'thinking':
+                        if (!progDiv.querySelector('.thinking-msg')) {
+                            const t = document.createElement('div');
+                            t.className = 'thinking-msg';
+                            t.style.cssText = 'font-size:0.8125rem;color:var(--text-muted);padding:0.25rem 0;';
+                            t.textContent = '💭 ' + (data.message || '思考中...');
+                            progDiv.appendChild(t);
+                            container.scrollTop = container.scrollHeight;
+                        }
+                        break;
+                    case 'response':
+                        responseText = data.text || '';
+                        break;
+                    case 'error':
+                        progDiv.innerHTML = `<div class="message-avatar" style="background:var(--error);color:white;">⚠️</div>
+                            <div class="message-content" style="color:var(--error);">${escapeHtml(data.message)}</div>`;
+                        return;
+                    }
+                    eventType = ''; dataStr = '';
+                }
+            }
+        }
+
+        progDiv.remove();
+        if (responseText) addMsg('assistant', responseText, null);
+        else addMsg('assistant', '⚠️ Agent 未返回有效回复。', null);
+    } catch(e) {
+        progDiv.remove();
+        if (e.name === 'AbortError') addMsg('assistant', '⏰ 请求超时（10分钟）。', null);
+        else addMsg('assistant', `网络错误：${e.message}`, null);
+    }
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadCompanies();
+    const saved = loadSavedCompany();
+    if (saved && companies.find(c => c.id === saved)) {
+        switchCompany(saved);
+    } else if (companies.length === 1) {
+        switchCompany(companies[0].id);
+    }
+    // else show no-company page (already visible by default)
+});
+</script>
+</body>
+</html>

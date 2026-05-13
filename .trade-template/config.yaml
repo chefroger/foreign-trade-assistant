@@ -1,0 +1,9 @@
+# Trade Configuration
+# 运行时路径：~/.trade/config.yaml
+#
+# active_company: 当前激活的公司 slug（切换公司请用前端 UI，或修改此字段后重启服务）
+#
+# 注意：所有公司数据存储在 SQLite 数据库（data/trade.db）中。
+# 新公司通过 API POST /api/companies 创建，不要直接修改此文件。
+
+active_company: default

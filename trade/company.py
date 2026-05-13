@@ -1,0 +1,323 @@
+"""
+Trade AI Assistant — Company data layer.
+
+CRUD for:
+  - companies         (name, slug, contact info, active flag)
+  - trade_companies  (data_dir, agent_identity_md, is_active per Trade session)
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import shutil
+from pathlib import Path
+from typing import Optional
+
+from trade.database import get_connection
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+TRADE_HOME = Path.home() / ".trade"
+
+
+def _db_get_one(sql: str, args: tuple = ()) -> Optional[tuple]:
+    """Execute a single-row query and return the row or None."""
+    conn = get_connection()
+    try:
+        row = conn.execute(sql, args).fetchone()
+        return row
+    finally:
+        conn.close()
+
+
+def _slugify(name: str) -> str:
+    """Convert a company name to a URL-safe slug."""
+    slug = name.lower().strip()
+    slug = re.sub(r"[^\w\s-]", "", slug)
+    slug = re.sub(r"[_\s]+", "-", slug)
+    slug = re.sub(r"--+", "-", slug)
+    return slug.strip("-")
+
+
+def _ensure_data_dir(slug: str) -> Path:
+    """Create and return the data directory path for a company slug.
+
+    Copies the .trade-template skeleton, renaming the 'company-slug'
+    placeholder directory to the real slug so the layout is correct:
+      ~/.trade/{slug}/
+        companies/{slug}/   ← renamed from 'company-slug'
+        libraries/{slug}/
+        clients/{slug}/
+        ...
+    """
+    target = TRADE_HOME / slug
+    template_src = Path(__file__).resolve().parent.parent / ".trade-template"
+
+    if target.exists():
+        return target
+
+    if template_src.exists():
+        # Copy template directly to target; dirs_exist_ok=False is fine
+        # because target was verified non-existent above.
+        shutil.copytree(template_src, target, dirs_exist_ok=False)
+        # Rename the placeholder 'company-slug' dir inside companies/ to the real slug.
+        # Rename nested 'library-slug' / 'client-slug' dirs too.
+        _rename_company_placeholder(target / "companies", slug)
+        _rename_template_placeholders(target / "companies" / slug, slug)
+    else:
+        target.mkdir(parents=True, exist_ok=True)
+
+    return target
+
+
+def _rename_company_placeholder(companies_dir: Path, slug: str) -> None:
+    """Rename the 'company-slug' directory inside companies/ to the real slug."""
+    src = companies_dir / "company-slug"
+    dst = companies_dir / slug
+    if src.exists() and not dst.exists():
+        src.rename(dst)
+
+
+def _rename_template_placeholders(base: Path, slug: str) -> None:
+    """Recursively rename 'library-slug' and 'client-slug' dirs to the real slug."""
+    if not base.is_dir():
+        return
+    for p in sorted(base.rglob("*")):
+        if p.is_dir():
+            if p.name == "library-slug":
+                p.rename(p.parent / slug)
+            elif p.name == "client-slug":
+                p.rename(p.parent / slug)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# companies table
+# ─────────────────────────────────────────────────────────────────────────────
+
+def list_all() -> list[dict]:
+    """Return all companies, ordered by name."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT id, name, slug, logo_url, website, contact_name, "
+            "contact_email, address, is_active, created_at, updated_at "
+            "FROM companies ORDER BY name"
+        ).fetchall()
+        return [_row_to_company(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get(company_id: int) -> Optional[dict]:
+    """Return company row dict or None."""
+    row = _db_get_one("SELECT * FROM companies WHERE id = ?", (company_id,))
+    return _row_to_company(row) if row else None
+
+
+def slug_from_id(company_id: int) -> Optional[str]:
+    """Return company slug by ID (for prompt file path resolution)."""
+    row = _db_get_one("SELECT slug FROM companies WHERE id = ?", (company_id,))
+    return row[0] if row else None
+
+
+def get_by_slug(slug: str) -> Optional[dict]:
+    """Return one company by slug, or None."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT id, name, slug, logo_url, website, contact_name, "
+            "contact_email, address, is_active, created_at, updated_at "
+            "FROM companies WHERE slug = ?", (slug,)
+        ).fetchone()
+        return _row_to_company(row) if row else None
+    finally:
+        conn.close()
+
+
+def create(
+    name: str,
+    slug: Optional[str] = None,
+    logo_url: str = "",
+    website: str = "",
+    contact_name: str = "",
+    contact_email: str = "",
+    address: str = "",
+) -> dict:
+    """Create a new company and its trade_companies entry."""
+    if not slug:
+        slug = _slugify(name)
+    # Ensure slug is unique
+    conn = get_connection()
+    try:
+        existing = conn.execute(
+            "SELECT id FROM companies WHERE slug = ?", (slug,)
+        ).fetchone()
+        if existing:
+            raise ValueError(f"Company with slug '{slug}' already exists")
+        data_dir = str(_ensure_data_dir(slug))
+        cursor = conn.execute(
+            "INSERT INTO companies (name, slug, logo_url, website, contact_name, "
+            "contact_email, address) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (name, slug, logo_url, website, contact_name, contact_email, address),
+        )
+        company_id = cursor.lastrowid
+        conn.execute(
+            "INSERT INTO trade_companies (company_id, data_dir) VALUES (?, ?)",
+            (company_id, data_dir),
+        )
+        conn.commit()
+        return get(company_id)
+    finally:
+        conn.close()
+
+
+def update(
+    company_id: int,
+    name: Optional[str] = None,
+    logo_url: Optional[str] = None,
+    website: Optional[str] = None,
+    contact_name: Optional[str] = None,
+    contact_email: Optional[str] = None,
+    address: Optional[str] = None,
+    is_active: Optional[bool] = None,
+) -> Optional[dict]:
+    """Update company fields. Only provided (non-None) fields are changed."""
+    conn = get_connection()
+    try:
+        if not conn.execute("SELECT 1 FROM companies WHERE id = ?", (company_id,)).fetchone():
+            return None
+        fields, vals = [], []
+        for fname, fval in [
+            ("name", name), ("logo_url", logo_url), ("website", website),
+            ("contact_name", contact_name), ("contact_email", contact_email),
+            ("address", address),
+        ]:
+            if fval is not None:
+                fields.append(f"{fname} = ?")
+                vals.append(fval)
+        if is_active is not None:
+            fields.append("is_active = ?")
+            vals.append(1 if is_active else 0)
+        if fields:
+            fields.append("updated_at = datetime('now', 'localtime')")
+            vals.append(company_id)
+            conn.execute(
+                f"UPDATE companies SET {', '.join(fields)} WHERE id = ?", vals
+            )
+            conn.commit()
+        return get(company_id)
+    finally:
+        conn.close()
+
+
+def delete(company_id: int) -> bool:
+    """Delete a company and cascade-delete all its libraries, customers, conversations."""
+    conn = get_connection()
+    try:
+        # trade_companies cascades via FK
+        n = conn.execute(
+            "DELETE FROM companies WHERE id = ?", (company_id,)
+        ).rowcount
+        conn.commit()
+        return n > 0
+    finally:
+        conn.close()
+
+
+def _row_to_company(row: tuple) -> dict:
+    return {
+        "id": row[0],
+        "name": row[1],
+        "slug": row[2],
+        "logo_url": row[3],
+        "website": row[4],
+        "contact_name": row[5],
+        "contact_email": row[6],
+        "address": row[7],
+        "is_active": bool(row[8]),
+        "created_at": row[9],
+        "updated_at": row[10],
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# trade_companies table
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_trade_company(company_id: int) -> Optional[dict]:
+    """Return trade_companies entry for a company, or None."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT company_id, data_dir, agent_identity_md, is_active, created_at "
+            "FROM trade_companies WHERE company_id = ?", (company_id,)
+        ).fetchone()
+        return _row_to_tc(row) if row else None
+    finally:
+        conn.close()
+
+
+def update_trade_company(
+    company_id: int,
+    data_dir: Optional[str] = None,
+    agent_identity_md: Optional[str] = None,
+    is_active: Optional[bool] = None,
+) -> Optional[dict]:
+    """Update trade_companies fields."""
+    conn = get_connection()
+    try:
+        if not conn.execute("SELECT 1 FROM trade_companies WHERE company_id = ?", (company_id,)).fetchone():
+            return None
+        fields, vals = [], []
+        if data_dir is not None:
+            fields.append("data_dir = ?")
+            vals.append(data_dir)
+        if agent_identity_md is not None:
+            fields.append("agent_identity_md = ?")
+            vals.append(agent_identity_md)
+        if is_active is not None:
+            fields.append("is_active = ?")
+            vals.append(1 if is_active else 0)
+        if fields:
+            vals.append(company_id)
+            conn.execute(
+                f"UPDATE trade_companies SET {', '.join(fields)} WHERE company_id = ?", vals
+            )
+            conn.commit()
+        return get_trade_company(company_id)
+    finally:
+        conn.close()
+
+
+def get_agent_identity(company_id: int) -> str:
+    """Return the agent identity text for a company.
+
+    Priority:
+      1. trade_companies.agent_identity_md (inline override)
+      2. {data_dir}/agent-identity.md file on disk
+      3. '' (empty — falls back to generic TRADE_SYSTEM_PROMPT)
+    """
+    tc = get_trade_company(company_id)
+    if not tc:
+        return ""
+    if tc.get("agent_identity_md"):
+        return tc["agent_identity_md"]
+    data_dir = Path(tc["data_dir"]) if tc.get("data_dir") else None
+    if data_dir and data_dir.exists():
+        identity_file = data_dir / "agent-identity.md"
+        if identity_file.exists():
+            return identity_file.read_text(encoding="utf-8")
+    return ""
+
+
+def _row_to_tc(row: tuple) -> dict:
+    return {
+        "company_id": row[0],
+        "data_dir": row[1],
+        "agent_identity_md": row[2],
+        "is_active": bool(row[3]),
+        "created_at": row[4],
+    }

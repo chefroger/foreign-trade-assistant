@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+data/trade.db
+.env
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+# Runtime data directory — NOT tracked (created on install/init)
+.trade/
