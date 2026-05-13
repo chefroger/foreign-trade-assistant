@@ -80,7 +80,8 @@ body {
 .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-main); }
 
 /* ── Chat View ───────────────────────────────────────────────────────── */
-.chat-view { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.chat-view { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+#main-content > div { height: 100%; }
 .chat-topbar {
     padding: 12px 20px; background: var(--bg-card); border-bottom: 1px solid var(--border);
     display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
@@ -126,8 +127,7 @@ body {
 .sources-title { font-weight: 600; margin-bottom: 4px; }
 
 .chat-input-area {
-    position: fixed; bottom: 0; left: 270px; right: 0;
-    padding: 12px 20px 16px; z-index: 50; display: flex; gap: 10px;
+    padding: 12px 20px 16px; display: flex; gap: 10px; flex-shrink: 0;
 }
 .chat-input-inner {
     flex: 1; display: flex; gap: 10px; background: var(--bg-card); border: 1px solid var(--border);
@@ -158,7 +158,7 @@ body {
 .empty-state button { padding: 11px 22px; border-radius: var(--radius-sm); background: var(--primary); color: #fff; border: none; font-size: 15px; font-weight: 600; cursor: pointer; }
 
 /* ── Panel Views (Customers / Tasks / Directory / History) ──────────── */
-.panel-view { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.panel-view { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 .panel-topbar {
     padding: 14px 20px; background: var(--bg-card); border-bottom: 1px solid var(--border);
     display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; gap: 12px;
@@ -579,11 +579,12 @@ function toast(msg) {
 function esc(s) { const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
 
 // ═════════════════════ NAVIGATION ═════════════════════
+// 视图缓存：{ viewKey: { element, rendered, context } }
+const viewCache = {};
+
 function navToView(view, chatCtx, chatName) {
     currentView = view;
     if (chatCtx) { currentChatContext = chatCtx; currentChatName = chatName || ''; }
-    currentLibraryId = null;
-    currentCustomerId = null;
     saveState();
 
     // Update sidebar active
@@ -592,21 +593,50 @@ function navToView(view, chatCtx, chatName) {
                        document.querySelector(`.nav-item[data-view="${view}"]`);
     if (activeItem) activeItem.classList.add('active');
 
+    // 隐藏所有视图
     const main = $('main-content');
-    main.innerHTML = '';
-
-    switch (view) {
-        case 'chat': renderChatView(chatCtx, chatName); break;
-        case 'customers': renderCustomersView(); break;
-        case 'tasks': renderTasksView(); break;
-        case 'directory': renderDirectoryView(); break;
-        case 'history': renderHistoryView(); break;
-        default: renderChatView('daily', '今日简报');
+    for (const key in viewCache) {
+        viewCache[key].element.style.display = 'none';
     }
+
+    // 构建缓存 key
+    const cacheKey = view + (chatCtx ? '-' + chatCtx : '');
+
+    if (!viewCache[cacheKey]) {
+        // 首次渲染此视图：创建容器 div 并挂到 main
+        const container = document.createElement('div');
+        container.className = view === 'chat' ? 'chat-view' : 'panel-view';
+        container.id = 'view-' + cacheKey;
+        main.appendChild(container);
+        viewCache[cacheKey] = { element: container, rendered: false };
+
+        switch (view) {
+            case 'chat':
+                currentLibraryId = null;
+                currentCustomerId = null;
+                renderChatViewInto(container, chatCtx, chatName);
+                break;
+            case 'customers':
+                renderCustomersViewInto(container);
+                break;
+            case 'tasks':
+                renderTasksViewInto(container);
+                break;
+            case 'directory':
+                renderDirectoryViewInto(container);
+                break;
+            case 'history':
+                renderHistoryViewInto(container);
+                break;
+        }
+        viewCache[cacheKey].rendered = true;
+    }
+
+    viewCache[cacheKey].element.style.display = 'flex';
 }
 
 // ═════════════════════ CHAT VIEW ═════════════════════
-function renderChatView(ctx, name) {
+function renderChatViewInto(container, ctx, name) {
     const placeholders = {
         daily: '输入任何问题，或说「早安简报」开始今天的工作...',
         lead: '粘贴 LinkedIn 链接或客户信息，我来分析并写开发信...',
@@ -619,9 +649,7 @@ function renderChatView(ctx, name) {
         osint: '输入邮箱/域名/公司名，我来做全面的背景调查...',
     };
 
-    const main = $('main-content');
-    main.innerHTML = `
-    <div class="chat-view">
+    container.innerHTML = `
         <div class="chat-topbar">
             <div style="display:flex;align-items:center;gap:8px;">
                 <h2>${esc(name)}</h2>
@@ -642,18 +670,15 @@ function renderChatView(ctx, name) {
                 <p>${placeholders[ctx] || '输入您的问题...'}</p>
             </div>
         </div>
-        <div class="chat-input-area">
+        <div class="chat-input-area" style="position:sticky;bottom:0;left:0;right:0;background:var(--bg-main);padding:12px 20px 16px;">
             <div class="chat-input-inner">
                 <textarea id="msg-input" placeholder="${placeholders[ctx] || ''}" rows="1"
                     onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"></textarea>
                 <button onclick="sendMsg()" id="send-btn">发送</button>
             </div>
-        </div>
-    </div>`;
+        </div>`;
 
-    // Load library selector if in docs context
     if (ctx === 'docs') loadChatLibrarySelect();
-    // Load recent conversations for this context
     loadChatHistory();
 }
 
@@ -832,10 +857,8 @@ async function sendMsg() {
 }
 
 // ═════════════════════ CUSTOMERS VIEW ═════════════════════
-async function renderCustomersView() {
-    const main = $('main-content');
-    main.innerHTML = `
-    <div class="panel-view">
+async function renderCustomersViewInto(container) {
+    container.innerHTML = `
         <div class="panel-topbar">
             <h2>👥 客户管理</h2>
             <div class="panel-topbar-actions">
@@ -855,8 +878,7 @@ async function renderCustomersView() {
             </table>
             <div id="customers-loading" class="loading-row hidden"><div class="spinner"></div>加载中...</div>
             <div id="customers-empty" class="empty-state hidden"><div class="empty-icon">👤</div><h2>暂无客户</h2><p>点击「添加客户」开始管理外贸客户</p></div>
-        </div>
-    </div>`;
+        </div>`;
     await loadCustomersData();
 }
 
@@ -1095,7 +1117,7 @@ async function saveCustomer() {
 }
 
 // ═════════════════════ TASKS VIEW ═════════════════════
-function renderTasksView() {
+function renderTasksViewInto(container) {
     const tasks = [
         {id:1,name:'早安简报',time:'08:00',cron:'0 8 * * 1-5',desc:'总结昨日互动 + 今日待跟进清单 + 客户时区提醒',active:true,next:'明天 08:00'},
         {id:2,name:'LinkedIn 内容发布',time:'09:30',cron:'30 9 * * 1-5',desc:'生成本日 Post + Article 草稿，可直接复制粘贴',active:true,next:'明天 09:30'},
@@ -1106,8 +1128,7 @@ function renderTasksView() {
         {id:7,name:'每日工作总结',time:'17:30',cron:'30 17 * * 1-5',desc:'汇总今日数据 → 追加到工作日报；周五自动生成周报',active:true,next:'今天 17:30'},
     ];
 
-    $('main-content').innerHTML = `
-    <div class="panel-view">
+    container.innerHTML = `
         <div class="panel-topbar">
             <h2>⏰ 定时任务</h2>
             <div class="panel-topbar-actions">
@@ -1136,8 +1157,7 @@ function renderTasksView() {
                     </div>
                 </div>`).join('')}
             </div>
-        </div>
-    </div>`;
+        </div>`;
 }
 
 function toggleTask(id, active) {
@@ -1145,9 +1165,8 @@ function toggleTask(id, active) {
 }
 
 // ═════════════════════ DIRECTORY VIEW ═════════════════════
-function renderDirectoryView() {
-    $('main-content').innerHTML = `
-    <div class="panel-view">
+function renderDirectoryViewInto(container) {
+    container.innerHTML = `
         <div class="panel-topbar">
             <h2>📂 数据目录</h2>
             <div class="panel-topbar-actions">
@@ -1165,8 +1184,7 @@ function renderDirectoryView() {
                     <div style="color:var(--text-muted);text-align:center;padding:40px;">👈 点击左侧文件查看内容</div>
                 </div>
             </div>
-        </div>
-    </div>`;
+        </div>`;
     loadDirectoryTree();
 }
 
@@ -1231,9 +1249,8 @@ function previewFile(name) {
 }
 
 // ═════════════════════ HISTORY VIEW ═════════════════════
-async function renderHistoryView() {
-    $('main-content').innerHTML = `
-    <div class="panel-view">
+async function renderHistoryViewInto(container) {
+    container.innerHTML = `
         <div class="panel-topbar">
             <h2>💬 对话记录</h2>
             <div class="panel-topbar-actions">
@@ -1244,8 +1261,7 @@ async function renderHistoryView() {
             <div class="conv-list" id="conv-list">
                 <div class="loading-row"><div class="spinner"></div>加载对话记录...</div>
             </div>
-        </div>
-    </div>`;
+        </div>`;
     await loadConversations();
 }
 
@@ -1286,18 +1302,21 @@ function filterConversations() {
 function showConversationDetail(cid) {
     const c = allConversations.find(x => x.id === cid);
     if (!c) return;
-    // Switch to chat view with doc context to show this conversation
+    // 切到聊天视图
     currentChatContext = 'daily';
     currentChatName = '对话详情';
     navToView('chat', 'daily', '对话详情');
-    setTimeout(() => {
-        const container = $('chat-messages');
-        if (container) {
-            container.innerHTML = '';
-            if (c.query) addMsg('user', c.query, c.files_read ? JSON.parse(c.files_read) : [], false);
-            if (c.response) addMsg('assistant', c.response, null, false);
-        }
-    }, 100);
+    // 等待 DOM 渲染后填入对话内容
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const container = document.getElementById('chat-messages');
+            if (container) {
+                container.innerHTML = '';
+                if (c.query) addMsg('user', c.query, c.files_read ? JSON.parse(c.files_read) : [], false);
+                if (c.response) addMsg('assistant', c.response, null, false);
+            }
+        });
+    });
 }
 
 // ═════════════════════ COMPANY MANAGEMENT ═════════════════════
@@ -1370,12 +1389,15 @@ async function deleteCompany(id) {
 }
 
 function onCompanyChange(cid) {
+    // 清空视图缓存（切换公司后旧数据不能保留）
+    for (const key in viewCache) {
+        viewCache[key].element.remove();
+        delete viewCache[key];
+    }
     if (cid) {
         currentCompanyId = parseInt(cid);
         saveState();
-        const prevView = sessionStorage.getItem('trade_view')||'chat';
-        const prevCtx = sessionStorage.getItem('trade_ctx')||'daily';
-        navToView(prevView, prevCtx, '今日简报');
+        navToView('chat', 'daily', '今日简报');
     } else {
         currentCompanyId = null;
         saveState();
@@ -1413,9 +1435,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (currentCompanyId) {
         saveState();
-        const prevView = sessionStorage.getItem('trade_view') || 'chat';
-        const prevCtx = sessionStorage.getItem('trade_ctx') || 'daily';
-        navToView(prevView, prevCtx, '今日简报');
+        navToView('chat', 'daily', '今日简报');
     } else {
         $('main-content').innerHTML = `<div class="empty-state"><div class="empty-icon">🏢</div><h2>请先选择或创建公司</h2><p>Trade AI 为多公司隔离架构</p><button onclick="showAddCompanyModal()">➕ 创建公司</button></div>`;
     }

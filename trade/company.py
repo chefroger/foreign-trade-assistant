@@ -20,7 +20,17 @@ from trade.database import get_connection
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-TRADE_HOME = Path.home() / ".trade"
+# Trade user data directory — respects TRADE_HOME env var, otherwise platform default
+_TRADE_HOME_RAW = os.environ.get("TRADE_HOME", "").strip()
+if _TRADE_HOME_RAW:
+    TRADE_HOME = Path(_TRADE_HOME_RAW)
+elif os.name == "nt":
+    # Windows: %LOCALAPPDATA%\trade\
+    _local_appdata = os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))
+    TRADE_HOME = Path(_local_appdata) / "trade"
+else:
+    # macOS / Linux: ~/.trade/
+    TRADE_HOME = Path.home() / ".trade"
 
 
 def _db_get_one(sql: str, args: tuple = ()) -> Optional[tuple]:

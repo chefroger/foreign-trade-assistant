@@ -32,11 +32,18 @@ def _get_hermes_home() -> Path:
 
 
 def _get_trade_home() -> Path:
-    """Mirror Trade's get_trade_home(), no import dependency."""
+    """返回用户 Trade 数据目录（与 database.py / company.py / prompts.py 统一）。
+
+    Priority: TRADE_HOME env var → platform default.
+    macOS/Linux: ~/.trade/, Windows: %LOCALAPPDATA%\trade\
+    """
     val = os.environ.get("TRADE_HOME", "").strip()
     if val:
         return Path(val)
-    return _get_hermes_home().parent / ".trade"
+    if os.name == "nt":
+        local_appdata = os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))
+        return Path(local_appdata) / "trade"
+    return Path.home() / ".trade"
 
 
 def _get_package_skills_dir() -> Path | None:

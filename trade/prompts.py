@@ -35,10 +35,19 @@ _FILE_CACHE: dict[str, tuple[float, str]] = {}
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _get_trade_home() -> Path:
-    """返回 ~/.trade/（运行时数据目录）。"""
+    """返回用户 Trade 数据目录。
+
+    Priority: TRADE_HOME env var → platform default.
+    macOS/Linux: ~/.trade/, Windows: %LOCALAPPDATA%\trade\
+    """
     val = os.environ.get("TRADE_HOME", "").strip()
     if val:
         return Path(val)
+    # Windows: %LOCALAPPDATA%\trade\
+    if os.name == "nt":
+        local_appdata = os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))
+        return Path(local_appdata) / "trade"
+    # macOS / Linux: ~/.trade/
     return Path.home() / ".trade"
 
 

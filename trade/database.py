@@ -11,12 +11,20 @@ import os
 import sqlite3
 from pathlib import Path
 
-# Database path: <project_root>/data/trade.db
+# Database path: ~/.trade/data/trade.db (or %LOCALAPPDATA%\trade\data\trade.db on Windows)
 def _get_db_path() -> Path:
-    """Resolve the trade.db path relative to this file's project root."""
-    # trade/database.py → parent is project root
-    root = Path(__file__).resolve().parent.parent
-    data_dir = root / "data"
+    """Resolve the trade.db path under the user's Trade data directory.
+
+    Priority: TRADE_HOME env var → ~/.trade/ (macOS/Linux) or %LOCALAPPDATA%\\trade\\ (Windows).
+    """
+    trade_home = os.environ.get("TRADE_HOME", "").strip()
+    if not trade_home:
+        # Windows: %LOCALAPPDATA%\trade, macOS/Linux: ~/.trade
+        if os.name == "nt":
+            trade_home = str(Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "trade")
+        else:
+            trade_home = str(Path.home() / ".trade")
+    data_dir = Path(trade_home) / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     return data_dir / "trade.db"
 
