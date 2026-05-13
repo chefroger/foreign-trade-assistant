@@ -127,7 +127,15 @@ def _add_spare_columns(conn: sqlite3.Connection) -> None:
 
     Idempotent — safe to call on any schema version. Uses ALTER TABLE ADD COLUMN
     which is a no-op if the column already exists.
+    Gracefully skips tables that don't exist yet (e.g. during v0→v1 migration).
     """
+    # 获取当前存在的所有表
+    existing_tables = {
+        r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+    }
+
     for table, extras in [
         ("companies",        ["extra1", "extra2", "extra3"]),
         ("trade_companies",  ["extra1", "extra2", "extra3"]),
@@ -136,9 +144,12 @@ def _add_spare_columns(conn: sqlite3.Connection) -> None:
         ("customer_libraries", ["extra1", "extra2", "extra3"]),
         ("conversations",   ["extra1", "extra2", "extra3"]),
     ]:
-        existing = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+        # 跳过还不存在的表（如 v0 schema 中没有 customer_libraries）
+        if table not in existing_tables:
+            continue
+        existing_cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
         for col in extras:
-            if col not in existing:
+            if col not in existing_cols:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT DEFAULT '{{}}'")
 
 

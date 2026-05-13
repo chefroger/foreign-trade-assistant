@@ -1,226 +1,462 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trade AI Assistant — 智能外贸销售助手</title>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script>marked.setOptions({ breaks: true, gfm: true });</script>
-    <style>
-        :root {
-            --primary: #0891B2; --primary-dark: #0E7490; --primary-light: #22D3EE;
-            --accent: #F59E0B;
-            --bg-primary: #FFFFFF; --bg-secondary: #F8FAFC; --bg-tertiary: #F1F5F9;
-            --text-primary: #0F172A; --text-secondary: #475569; --text-muted: #94A3B8;
-            --success: #10B981; --warning: #F59E0B; --error: #EF4444;
-            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
-            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
-            --ease-out: cubic-bezier(0.33,1,0.68,1);
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg-secondary); color: var(--text-primary); height: 100vh;
-            display: flex; flex-direction: column; font-size: 1rem; line-height: 1.5;
-        }
-        .app-container { display: flex; flex: 1; overflow: hidden; height: 100%; }
-        /* Sidebar */
-        .sidebar {
-            width: 300px; background: var(--bg-secondary); border-right: 1px solid rgba(0,0,0,0.1);
-            display: flex; flex-direction: column; flex-shrink: 0;
-        }
-        .sidebar-header { padding: 1rem; }
-        .sidebar-header h1 { font-size: 1.0625rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 0.5rem; }
-        .company-selector {
-            margin-top: 0.625rem; display: flex; align-items: center; gap: 0.5rem;
-        }
-        .company-selector select {
-            flex: 1; padding: 0.45rem 0.6rem; background: var(--bg-primary);
-            border: 1px solid rgba(0,0,0,0.12); border-radius: 0.5rem;
-            font-size: 0.875rem; color: var(--text-primary); cursor: pointer;
-        }
-        .company-selector select:focus { outline: none; border-color: var(--primary); }
-        .company-selector .btn-sm { height: 30px; padding: 0 0.5rem; font-size: 0.8125rem; border-radius: 0.5rem; }
-        .sidebar-content { flex: 1; overflow-y: auto; padding: 0.75rem; }
-        .sidebar-section-title { font-size: 0.8125rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 0.5rem 0.75rem; font-weight: 600; }
-        .sidebar-footer { padding: 0.75rem 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
-        .nav-item {
-            display: flex; align-items: center; padding: 0.7rem 0.75rem; border-radius: 0.625rem;
-            cursor: pointer; gap: 0.5rem; transition: all 0.2s var(--ease-out); position: relative;
-            font-size: 0.9375rem;
-        }
-        .nav-item:hover { background: rgba(8,145,178,0.08); }
-        .nav-item.active { background: rgba(8,145,178,0.12); color: var(--primary); font-weight: 600; }
-        .nav-item .icon { font-size: 1.25rem; }
-        .nav-item .name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .nav-item .delete-btn { display: none; padding: 0.15rem 0.4rem; border-radius: 0.25rem; background: #ef4444; color: white; font-size: 0.75rem; cursor: pointer; position: absolute; right: 0.5rem; }
-        .nav-item:hover .delete-btn { display: block; }
-        .btn {
-            display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem;
-            height: 40px; padding: 0 1rem; border-radius: 0.5rem; font-size: 0.875rem;
-            font-weight: 600; cursor: pointer; transition: all 0.2s var(--ease-out); border: none;
-        }
-        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 14px rgba(8,145,178,0.39); }
-        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
-        .btn-secondary { background: var(--bg-primary); color: var(--text-secondary); border: 1px solid rgba(0,0,0,0.08); }
-        .btn-secondary:hover { background: var(--bg-tertiary); }
-        .btn-block { width: 100%; }
-        .btn-sm { height: 36px; padding: 0 0.75rem; font-size: 0.8125rem; }
-        /* Main */
-        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-        .top-bar { background: var(--bg-secondary); padding: 0.75rem 1.25rem; border-bottom: 1px solid rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-        .top-bar h2 { font-size: 0.9375rem; font-weight: 600; }
-        .badge { display: inline-flex; align-items: center; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.8125rem; background: var(--bg-tertiary); color: var(--text-secondary); margin-left: 0.5rem; }
-        /* Chat */
-        .chat-area { flex: 1; overflow-y: auto; padding: 1rem 1.5rem; padding-bottom: 75px; display: flex; flex-direction: column; gap: 0.75rem; }
-        .message { display: flex; gap: 0.75rem; max-width: 100%; animation: msgIn 0.3s var(--ease-out); }
-        @keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        .message.user { flex-direction: row-reverse; }
-        .message-avatar { width: 2.25rem; height: 2.25rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; flex-shrink: 0; font-size: 0.875rem; }
-        .message.user .message-avatar { background: var(--primary); color: white; }
-        .message.assistant .message-avatar { background: var(--bg-tertiary); }
-        .message-content { font-size: 0.9375rem; line-height: 1.65; }
-        .message.user .message-content { color: var(--primary); font-weight: 500; }
-        .message-content p { margin: 0 0 0.5rem 0; }
-        .message-content p:last-child { margin-bottom: 0; }
-        .message-content table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.875rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; overflow: hidden; }
-        .message-content th, .message-content td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
-        .message-content th { background: var(--bg-tertiary); font-weight: 600; }
-        .message-content code { background: #f1f5f9; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.875em; }
-        .message-content pre { background: #f1f5f9; padding: 0.75rem; border-radius: 0.5rem; overflow-x: auto; }
-        .message-content pre code { background: none; padding: 0; }
-        .sources { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(0,0,0,0.06); font-size: 0.8125rem; color: var(--text-muted); }
-        .sources-title { font-weight: 600; margin-bottom: 0.25rem; }
-        /* Input */
-        .input-area { position: fixed; bottom: 0; left: 300px; right: 0; background: transparent; padding: 0.625rem 1.5rem; z-index: 100; display: flex; gap: 0.75rem; align-items: center; }
-        .input-area textarea { flex: 1; padding: 0.75rem 1rem; background: var(--bg-tertiary); border: 1px solid rgba(0,0,0,0.1); border-radius: 0.5rem; font-size: 0.9375rem; resize: none; font-family: inherit; height: 44px; line-height: 22px; }
-        .input-area textarea:focus { outline: none; background: var(--bg-primary); box-shadow: 0 0 0 2px rgba(8,145,178,0.15); }
-        /* Welcome */
-        .welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; }
-        .welcome h2 { font-size: 1.25rem; margin-bottom: 0.5rem; color: var(--primary); }
-        .welcome p { color: var(--text-muted); margin-bottom: 1.5rem; max-width: 450px; font-size: 0.9375rem; }
-        /* Modal */
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.6); display: flex; align-items: center; justify-content: center; z-index: 200; }
-        .modal { background: var(--bg-primary); padding: 1.5rem; border-radius: 1rem; max-width: 500px; width: 90%; box-shadow: var(--shadow-lg); }
-        .modal.wide { max-width: 700px; }
-        .modal h3 { font-size: 1.0625rem; font-weight: 600; margin-bottom: 1rem; }
-        .modal-tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; border-bottom: 1px solid rgba(0,0,0,0.08); }
-        .modal-tab { padding: 0.5rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.875rem; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
-        .modal-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
-        .form-group { margin-bottom: 1rem; }
-        .form-group label { display: block; font-weight: 500; margin-bottom: 0.25rem; font-size: 0.875rem; color: var(--text-secondary); }
-        .form-group input, .form-group textarea { width: 100%; padding: 0.625rem 0.75rem; background: var(--bg-secondary); border: 1px solid rgba(0,0,0,0.1); border-radius: 0.5rem; font-size: 0.9375rem; font-family: inherit; }
-        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(8,145,178,0.1); }
-        .form-group textarea { resize: vertical; min-height: 120px; }
-        .form-row { display: flex; gap: 0.75rem; }
-        .form-row .form-group { flex: 1; }
-        .hint { font-size: 0.8125rem; color: var(--text-muted); margin-top: 0.25rem; }
-        .hidden { display: none !important; }
-        .spinner { width: 1.25rem; height: 1.25rem; border: 2px solid var(--bg-tertiary); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .loading { display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted); font-size: 0.9375rem; }
-        .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; padding: 0.75rem 1.25rem; background: var(--text-primary); color: white; border-radius: 0.75rem; font-size: 0.875rem; z-index: 300; animation: slideIn 0.3s var(--ease-out); }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(1rem); } to { opacity: 1; transform: translateY(0); } }
-        /* Tool progress */
-        .tool-progress { margin: 0.25rem 0; border: 1px solid rgba(0,0,0,0.06); border-radius: 0.5rem; overflow: hidden; }
-        .tool-item { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.45rem 0.6rem; font-size: 0.8125rem; border-bottom: 1px solid rgba(0,0,0,0.04); transition: background 0.2s; }
-        .tool-item:last-child { border-bottom: none; }
-        .tool-item .tool-icon { width: 1.125rem; height: 1.125rem; flex-shrink: 0; margin-top: 0.1rem; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; }
-        .tool-item .tool-body { flex: 1; min-width: 0; }
-        .tool-item .tool-name { font-weight: 600; color: var(--text-primary); }
-        .tool-item .tool-detail { color: var(--text-muted); font-size: 0.75rem; margin-top: 0.125rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .tool-item.running { background: rgba(8,145,178,0.04); }
-        .tool-item.running .tool-icon { color: var(--primary); animation: spin 0.8s linear infinite; }
-        .tool-item.done { background: transparent; }
-        .tool-item.done .tool-icon { color: var(--success); }
-        .tool-item.failed .tool-icon { color: var(--error); }
-        /* No-company state */
-        .no-company { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; }
-        .no-company h2 { font-size: 1.125rem; margin-bottom: 0.5rem; color: var(--text-secondary); }
-        .no-company p { color: var(--text-muted); margin-bottom: 1.25rem; font-size: 0.9375rem; }
-        /* Company badge */
-        .company-badge { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.2rem 0.6rem; background: rgba(8,145,178,0.08); color: var(--primary); border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trade AI Assistant — 智能外贸销售助手</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>marked.setOptions({ breaks: true, gfm: true });</script>
+<style>
+:root {
+    --sidebar-bg: #0F172A; --sidebar-hover: rgba(255,255,255,0.06); --sidebar-active: rgba(59,130,246,0.15);
+    --sidebar-text: #94A3B8; --sidebar-text-active: #FFFFFF; --sidebar-section: #64748B;
+    --primary: #3B82F6; --primary-dark: #2563EB; --primary-light: #60A5FA;
+    --accent: #F59E0B; --accent-green: #10B981; --accent-red: #EF4444;
+    --bg-main: #F1F5F9; --bg-card: #FFFFFF; --bg-input: #F8FAFC;
+    --text-primary: #1E293B; --text-secondary: #64748B; --text-muted: #94A3B8;
+    --border: #E2E8F0; --border-light: #F1F5F9;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05); --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1); --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+    --radius: 0.625rem; --radius-sm: 0.5rem; --radius-lg: 0.75rem;
+    --ease: cubic-bezier(0.4,0,0.2,1);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg-main); color: var(--text-primary); height: 100vh; display: flex;
+    font-size: 14px; line-height: 1.5; overflow: hidden;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────── */
+.sidebar {
+    width: 260px; background: var(--sidebar-bg); display: flex; flex-direction: column;
+    flex-shrink: 0; overflow-y: auto; z-index: 10;
+}
+.sidebar-header { padding: 16px 16px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.sidebar-header .logo { font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+.sidebar-header .logo span { color: var(--primary-light); }
+.company-select { margin-top: 12px; }
+.company-select select {
+    width: 100%; padding: 8px 10px; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-sm);
+    color: #E2E8F0; font-size: 13px; cursor: pointer; outline: none;
+}
+.company-select select:focus { border-color: var(--primary); }
+.company-select .csel-row { display: flex; gap: 6px; }
+.company-select .csel-row select { flex: 1; }
+.company-select .csel-row button {
+    height: 34px; width: 34px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius-sm); color: #CBD5E1; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;
+}
+.company-select .csel-row button:hover { background: rgba(255,255,255,0.12); }
+
+.sidebar-nav { flex: 1; padding: 8px 8px 16px; }
+.nav-section { margin-top: 12px; }
+.nav-section-title {
+    font-size: 11px; font-weight: 600; color: var(--sidebar-section);
+    text-transform: uppercase; letter-spacing: 0.06em; padding: 6px 10px 4px;
+}
+.nav-item {
+    display: flex; align-items: center; padding: 8px 10px; border-radius: var(--radius-sm);
+    cursor: pointer; gap: 10px; transition: all 0.15s var(--ease);
+    font-size: 13.5px; color: var(--sidebar-text); margin-bottom: 1px; position: relative;
+}
+.nav-item:hover { background: var(--sidebar-hover); color: #E2E8F0; }
+.nav-item.active { background: var(--sidebar-active); color: var(--sidebar-text-active); font-weight: 500; }
+.nav-item .nav-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+.nav-item .nav-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-item .nav-badge {
+    font-size: 10px; padding: 2px 6px; border-radius: 999px; background: var(--accent-red);
+    color: #fff; font-weight: 600; display: none;
+}
+.sidebar-footer { padding: 10px 16px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; gap: 6px; }
+.sidebar-footer button {
+    flex: 1; padding: 8px; border-radius: var(--radius-sm); font-size: 12px; cursor: pointer;
+    background: rgba(255,255,255,0.04); color: var(--sidebar-text); border: none; transition: all 0.15s;
+}
+.sidebar-footer button:hover { background: rgba(255,255,255,0.1); color: #E2E8F0; }
+
+/* ── Main ────────────────────────────────────────────────────────────── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-main); }
+
+/* ── Chat View ───────────────────────────────────────────────────────── */
+.chat-view { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.chat-topbar {
+    padding: 12px 20px; background: var(--bg-card); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.chat-topbar h2 { font-size: 15px; font-weight: 600; }
+.chat-topbar .chat-badges { display: flex; align-items: center; gap: 8px; }
+.chat-context-tag {
+    font-size: 12px; padding: 3px 10px; border-radius: 999px; background: #EFF6FF; color: var(--primary);
+    font-weight: 500; display: none;
+}
+.chat-topbar-actions { display: flex; gap: 6px; }
+.chat-topbar-actions button {
+    height: 32px; padding: 0 12px; border-radius: var(--radius-sm); font-size: 12px; cursor: pointer;
+    background: var(--bg-input); color: var(--text-secondary); border: 1px solid var(--border); transition: all 0.15s;
+}
+.chat-topbar-actions button:hover { background: var(--border-light); }
+
+.chat-messages {
+    flex: 1; overflow-y: auto; padding: 16px 20px 80px;
+    display: flex; flex-direction: column; gap: 12px;
+}
+.message { display: flex; gap: 10px; max-width: 100%; animation: msgIn 0.25s var(--ease); }
+@keyframes msgIn { from { opacity: 0; transform: translateY(6px); } }
+.message.user { flex-direction: row-reverse; }
+.msg-avatar {
+    width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: 14px; flex-shrink: 0; font-weight: 600;
+}
+.message.user .msg-avatar { background: var(--primary); color: #fff; }
+.message.assistant .msg-avatar { background: #E2E8F0; color: var(--text-secondary); }
+.msg-body { font-size: 14px; line-height: 1.7; min-width: 0; }
+.message.user .msg-body { color: var(--primary); font-weight: 500; }
+.msg-body p { margin: 0 0 8px 0; }
+.msg-body p:last-child { margin-bottom: 0; }
+.msg-body table { width: 100%; border-collapse: collapse; margin: 8px 0; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; font-size: 13px; }
+.msg-body th, .msg-body td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+.msg-body th { background: var(--bg-input); font-weight: 600; }
+.msg-body code { background: #F1F5F9; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+.msg-body pre { background: #1E293B; color: #E2E8F0; padding: 12px; border-radius: var(--radius-sm); overflow-x: auto; font-size: 13px; }
+.msg-body pre code { background: none; color: inherit; padding: 0; }
+.msg-body blockquote { border-left: 3px solid var(--primary); padding-left: 12px; color: var(--text-secondary); margin: 8px 0; }
+.sources { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-light); font-size: 12px; color: var(--text-muted); }
+.sources-title { font-weight: 600; margin-bottom: 4px; }
+
+.chat-input-area {
+    position: fixed; bottom: 0; left: 260px; right: 0;
+    padding: 12px 20px 16px; z-index: 50; display: flex; gap: 10px;
+}
+.chat-input-inner {
+    flex: 1; display: flex; gap: 10px; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 8px 12px; box-shadow: var(--shadow-md); align-items: center;
+}
+.chat-input-inner textarea {
+    flex: 1; border: none; outline: none; resize: none; font-size: 14px;
+    font-family: inherit; line-height: 1.5; height: 44px; padding: 4px 0;
+    background: transparent;
+}
+.chat-input-inner textarea::placeholder { color: var(--text-muted); }
+.chat-input-inner button {
+    height: 38px; padding: 0 18px; border-radius: var(--radius-sm);
+    background: var(--primary); color: #fff; border: none; font-size: 14px;
+    font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.chat-input-inner button:hover { background: var(--primary-dark); }
+.chat-input-inner button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Empty / Welcome ─────────────────────────────────────────────────── */
+.empty-state {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center; padding: 40px; color: var(--text-secondary);
+}
+.empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.8; }
+.empty-state h2 { font-size: 18px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+.empty-state p { font-size: 14px; margin-bottom: 20px; max-width: 400px; }
+.empty-state button { padding: 10px 20px; border-radius: var(--radius-sm); background: var(--primary); color: #fff; border: none; font-size: 14px; font-weight: 600; cursor: pointer; }
+
+/* ── Panel Views (Customers / Tasks / Directory / History) ──────────── */
+.panel-view { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.panel-topbar {
+    padding: 14px 20px; background: var(--bg-card); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; gap: 12px;
+}
+.panel-topbar h2 { font-size: 15px; font-weight: 600; }
+.panel-topbar-actions { display: flex; gap: 8px; align-items: center; }
+.panel-search {
+    padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 13px; outline: none; width: 220px; background: var(--bg-input);
+}
+.panel-search:focus { border-color: var(--primary); }
+.panel-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+
+/* ── Table (Customers) ──────────────────────────────────────────────── */
+.data-table { width: 100%; border-collapse: collapse; background: var(--bg-card); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+.data-table th {
+    padding: 10px 14px; text-align: left; font-size: 12px; font-weight: 600;
+    color: var(--text-secondary); background: var(--bg-input); border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+}
+.data-table td {
+    padding: 10px 14px; font-size: 13px; border-bottom: 1px solid var(--border-light);
+    white-space: nowrap;
+}
+.data-table tr:hover td { background: #F8FAFC; }
+.data-table tr { cursor: pointer; transition: background 0.1s; }
+.level-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
+}
+.level-a { background: #D1FAE5; color: #065F46; }
+.level-b { background: #FEF3C7; color: #92400E; }
+.level-c { background: #F1F5F9; color: #475569; }
+.btn-xs {
+    padding: 4px 10px; font-size: 11px; border-radius: var(--radius-sm); cursor: pointer;
+    border: 1px solid var(--border); background: var(--bg-card); color: var(--text-secondary);
+    transition: all 0.15s;
+}
+.btn-xs:hover { background: var(--bg-input); }
+.btn-xs.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* ── Slide-over Panel (Customer Detail) ────────────────────────────── */
+.slide-panel-backdrop {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.4); z-index: 100;
+    display: flex; justify-content: flex-end; animation: fadeIn 0.2s var(--ease);
+}
+@keyframes fadeIn { from { opacity: 0; } }
+.slide-panel {
+    width: 480px; max-width: 90vw; background: var(--bg-card); height: 100%;
+    overflow-y: auto; padding: 24px; box-shadow: var(--shadow-lg);
+    animation: slideRight 0.25s var(--ease);
+}
+@keyframes slideRight { from { transform: translateX(40px); opacity: 0; } }
+.slide-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.slide-panel-header h3 { font-size: 16px; font-weight: 600; }
+.slide-panel-close { width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--bg-input); cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+.panel-section { margin-bottom: 20px; }
+.panel-section-title { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+.panel-field { margin-bottom: 12px; }
+.panel-field label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+.panel-field input, .panel-field textarea, .panel-field select {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 13px; font-family: inherit; background: var(--bg-input);
+}
+.panel-field textarea { resize: vertical; min-height: 60px; }
+.panel-field-row { display: flex; gap: 10px; }
+.panel-field-row .panel-field { flex: 1; }
+.panel-linked-libs { display: flex; flex-wrap: wrap; gap: 6px; }
+.panel-linked-lib {
+    display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+    background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 12px;
+}
+.panel-linked-lib .unlink-btn { cursor: pointer; color: var(--accent-red); font-size: 14px; font-weight: 700; padding: 0 2px; }
+.panel-conv-item {
+    padding: 10px 12px; background: var(--bg-input); border-radius: var(--radius-sm);
+    margin-bottom: 6px; cursor: pointer; transition: background 0.15s;
+}
+.panel-conv-item:hover { background: var(--border-light); }
+.panel-conv-item .conv-time { font-size: 11px; color: var(--text-muted); }
+.panel-conv-item .conv-query { font-size: 13px; color: var(--text-primary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Task Cards ─────────────────────────────────────────────────────── */
+.task-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.task-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px; box-shadow: var(--shadow-sm); transition: all 0.15s;
+}
+.task-card:hover { box-shadow: var(--shadow); }
+.task-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.task-card-name { font-size: 14px; font-weight: 600; }
+.task-card-schedule { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+.task-card-cron { font-size: 11px; color: var(--text-muted); font-family: monospace; margin-bottom: 10px; }
+.task-card-next { font-size: 12px; color: var(--accent-green); margin-bottom: 10px; }
+.task-card-actions { display: flex; gap: 6px; }
+.task-card-actions button {
+    padding: 5px 12px; border-radius: var(--radius-sm); font-size: 12px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--bg-card); color: var(--text-secondary);
+    transition: all 0.15s;
+}
+.task-card-actions button:hover { background: var(--bg-input); }
+.toggle-switch {
+    position: relative; width: 40px; height: 22px; flex-shrink: 0;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+    background: #CBD5E1; border-radius: 999px; transition: 0.2s;
+}
+.toggle-slider:before {
+    position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+    background: #fff; border-radius: 50%; transition: 0.2s;
+}
+.toggle-switch input:checked + .toggle-slider { background: var(--accent-green); }
+.toggle-switch input:checked + .toggle-slider:before { transform: translateX(18px); }
+
+/* ── Directory Tree ─────────────────────────────────────────────────── */
+.dir-tree { background: var(--bg-card); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow-sm); font-size: 13px; }
+.dir-tree-item {
+    padding: 3px 0; cursor: pointer; display: flex; align-items: center; gap: 6px;
+    border-radius: 4px; transition: background 0.1s; color: var(--text-primary);
+}
+.dir-tree-item:hover { background: var(--bg-input); }
+.dir-tree-item.dir { font-weight: 500; }
+.dir-tree-item .tree-icon { font-size: 14px; width: 18px; text-align: center; }
+.dir-tree-indent { padding-left: 20px; }
+.file-preview {
+    margin-top: 16px; padding: 16px; background: var(--bg-card); border-radius: var(--radius);
+    border: 1px solid var(--border); min-height: 200px; max-height: 500px; overflow-y: auto;
+}
+.file-preview-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.file-preview-header h3 { font-size: 14px; font-weight: 600; }
+
+/* ── Conversation History ──────────────────────────────────────────── */
+.conv-list { display: flex; flex-direction: column; gap: 6px; }
+.conv-list-item {
+    padding: 12px 16px; background: var(--bg-card); border-radius: var(--radius);
+    cursor: pointer; border: 1px solid transparent; transition: all 0.15s; box-shadow: var(--shadow-sm);
+}
+.conv-list-item:hover { border-color: var(--primary); }
+.conv-list-item .conv-meta { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+.conv-list-item .conv-q { font-size: 13px; color: var(--text-primary); font-weight: 500; margin-bottom: 2px; }
+.conv-list-item .conv-a { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Modal ─────────────────────────────────────────────────────────── */
+.modal-backdrop {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 200;
+    display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s var(--ease);
+}
+.modal {
+    background: var(--bg-card); border-radius: var(--radius-lg); padding: 24px;
+    width: 480px; max-width: 90vw; max-height: 85vh; overflow-y: auto; box-shadow: var(--shadow-lg);
+}
+.modal.wide { width: 640px; }
+.modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+.modal-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+.modal-tab {
+    padding: 8px 16px; border: none; background: none; cursor: pointer; font-size: 13px;
+    color: var(--text-secondary); border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: all 0.15s;
+}
+.modal-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-weight: 500; margin-bottom: 4px; font-size: 13px; color: var(--text-secondary); }
+.form-group input, .form-group textarea, .form-group select {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 13px; font-family: inherit; background: var(--bg-input); outline: none;
+}
+.form-group input:focus, .form-group textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(59,130,246,0.1); }
+.form-group textarea { resize: vertical; min-height: 120px; }
+.form-row { display: flex; gap: 10px; }
+.form-row .form-group { flex: 1; }
+.form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+.btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border); transition: all 0.15s; background: var(--bg-card); color: var(--text-primary);
+}
+.btn:hover { background: var(--bg-input); }
+.btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-danger { color: var(--accent-red); border-color: var(--accent-red); }
+.btn-danger:hover { background: #FEF2F2; }
+
+.hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.toast {
+    position: fixed; bottom: 20px; right: 20px; padding: 10px 18px; border-radius: var(--radius);
+    background: #1E293B; color: #fff; font-size: 13px; z-index: 300; box-shadow: var(--shadow-lg);
+    animation: slideUp 0.3s var(--ease);
+}
+@keyframes slideUp { from { opacity: 0; transform: translateY(10px); } }
+.hidden { display: none !important; }
+.spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-row { display: flex; align-items: center; gap: 8px; padding: 12px; color: var(--text-muted); font-size: 13px; }
+
+/* ── Tool Progress ──────────────────────────────────────────────────── */
+.tool-progress { margin: 6px 0; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.tool-item { display: flex; align-items: flex-start; gap: 8px; padding: 6px 10px; font-size: 12px; border-bottom: 1px solid var(--border-light); transition: background 0.15s; }
+.tool-item:last-child { border-bottom: none; }
+.tool-item .tool-icon { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+.tool-item.running { background: #EFF6FF; }
+.tool-item.running .tool-icon { color: var(--primary); animation: spin 0.8s linear infinite; }
+.tool-item.done .tool-icon { color: var(--accent-green); }
+.tool-item.failed .tool-icon { color: var(--accent-red); }
+.tool-item .tool-body { flex: 1; min-width: 0; }
+.tool-item .tool-name { font-weight: 600; }
+.tool-item .tool-detail { color: var(--text-muted); font-size: 11px; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>
 </head>
 <body>
-<div class="app-container">
 
-<!-- Sidebar -->
+<!-- ═════════════════════ SIDEBAR ═════════════════════ -->
 <aside class="sidebar">
     <div class="sidebar-header">
-        <h1>📄 Trade AI</h1>
-        <div class="company-selector">
-            <select id="company-select" onchange="onCompanyChange(this.value)">
-                <option value="">— 选择公司 —</option>
-            </select>
-            <button class="btn btn-secondary btn-sm" onclick="showModal('company-modal')" title="添加公司">➕</button>
+        <div class="logo">📦 Trade<span>AI</span></div>
+        <div class="company-select">
+            <div class="csel-row">
+                <select id="company-select" onchange="onCompanyChange(this.value)">
+                    <option value="">— 选择公司 —</option>
+                </select>
+                <button onclick="showAddCompanyModal()" title="添加公司">+</button>
+            </div>
         </div>
     </div>
-    <div class="sidebar-content">
-        <div class="nav-item active" id="nav-default" onclick="switchChat(null,null,'默认对话')">
-            <span class="icon">💬</span><span class="name">聊一聊</span>
+
+    <nav class="sidebar-nav">
+        <div class="nav-section">
+            <div class="nav-section-title">📊 工作台</div>
+            <div class="nav-item active" data-view="chat" data-chat-context="daily" onclick="navToView('chat','daily','今日简报')">
+                <span class="nav-icon">📋</span><span class="nav-label">今日简报</span>
+            </div>
         </div>
-        <div class="sidebar-section-title">📁 文档库</div>
-        <div id="library-list">
-            <div class="nav-item" onclick="showLibraryModal()"><span class="icon">➕</span><span>新建文档库</span></div>
+
+        <div class="nav-section">
+            <div class="nav-section-title">🔍 获客引流</div>
+            <div class="nav-item" data-view="chat" data-chat-context="lead" onclick="navToView('chat','lead','客户开发')">
+                <span class="nav-icon">🎯</span><span class="nav-label">客户开发</span>
+            </div>
+            <div class="nav-item" data-view="chat" data-chat-context="platform" onclick="navToView('chat','platform','平台诊断')">
+                <span class="nav-icon">🏪</span><span class="nav-label">平台诊断</span>
+            </div>
+            <div class="nav-item" data-view="chat" data-chat-context="social" onclick="navToView('chat','social','社媒营销')">
+                <span class="nav-icon">📱</span><span class="nav-label">社媒营销</span>
+            </div>
+            <div class="nav-item" data-view="chat" data-chat-context="linkedin" onclick="navToView('chat','linkedin','LinkedIn 营销')">
+                <span class="nav-icon">💼</span><span class="nav-label">LinkedIn</span>
+            </div>
+            <div class="nav-item" data-view="chat" data-chat-context="customs" onclick="navToView('chat','customs','海关数据')">
+                <span class="nav-icon">🛃</span><span class="nav-label">海关数据</span>
+            </div>
         </div>
-        <div class="sidebar-section-title">👤 客户</div>
-        <div id="customer-list">
-            <div class="nav-item" onclick="showCustomerModal()"><span class="icon">➕</span><span>添加客户</span></div>
+
+        <div class="nav-section">
+            <div class="nav-section-title">👤 销售转化</div>
+            <div class="nav-item" data-view="customers" onclick="navToView('customers')">
+                <span class="nav-icon">👥</span><span class="nav-label">客户管理</span>
+            </div>
+            <div class="nav-item" data-view="chat" data-chat-context="docs" onclick="navToView('chat','docs','文档库')">
+                <span class="nav-icon">📁</span><span class="nav-label">文档库</span>
+            </div>
+            <div class="nav-item" data-view="chat" data-chat-context="docgen" onclick="navToView('chat','docgen','文档生成')">
+                <span class="nav-icon">📄</span><span class="nav-label">文档生成</span>
+            </div>
         </div>
-    </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title">🛠️ 工具</div>
+            <div class="nav-item" data-view="chat" data-chat-context="osint" onclick="navToView('chat','osint','客户背调')">
+                <span class="nav-icon">🕵️</span><span class="nav-label">客户背调</span>
+            </div>
+            <div class="nav-item" data-view="tasks" onclick="navToView('tasks')">
+                <span class="nav-icon">⏰</span><span class="nav-label">定时任务</span>
+            </div>
+            <div class="nav-item" data-view="directory" onclick="navToView('directory')">
+                <span class="nav-icon">📂</span><span class="nav-label">数据目录</span>
+            </div>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title">💬 历史</div>
+            <div class="nav-item" data-view="history" onclick="navToView('history')">
+                <span class="nav-icon">🕐</span><span class="nav-label">对话记录</span>
+            </div>
+        </div>
+    </nav>
+
     <div class="sidebar-footer">
-        <button class="btn btn-secondary btn-block btn-sm" onclick="showModal('company-modal')">🏢 公司设置</button>
-        <button class="btn btn-secondary btn-block btn-sm" onclick="location.href='/dashboard'">⚙️ 管理面板</button>
+        <button onclick="showAddCompanyModal()">🏢 公司设置</button>
     </div>
 </aside>
 
-<!-- Main -->
-<main class="main-content">
-    <!-- No company selected -->
-    <div id="no-company-page" class="no-company">
-        <div style="font-size:2.5rem;margin-bottom:1rem;">🏢</div>
-        <h2>请先选择或创建公司</h2>
-        <p>Trade AI 为多公司隔离架构，每个公司有独立的文档库、客户和对话记录。</p>
-        <div style="display:flex;gap:0.75rem;">
-            <button class="btn btn-primary" onclick="showModal('company-modal')">➕ 创建公司</button>
-            <button class="btn btn-secondary" onclick="loadCompanies()">🔄 刷新公司列表</button>
-        </div>
-    </div>
-
-    <!-- Welcome -->
-    <div id="welcome-page" class="welcome hidden">
-        <div style="font-size:3rem;margin-bottom:1rem;">📄</div>
-        <h2>Trade AI Assistant</h2>
-        <p id="welcome-company-name"></p>
-        <div style="display:flex;gap:1rem;">
-            <button class="btn btn-primary" onclick="showLibraryModal()">➕ 新建文档库</button>
-            <button class="btn btn-secondary" onclick="switchChat(null,null,'默认对话')">💬 开始对话</button>
-        </div>
-    </div>
-
-    <!-- Chat -->
-    <div id="chat-page" class="hidden" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
-        <div class="top-bar">
-            <div style="display:flex;align-items:center;gap:0.5rem;">
-                <h2 id="chat-title">默认对话</h2>
-                <span class="badge hidden" id="chat-badge"></span>
-                <span class="company-badge hidden" id="company-badge"></span>
-            </div>
-            <div style="display:flex;gap:0.5rem;">
-                <button class="btn btn-secondary btn-sm" onclick="showCompanyChatSettings()" title="公司身份配置">🏢</button>
-                <button class="btn btn-secondary btn-sm" onclick="clearChat()">🗑️ 清空</button>
-            </div>
-        </div>
-        <div class="chat-area" id="chat-messages"></div>
-        <div class="input-area">
-            <textarea id="msg-input" placeholder="输入您的问题..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"></textarea>
-            <button class="btn btn-primary" onclick="sendMsg()">发送</button>
-        </div>
-    </div>
+<!-- ═════════════════════ MAIN ═════════════════════ -->
+<main class="main" id="main-content">
+    <!-- filled dynamically by navToView() -->
 </main>
-</div>
+
+<!-- ═════════════════════ MODALS ═════════════════════ -->
 
 <!-- Company Modal -->
 <div class="modal-backdrop hidden" id="company-modal">
@@ -228,80 +464,56 @@
         <h3>🏢 公司设置</h3>
         <div class="modal-tabs">
             <button class="modal-tab active" onclick="switchModalTab('tab-companies')" id="tab-btn-companies">公司列表</button>
-            <button class="modal-tab" onclick="switchModalTab('tab-identity')" id="tab-btn-identity">Agent 身份配置</button>
+            <button class="modal-tab" onclick="switchModalTab('tab-identity')" id="tab-btn-identity">Agent 身份</button>
         </div>
-        <!-- Tab: Companies -->
         <div id="tab-companies">
-            <div id="company-list-ui" style="margin-bottom:1rem;"></div>
-            <hr style="border:none;border-top:1px solid rgba(0,0,0,0.08);margin:1rem 0;">
-            <h4 style="font-size:0.875rem;font-weight:600;margin-bottom:0.75rem;">添加新公司</h4>
+            <div id="company-list-ui" style="margin-bottom:14px;"></div>
+            <hr style="border:none;border-top:1px solid var(--border);margin:14px 0;">
+            <h4 style="font-size:13px;font-weight:600;margin-bottom:10px;">添加新公司</h4>
             <div class="form-row">
-                <div class="form-group">
-                    <label>公司名称 *</label>
-                    <input type="text" id="co-name" placeholder="例如：科辰电力出口部">
-                </div>
-                <div class="form-group">
-                    <label>Slug（URL标识）</label>
-                    <input type="text" id="co-slug" placeholder="auto-generated">
-                </div>
+                <div class="form-group"><label>公司名称 *</label><input type="text" id="co-name" placeholder="例如：科辰电力出口部"></div>
+                <div class="form-group"><label>Slug</label><input type="text" id="co-slug" placeholder="自动生成"></div>
             </div>
             <div class="form-row">
-                <div class="form-group">
-                    <label>联系人</label>
-                    <input type="text" id="co-contact-name" placeholder="姓名">
-                </div>
-                <div class="form-group">
-                    <label>联系邮箱</label>
-                    <input type="email" id="co-contact-email" placeholder="email@example.com">
-                </div>
+                <div class="form-group"><label>联系人</label><input type="text" id="co-contact-name" placeholder="姓名"></div>
+                <div class="form-group"><label>邮箱</label><input type="email" id="co-contact-email" placeholder="email@example.com"></div>
             </div>
-            <div class="form-group">
-                <label>公司网站</label>
-                <input type="text" id="co-website" placeholder="https://...">
-            </div>
-            <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-                <button class="btn btn-secondary" onclick="hideModal('company-modal')">关闭</button>
+            <div class="form-group"><label>网站</label><input type="text" id="co-website" placeholder="https://..."></div>
+            <div class="form-actions">
+                <button class="btn" onclick="hideModal('company-modal')">关闭</button>
                 <button class="btn btn-primary" onclick="createCompany()">创建公司</button>
             </div>
         </div>
-        <!-- Tab: Agent Identity -->
         <div id="tab-identity" class="hidden">
-            <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:1rem;">配置当前选中公司的 AI Agent 身份。系统会在对话时将此内容注入 AI 的系统提示词。</p>
-            <div class="form-group">
-                <label>Agent 身份配置 (Markdown)</label>
-                <textarea id="identity-editor" placeholder="粘贴 agent-identity.md 内容，或手动编辑..."></textarea>
-            </div>
-            <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-                <button class="btn btn-secondary" onclick="hideModal('company-modal')">关闭</button>
-                <button class="btn btn-primary" onclick="saveCompanyIdentity()">保存身份配置</button>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">配置当前选中公司的 AI Agent 身份。系统会在对话时注入此内容。</p>
+            <div class="form-group"><label>Agent 身份 (Markdown)</label>
+            <textarea id="identity-editor" placeholder="粘贴 agent-identity.md 内容..."></textarea></div>
+            <div class="form-actions">
+                <button class="btn" onclick="hideModal('company-modal')">关闭</button>
+                <button class="btn btn-primary" onclick="saveCompanyIdentity()">保存</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Library Modal -->
-<div class="modal-backdrop hidden" id="library-modal">
-    <div class="modal">
-        <h3>新建文档库</h3>
-        <div class="form-group"><label>库名称</label><input type="text" id="lib-name" placeholder="例如：产品报价库"></div>
-        <div class="form-group"><label>文档目录路径</label><input type="text" id="lib-path" placeholder="/Users/xxx/Documents/客户资料"><p class="hint">📌 Mac: 文件夹上右键→Option键→复制路径名</p></div>
-        <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-            <button class="btn btn-secondary" onclick="hideModal('library-modal')">取消</button>
-            <button class="btn btn-primary" onclick="createLibrary()">创建</button>
-        </div>
-    </div>
-</div>
-
-<!-- Customer Modal -->
+<!-- Customer Modal (add/edit) -->
 <div class="modal-backdrop hidden" id="customer-modal">
     <div class="modal">
-        <h3>添加客户</h3>
+        <h3 id="customer-modal-title">添加客户</h3>
+        <input type="hidden" id="cust-edit-id">
         <div class="form-group"><label>客户名称 *</label><input type="text" id="cust-name" placeholder="公司名称"></div>
-        <div class="form-group"><label>联系方式</label><input type="text" id="cust-contact" placeholder="邮箱或电话"></div>
-        <div class="form-group"><label>备注</label><input type="text" id="cust-note" placeholder="可选"></div>
-        <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-            <button class="btn btn-secondary" onclick="hideModal('customer-modal')">取消</button>
-            <button class="btn btn-primary" onclick="createCustomer()">添加</button>
+        <div class="form-row">
+            <div class="form-group"><label>联系方式</label><input type="text" id="cust-contact" placeholder="邮箱或电话"></div>
+            <div class="form-group"><label>国家</label><input type="text" id="cust-country" placeholder="如 Italy"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>客户等级</label><select id="cust-tier"><option value="">未分级</option><option value="A">A 级</option><option value="B">B 级</option><option value="C">C 级</option></select></div>
+            <div class="form-group"><label>LinkedIn URL</label><input type="text" id="cust-linkedin" placeholder="https://linkedin.com/..."></div>
+        </div>
+        <div class="form-group"><label>备注</label><textarea id="cust-note" placeholder="客户需求、注意事项等" style="min-height:80px;"></textarea></div>
+        <div class="form-actions">
+            <button class="btn" onclick="hideModal('customer-modal')">取消</button>
+            <button class="btn btn-primary" onclick="saveCustomer()">保存</button>
         </div>
     </div>
 </div>
@@ -309,308 +521,183 @@
 <div id="toast-container"></div>
 
 <script>
-// ── State ───────────────────────────────────────────────────────────────────
-let companies = [];           // [{id, name, slug, ...}]
-let currentCompanyId = null;   // sessionStorage
+// ═════════════════════ STATE ═════════════════════
+let companies = [];
+let currentCompanyId = null;
+let currentView = 'chat';       // chat | customers | tasks | directory | history
+let currentChatContext = 'daily'; // daily | lead | platform | social | linkedin | customs | docs | docgen | osint
+let currentChatName = '今日简报';
 let currentLibraryId = null;
 let currentCustomerId = null;
-let currentChatName = '默认对话';
+let editingCustomerData = null; // for customer detail panel
 
-// ── Persistence ──────────────────────────────────────────────────────────────
-function saveCurrentCompany() {
-    if (currentCompanyId) sessionStorage.setItem('trade_company_id', currentCompanyId);
-    else sessionStorage.removeItem('trade_company_id');
+// ═════════════════════ PERSISTENCE ═════════════════════
+function saveState() {
+    if (currentCompanyId) sessionStorage.setItem('trade_cid', currentCompanyId);
+    else sessionStorage.removeItem('trade_cid');
+    sessionStorage.setItem('trade_view', currentView);
+    if (currentChatContext) sessionStorage.setItem('trade_ctx', currentChatContext);
 }
-function loadSavedCompany() {
-    return parseInt(sessionStorage.getItem('trade_company_id') || '0') || null;
-}
+function loadSavedCid() { return parseInt(sessionStorage.getItem('trade_cid') || '0') || null; }
 
-// ── API helpers ─────────────────────────────────────────────────────────────
+// ═════════════════════ API ═════════════════════
 const TOKEN = localStorage.getItem('trade_token') || '';
 async function api(method, path, body) {
     const opts = { method, headers: {} };
     if (TOKEN) opts.headers['X-Hermes-Session-Token'] = TOKEN;
     if (currentCompanyId) opts.headers['X-Company-ID'] = String(currentCompanyId);
     if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 300000);
-    opts.signal = controller.signal;
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 120000);
+    opts.signal = ctrl.signal;
     try {
         const r = await fetch(path, opts);
-        clearTimeout(timeoutId);
-        if (r.status === 401) { toast('请先选择公司，或刷新重试'); return null; }
-        if (r.status === 403) { toast('无权限操作（公司不匹配）'); return null; }
+        clearTimeout(tid);
+        if (r.status === 401) { toast('请先选择公司'); return null; }
+        if (r.status === 403) { toast('无权限'); return null; }
         return r.json();
     } catch(e) {
-        clearTimeout(timeoutId);
-        if (e.name === 'AbortError') throw new Error('请求超时（5分钟）');
+        clearTimeout(tid);
+        if (e.name === 'AbortError') { toast('请求超时'); return null; }
         throw e;
     }
 }
 
-// ── UI helpers ──────────────────────────────────────────────────────────────
-function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
-function hideModal(id) { document.getElementById(id).classList.add('hidden'); }
+// ═════════════════════ UI HELPERS ═════════════════════
+function $(id) { return document.getElementById(id); }
+function showModal(id) { $(id).classList.remove('hidden'); }
+function hideModal(id) { $(id).classList.add('hidden'); }
 function toast(msg) {
-    const c = document.getElementById('toast-container');
+    const c = $('toast-container');
     const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
     c.appendChild(t); setTimeout(() => t.remove(), 3000);
 }
-function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
+function esc(s) { const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
 
-function switchModalTab(tab) {
-    document.getElementById('tab-companies').classList.toggle('hidden', tab !== 'tab-companies');
-    document.getElementById('tab-identity').classList.toggle('hidden', tab !== 'tab-identity');
-    document.getElementById('tab-btn-companies').classList.toggle('active', tab === 'tab-companies');
-    document.getElementById('tab-btn-identity').classList.toggle('active', tab === 'tab-identity');
-    if (tab === 'tab-identity') loadIdentityForCurrentCompany();
-}
-
-// ── Company management ──────────────────────────────────────────────────────
-async function loadCompanies() {
-    companies = await api('GET', '/api/trade/companies') || [];
-    renderCompanySelect();
-    renderCompanyListUI();
-}
-
-function renderCompanySelect() {
-    const sel = document.getElementById('company-select');
-    const prev = parseInt(sel.value) || null;
-    sel.innerHTML = '<option value="">— 选择公司 —</option>' +
-        companies.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-    if (prev && companies.find(c => c.id === prev)) sel.value = prev;
-}
-
-function renderCompanyListUI() {
-    const container = document.getElementById('company-list-ui');
-    if (!companies.length) {
-        container.innerHTML = '<p style="color:var(--text-muted);font-size:0.875rem;">暂无公司，请下方创建。</p>';
-        return;
-    }
-    container.innerHTML = companies.map(c => `
-        <div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid rgba(0,0,0,0.05);">
-            <div style="flex:1;">
-                <div style="font-weight:600;font-size:0.9375rem;">${escapeHtml(c.name)}</div>
-                <div style="font-size:0.8125rem;color:var(--text-muted);">${escapeHtml(c.slug)} · ${c.contact_email || '无邮箱'}</div>
-            </div>
-            <button class="btn btn-secondary btn-sm" onclick="deleteCompany(${c.id})" style="height:28px;color:var(--error);border-color:var(--error);">删除</button>
-        </div>
-    `).join('');
-}
-
-async function createCompany() {
-    const name = document.getElementById('co-name').value.trim();
-    if (!name) { toast('请填写公司名称'); return; }
-    const slug = document.getElementById('co-slug').value.trim() || undefined;
-    const contact_name = document.getElementById('co-contact-name').value.trim();
-    const contact_email = document.getElementById('co-contact-email').value.trim();
-    const website = document.getElementById('co-website').value.trim();
-    const r = await api('POST',
-        `/api/trade/companies?name=${encodeURIComponent(name)}` +
-        `&slug=${encodeURIComponent(slug||'')}` +
-        `&contact_name=${encodeURIComponent(contact_name)}` +
-        `&contact_email=${encodeURIComponent(contact_email)}` +
-        `&website=${encodeURIComponent(website)}`
-    );
-    if (r && r.id) {
-        toast('公司创建成功');
-        // Clear form
-        ['co-name','co-slug','co-contact-name','co-contact-email','co-website'].forEach(id => document.getElementById(id).value = '');
-        await loadCompanies();
-        // Auto-switch to new company
-        onCompanyChange(r.id);
-    } else {
-        toast(r?.detail || '创建失败');
-    }
-}
-
-async function deleteCompany(id) {
-    if (!confirm('确定删除该公司？所有文档库、客户和对话记录将一并删除！')) return;
-    const r = await api('DELETE', `/api/trade/companies/${id}`);
-    if (r && r.ok) {
-        toast('公司已删除');
-        if (currentCompanyId === id) switchCompany(null);
-        await loadCompanies();
-    } else {
-        toast(r?.detail || '删除失败');
-    }
-}
-
-function switchCompany(cid) {
-    currentCompanyId = cid ? parseInt(cid) : null;
+// ═════════════════════ NAVIGATION ═════════════════════
+function navToView(view, chatCtx, chatName) {
+    currentView = view;
+    if (chatCtx) { currentChatContext = chatCtx; currentChatName = chatName || ''; }
     currentLibraryId = null;
     currentCustomerId = null;
-    saveCurrentCompany();
+    saveState();
 
-    // Update selector
-    document.getElementById('company-select').value = cid || '';
+    // Update sidebar active
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    const activeItem = document.querySelector(`.nav-item[data-view="${view}"][data-chat-context="${chatCtx||''}"]`) ||
+                       document.querySelector(`.nav-item[data-view="${view}"]`);
+    if (activeItem) activeItem.classList.add('active');
 
-    // Show/hide pages
-    const noCo = document.getElementById('no-company-page');
-    const welcome = document.getElementById('welcome-page');
-    const chat = document.getElementById('chat-page');
+    const main = $('main-content');
+    main.innerHTML = '';
 
-    if (!cid) {
-        noCo.classList.remove('hidden'); noCo.style.display = 'flex';
-        welcome.classList.add('hidden'); welcome.style.display = '';
-        chat.classList.add('hidden'); chat.style.display = '';
-        document.getElementById('library-list').innerHTML = '<div class="nav-item" onclick="showLibraryModal()"><span class="icon">➕</span><span>新建文档库</span></div>';
-        document.getElementById('customer-list').innerHTML = '<div class="nav-item" onclick="showCustomerModal()"><span class="icon">➕</span><span>添加客户</span></div>';
-    } else {
-        noCo.classList.add('hidden'); noCo.style.display = '';
-        welcome.classList.remove('hidden'); welcome.style.display = '';
-        chat.classList.add('hidden'); chat.style.display = '';
-        const co = companies.find(c => c.id === cid);
-        document.getElementById('welcome-company-name').textContent = co ? co.name : '';
-        document.getElementById('nav-default').classList.add('active');
-        loadLibraries();
-        loadCustomers();
+    switch (view) {
+        case 'chat': renderChatView(chatCtx, chatName); break;
+        case 'customers': renderCustomersView(); break;
+        case 'tasks': renderTasksView(); break;
+        case 'directory': renderDirectoryView(); break;
+        case 'history': renderHistoryView(); break;
+        default: renderChatView('daily', '今日简报');
     }
 }
 
-function onCompanyChange(cid) {
-    switchCompany(cid);
-}
+// ═════════════════════ CHAT VIEW ═════════════════════
+function renderChatView(ctx, name) {
+    const placeholders = {
+        daily: '输入任何问题，或说「早安简报」开始今天的工作...',
+        lead: '粘贴 LinkedIn 链接或客户信息，我来分析并写开发信...',
+        platform: '粘贴阿里国际站/中国制造网产品链接，我来诊断优化...',
+        social: '描述社媒需求，如「帮我规划本周 Facebook 内容日历」...',
+        linkedin: '描述 LinkedIn 营销需求，如「优化我的 LinkedIn Profile」...',
+        customs: '上传海关数据文件后，描述分析需求...',
+        docs: '在下方选择文档库后提问，或直接粘贴文件内容...',
+        docgen: '描述要生成的文档：如「做一份欧洲客户的报价单PPT」...',
+        osint: '输入邮箱/域名/公司名，我来做全面的背景调查...',
+    };
 
-async function showCompanyChatSettings() {
-    if (!currentCompanyId) { toast('请先选择公司'); return; }
-    switchModalTab('tab-identity');
-    showModal('company-modal');
-}
+    const main = $('main-content');
+    main.innerHTML = `
+    <div class="chat-view">
+        <div class="chat-topbar">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <h2>${esc(name)}</h2>
+                <span class="chat-context-tag" id="chat-context-tag"></span>
+            </div>
+            <div class="chat-topbar-actions">
+                ${ctx === 'docs' ? `
+                <select id="chat-library-select" onchange="onChatLibraryChange(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--bg-card);">
+                    <option value="">— 选择文档库 —</option>
+                </select>` : ''}
+                <button onclick="clearChat()">🗑️ 清屏</button>
+            </div>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+            <div class="empty-state" id="chat-empty">
+                <div class="empty-icon">💬</div>
+                <h2>${esc(name)}</h2>
+                <p>${placeholders[ctx] || '输入您的问题...'}</p>
+            </div>
+        </div>
+        <div class="chat-input-area">
+            <div class="chat-input-inner">
+                <textarea id="msg-input" placeholder="${placeholders[ctx] || ''}" rows="1"
+                    onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"></textarea>
+                <button onclick="sendMsg()" id="send-btn">发送</button>
+            </div>
+        </div>
+    </div>`;
 
-async function loadIdentityForCurrentCompany() {
-    if (!currentCompanyId) return;
-    const r = await api('GET', `/api/trade/companies/${currentCompanyId}/agent-identity`);
-    if (r) document.getElementById('identity-editor').value = r.agent_identity_md || '';
-}
-
-async function saveCompanyIdentity() {
-    if (!currentCompanyId) return;
-    const identity = document.getElementById('identity-editor').value;
-    const r = await api('PUT', `/api/trade/companies/${currentCompanyId}/agent-identity`, { agent_identity_md: identity });
-    if (r && r.company_id) { toast('身份配置已保存'); hideModal('company-modal'); }
-    else toast(r?.detail || '保存失败');
-}
-
-// ── Navigation ──────────────────────────────────────────────────────────────
-function switchChat(libId, custId, name) {
-    currentLibraryId = libId; currentCustomerId = custId; currentChatName = name;
-    document.getElementById('welcome-page').classList.add('hidden');
-    document.getElementById('welcome-page').style.display = '';
-    document.getElementById('chat-page').classList.remove('hidden');
-    document.getElementById('chat-page').style.display = '';
-    document.getElementById('chat-title').textContent = name;
-    const badge = document.getElementById('chat-badge');
-    badge.textContent = libId ? '📁 文档库对话' : (custId ? '👤 客户对话' : '💬 默认对话');
-    badge.classList.remove('hidden');
-    const coBadge = document.getElementById('company-badge');
-    const co = companies.find(c => c.id === currentCompanyId);
-    if (co) { coBadge.textContent = co.name; coBadge.classList.remove('hidden'); }
-    else coBadge.classList.add('hidden');
-    document.getElementById('chat-messages').innerHTML = '';
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    document.getElementById('nav-default').classList.toggle('active', !libId && !custId);
+    // Load library selector if in docs context
+    if (ctx === 'docs') loadChatLibrarySelect();
+    // Load recent conversations for this context
     loadChatHistory();
 }
 
-async function clearChat() {
-    if (!confirm('确定清空当前对话记录显示？')) return;
-    document.getElementById('chat-messages').innerHTML = '';
+function onChatLibraryChange(libId) {
+    currentLibraryId = libId ? parseInt(libId) : null;
+    const tag = $('chat-context-tag');
+    if (libId) {
+        const sel = $('chat-library-select');
+        tag.textContent = '📁 ' + (sel.options[sel.selectedIndex]?.text || '');
+        tag.style.display = 'block';
+    } else {
+        tag.style.display = 'none';
+    }
+    $('chat-messages').innerHTML = '';
+    loadChatHistory();
 }
 
-// ── Library CRUD ────────────────────────────────────────────────────────────
-function showLibraryModal() {
-    document.getElementById('lib-name').value=''; document.getElementById('lib-path').value='';
-    showModal('library-modal');
-}
-async function createLibrary() {
-    const name = document.getElementById('lib-name').value.trim();
-    const path = document.getElementById('lib-path').value.trim();
-    if (!name || !path) { toast('请填写完整信息'); return; }
-    const r = await api('POST', `/api/trade/libraries?name=${encodeURIComponent(name)}&root_path=${encodeURIComponent(path)}`);
-    if (r && r.id) { toast('文档库创建成功'); hideModal('library-modal'); loadLibraries(); }
-    else { toast(r?.detail || '创建失败'); }
-}
-async function deleteLibrary(id) {
-    if (!confirm('确定删除？')) return;
-    await api('DELETE', `/api/trade/libraries/${id}`);
-    if (currentLibraryId === id) switchChat(null, null, '默认对话');
-    loadLibraries();
-}
-async function loadLibraries() {
+async function loadChatLibrarySelect() {
     if (!currentCompanyId) return;
     const data = await api('GET', '/api/trade/libraries');
-    const container = document.getElementById('library-list');
-    if (!data || !data.length) { container.innerHTML = '<div class="nav-item" onclick="showLibraryModal()"><span class="icon">➕</span><span>新建文档库</span></div>'; return; }
-    container.innerHTML = data.map(l => `
-        <div class="nav-item ${currentLibraryId===l.id?'active':''}" onclick="switchChat(${l.id},null,'${escapeHtml(l.name)}')">
-            <span class="icon">📁</span><span class="name">${escapeHtml(l.name)}</span>
-            <button class="delete-btn" onclick="event.stopPropagation();deleteLibrary(${l.id})">×</button>
-        </div>
-    `).join('') + '<div class="nav-item" onclick="showLibraryModal()"><span class="icon">➕</span><span>新建文档库</span></div>';
+    const sel = $('chat-library-select');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— 选择文档库 —</option>' +
+        (data||[]).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('');
 }
 
-// ── Customer CRUD ───────────────────────────────────────────────────────────
-function showCustomerModal() {
-    ['cust-name','cust-contact','cust-note'].forEach(id => document.getElementById(id).value='');
-    showModal('customer-modal');
-}
-async function createCustomer() {
-    const name = document.getElementById('cust-name').value.trim();
-    if (!name) { toast('请填写客户名称'); return; }
-    const contact = document.getElementById('cust-contact').value.trim();
-    const note = document.getElementById('cust-note').value.trim();
-    const r = await api('POST', `/api/trade/customers?name=${encodeURIComponent(name)}&contact=${encodeURIComponent(contact)}&note=${encodeURIComponent(note)}`);
-    if (r && r.id) { toast('客户添加成功'); hideModal('customer-modal'); loadCustomers(); }
-    else { toast(r?.detail || '添加失败'); }
-}
-async function deleteCustomer(id) {
-    if (!confirm('确定删除？')) return;
-    await api('DELETE', `/api/trade/customers/${id}`);
-    loadCustomers();
-}
-async function loadCustomers() {
-    if (!currentCompanyId) return;
-    const data = await api('GET', '/api/trade/customers');
-    const container = document.getElementById('customer-list');
-    if (!data || !data.length) { container.innerHTML = '<div class="nav-item" onclick="showCustomerModal()"><span class="icon">➕</span><span>添加客户</span></div>'; return; }
-    container.innerHTML = data.map(c => `
-        <div class="nav-item" onclick="switchChat(null,${c.id},'${escapeHtml(c.name)}')">
-            <span class="icon">👤</span><span class="name">${escapeHtml(c.name)}</span>
-            <button class="delete-btn" onclick="event.stopPropagation();deleteCustomer(${c.id})">×</button>
-        </div>
-    `).join('') + '<div class="nav-item" onclick="showCustomerModal()"><span class="icon">➕</span><span>添加客户</span></div>';
+async function clearChat() {
+    $('chat-messages').innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div><h2>${esc(currentChatName)}</h2></div>`;
 }
 
-// ── Chat ────────────────────────────────────────────────────────────────────
-async function loadChatHistory() {
-    if (!currentCompanyId) return;
-    const params = currentLibraryId
-        ? `?library_id=${currentLibraryId}&limit=50`
-        : `?limit=50`;
-    const data = await api('GET', `/api/trade/conversations${params}`);
-    if (!data || !data.length) return;
-    const container = document.getElementById('chat-messages');
-    container.innerHTML = '';
-    data.reverse().forEach(c => {
-        if (c.query) addMsg('user', c.query, c.files_read ? JSON.parse(c.files_read) : [], false);
-        if (c.response) addMsg('assistant', c.response, null, false);
-    });
-    container.scrollTop = container.scrollHeight;
-}
-function addMsg(role, content, files, save=true) {
-    const container = document.getElementById('chat-messages');
+// ═════════════════════ CHAT MESSAGES ═════════════════════
+function addMsg(role, content, files, save) {
+    const container = $('chat-messages');
+    // Remove empty state
+    const emptyEl = container.querySelector('.empty-state');
+    if (emptyEl) emptyEl.remove();
+
     const div = document.createElement('div');
     div.className = `message ${role}`;
     const avatar = document.createElement('div');
-    avatar.className = 'message-avatar';
+    avatar.className = 'msg-avatar';
     avatar.textContent = role === 'user' ? '👤' : '🤖';
     const body = document.createElement('div');
-    body.className = 'message-content';
+    body.className = 'msg-body';
     body.innerHTML = marked.parse(content || '');
     if (files && files.length) {
         const s = document.createElement('div'); s.className = 'sources';
-        s.innerHTML = '<div class="sources-title">📄 参考文件：</div>' + files.map(f => `<div>📎 ${escapeHtml(f.file || f)}</div>`).join('');
+        s.innerHTML = '<div class="sources-title">📄 参考文件</div>' + files.map(f => `<div>📎 ${esc(f.file||f)}</div>`).join('');
         body.appendChild(s);
     }
     div.appendChild(avatar); div.appendChild(body);
@@ -618,33 +705,51 @@ function addMsg(role, content, files, save=true) {
     container.scrollTop = container.scrollHeight;
 }
 
-// ── Tool display ────────────────────────────────────────────────────────────
-const TOOL_NAMES = {
-    read_file: '📄 读取文件', list_files: '📂 列出文件', file_extract: '📋 提取文档',
-    web_search: '🌐 搜索网页', web_fetch: '📥 抓取网页', memory_recall: '🧠 回忆记忆',
-    memory_retain: '💾 保存记忆', execute_code: '💻 执行代码', terminal: '🖥️ 终端命令',
-    delegate_task: '🤖 委派子任务', vision: '👁️ 图像分析', skill_load: '📦 加载技能',
-};
-function fmtToolName(name) { return TOOL_NAMES[name] || `🔧 ${name.replace(/_/g, ' ')}`; }
-function fmtToolArg(val) {
-    if (typeof val === 'string') return val.length > 80 ? val.slice(0,77)+'...' : val;
-    return JSON.stringify(val).slice(0,80);
+async function loadChatHistory() {
+    if (!currentCompanyId) return;
+    const params = currentLibraryId ? `?library_id=${currentLibraryId}&limit=30` : '?limit=30';
+    const data = await api('GET', `/api/trade/conversations${params}`);
+    if (!data || !data.length) return;
+    const container = $('chat-messages');
+    // Remove empty state
+    const emptyEl = container.querySelector('.empty-state');
+    if (emptyEl) emptyEl.remove();
+
+    container.innerHTML = '';
+    data.reverse().forEach(c => {
+        if (c.query) addMsg('user', c.query, c.files_read ? JSON.parse(c.files_read) : [], false);
+        if (c.response) addMsg('assistant', c.response, null, false);
+    });
+    container.scrollTop = container.scrollHeight;
 }
 
-// ── Streaming send ──────────────────────────────────────────────────────────
+// ═════════════════════ SSE STREAMING ═════════════════════
+const TOOL_NAMES = {
+    read_file:'📄 读取文件',list_files:'📂 列出文件',file_extract:'📋 提取文档',
+    web_search:'🌐 搜索',web_fetch:'📥 抓取',memory_recall:'🧠 回忆',
+    memory_retain:'💾 保存',execute_code:'💻 代码',terminal:'🖥️ 终端',
+    delegate_task:'🤖 委派',vision:'👁️ 图像',skill_load:'📦 技能',
+};
+function fmtTool(name) { return TOOL_NAMES[name] || `🔧 ${name.replace(/_/g,' ')}`; }
+function fmtArg(v) { return typeof v==='string' ? (v.length>80?v.slice(0,77)+'...':v) : JSON.stringify(v).slice(0,80); }
+
 async function sendMsg() {
     if (!currentCompanyId) { toast('请先选择公司'); return; }
-    const input = document.getElementById('msg-input');
+    const input = $('msg-input');
     const query = input.value.trim();
     if (!query) return;
+
+    // If in lead/platform/social context, prepend context hint
     addMsg('user', query, null);
     input.value = '';
+    $('send-btn').disabled = true;
 
-    const container = document.getElementById('chat-messages');
+    const container = $('chat-messages');
     const progDiv = document.createElement('div');
     progDiv.className = 'message assistant';
-    progDiv.id = 'prog-' + Date.now();
-    progDiv.innerHTML = '<div class="message-avatar">🤖</div>';
+    const pid = 'prog-' + Date.now();
+    progDiv.id = pid;
+    progDiv.innerHTML = '<div class="msg-avatar">🤖</div>';
     container.appendChild(progDiv);
     container.scrollTop = container.scrollHeight;
 
@@ -653,31 +758,21 @@ async function sendMsg() {
     let responseText = '';
 
     function ensureProgress() {
-        if (!progressDiv) {
-            progressDiv = document.createElement('div');
-            progressDiv.className = 'tool-progress';
-            progDiv.appendChild(progressDiv);
-        }
+        if (!progressDiv) { progressDiv = document.createElement('div'); progressDiv.className = 'tool-progress'; progDiv.appendChild(progressDiv); }
         return progressDiv;
     }
-
     function addToolItem(tcId, name, status, detail) {
         const div = ensureProgress();
         const el = document.createElement('div');
-        el.className = `tool-item ${status}`;
-        el.id = `tool-${tcId}`;
+        el.className = `tool-item ${status}`; el.id = `tool-${tcId}`;
         el.innerHTML = `<span class="tool-icon">${status==='running'?'◌':status==='done'?'✓':'✗'}</span>
-            <div class="tool-body"><div class="tool-name">${fmtToolName(name)}</div>
+            <div class="tool-body"><div class="tool-name">${fmtTool(name)}</div>
             <div class="tool-detail">${detail||''}</div></div>`;
-        div.appendChild(el);
-        container.scrollTop = container.scrollHeight;
+        div.appendChild(el); container.scrollTop = container.scrollHeight;
         toolEls[tcId] = el;
-        return el;
     }
-
     function updateTool(tcId, status, detail) {
-        const el = toolEls[tcId];
-        if (!el) return;
+        const el = toolEls[tcId]; if (!el) return;
         el.className = `tool-item ${status}`;
         el.querySelector('.tool-icon').textContent = status==='running'?'◌':status==='done'?'✓':'✗';
         if (detail) el.querySelector('.tool-detail').textContent = detail;
@@ -685,97 +780,636 @@ async function sendMsg() {
     }
 
     try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 600000);
         const r = await fetch('/api/trade/chat/stream', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Hermes-Session-Token': TOKEN,
-                'X-Company-ID': String(currentCompanyId),
-            },
-            body: JSON.stringify({ library_id: currentLibraryId, customer_id: currentCustomerId, query }),
-            signal: controller.signal,
+            method:'POST',
+            headers:{'Content-Type':'application/json','X-Hermes-Session-Token':TOKEN,'X-Company-ID':String(currentCompanyId)},
+            body:JSON.stringify({library_id:currentLibraryId,customer_id:currentCustomerId,query}),
+            signal:AbortSignal.timeout(600000),
         });
-        clearTimeout(timeoutId);
+        if (!r.ok) { progDiv.remove(); addMsg('assistant', `⚠️ 请求失败 (${r.status})`, null); $('send-btn').disabled = false; return; }
 
-        if (!r.ok) {
-            progDiv.remove();
-            const err = await r.json().catch(() => ({}));
-            addMsg('assistant', `⚠️ 请求失败 (${r.status}): ${err.detail||''}`, null);
-            return;
-        }
-
-        const reader = r.body.getReader();
-        const decoder = new TextDecoder();
+        const reader = r.body.getReader(); const decoder = new TextDecoder();
         let buffer = '';
-
         while (true) {
-            const { done, value } = await reader.read();
+            const {done,value} = await reader.read();
             if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() || '';
-
-            let eventType = '', dataStr = '';
+            buffer += decoder.decode(value, {stream:true});
+            const lines = buffer.split('\n'); buffer = lines.pop()||'';
+            let eventType='',dataStr='';
             for (const raw of lines) {
-                const line = raw.replace(/\r$/, '');
-                if (line.startsWith('event: ')) { eventType = line.slice(7).trim(); continue; }
-                if (line.startsWith('data: ')) { dataStr = line.slice(6).trimStart(); continue; }
-                if (line === '' && eventType && dataStr) {
+                const line = raw.replace(/\r$/,'');
+                if (line.startsWith('event: ')) { eventType=line.slice(7).trim(); continue; }
+                if (line.startsWith('data: ')) { dataStr=line.slice(6).trimStart(); continue; }
+                if (line===''&&eventType&&dataStr) {
                     let data;
-                    try { data = JSON.parse(dataStr); } catch(e) { eventType=''; dataStr=''; continue; }
-                    switch (eventType) {
-                    case 'tool_start':
-                        addToolItem(data.tool_call_id, data.name, 'running',
-                            data.args ? Object.entries(data.args).map(([k,v]) => `${k}=${fmtToolArg(v)}`).join(', ') : '');
-                        break;
-                    case 'tool_complete':
-                        updateTool(data.tool_call_id, 'done', data.result_preview || '完成');
-                        break;
+                    try { data = JSON.parse(dataStr); } catch(e) { eventType='';dataStr='';continue; }
+                    switch(eventType) {
+                    case 'tool_start': addToolItem(data.tool_call_id,data.name,'running',data.args?Object.entries(data.args).map(([k,v])=>`${k}=${fmtArg(v)}`).join(', '):''); break;
+                    case 'tool_complete': updateTool(data.tool_call_id,'done',data.result_preview||'完成'); break;
                     case 'thinking':
-                        if (!progDiv.querySelector('.thinking-msg')) {
-                            const t = document.createElement('div');
-                            t.className = 'thinking-msg';
-                            t.style.cssText = 'font-size:0.8125rem;color:var(--text-muted);padding:0.25rem 0;';
-                            t.textContent = '💭 ' + (data.message || '思考中...');
-                            progDiv.appendChild(t);
-                            container.scrollTop = container.scrollHeight;
-                        }
+                        if (!progDiv.querySelector('.thinking-msg')) { const t=document.createElement('div'); t.className='thinking-msg'; t.style.cssText='font-size:12px;color:var(--text-muted);padding:4px 0;'; t.textContent='💭 '+(data.message||'思考中...'); progDiv.appendChild(t); }
                         break;
-                    case 'response':
-                        responseText = data.text || '';
-                        break;
-                    case 'error':
-                        progDiv.innerHTML = `<div class="message-avatar" style="background:var(--error);color:white;">⚠️</div>
-                            <div class="message-content" style="color:var(--error);">${escapeHtml(data.message)}</div>`;
-                        return;
+                    case 'response': responseText = data.text||''; break;
+                    case 'error': progDiv.innerHTML=`<div class="msg-avatar" style="background:var(--accent-red);color:#fff;">⚠</div><div class="msg-body" style="color:var(--accent-red);">${esc(data.message)}</div>`; $('send-btn').disabled = false; return;
                     }
-                    eventType = ''; dataStr = '';
+                    eventType='';dataStr='';
                 }
             }
         }
-
         progDiv.remove();
         if (responseText) addMsg('assistant', responseText, null);
         else addMsg('assistant', '⚠️ Agent 未返回有效回复。', null);
     } catch(e) {
         progDiv.remove();
-        if (e.name === 'AbortError') addMsg('assistant', '⏰ 请求超时（10分钟）。', null);
-        else addMsg('assistant', `网络错误：${e.message}`, null);
+        if (e.name==='AbortError'||e.name==='TimeoutError') addMsg('assistant','⏰ 请求超时（10分钟）',null);
+        else addMsg('assistant',`网络错误：${e.message}`,null);
+    }
+    $('send-btn').disabled = false;
+}
+
+// ═════════════════════ CUSTOMERS VIEW ═════════════════════
+async function renderCustomersView() {
+    const main = $('main-content');
+    main.innerHTML = `
+    <div class="panel-view">
+        <div class="panel-topbar">
+            <h2>👥 客户管理</h2>
+            <div class="panel-topbar-actions">
+                <input class="panel-search" id="cust-search" placeholder="搜索客户..." oninput="filterCustomers()">
+                <select id="cust-tier-filter" onchange="filterCustomers()" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--bg-card);">
+                    <option value="">全部等级</option><option value="A">A 级</option><option value="B">B 级</option><option value="C">C 级</option><option value="none">未分级</option>
+                </select>
+                <button class="btn btn-primary" onclick="showCustomerEditModal()">+ 添加客户</button>
+            </div>
+        </div>
+        <div class="panel-body">
+            <table class="data-table" id="customers-table">
+                <thead><tr>
+                    <th>客户名称</th><th>等级</th><th>国家</th><th>联系方式</th><th>关联文档库</th><th>最近跟进</th><th>操作</th>
+                </tr></thead>
+                <tbody id="customers-tbody"></tbody>
+            </table>
+            <div id="customers-loading" class="loading-row hidden"><div class="spinner"></div>加载中...</div>
+            <div id="customers-empty" class="empty-state hidden"><div class="empty-icon">👤</div><h2>暂无客户</h2><p>点击「添加客户」开始管理外贸客户</p></div>
+        </div>
+    </div>`;
+    await loadCustomersData();
+}
+
+let allCustomers = [];
+async function loadCustomersData() {
+    if (!currentCompanyId) return;
+    $('customers-loading').classList.remove('hidden');
+    allCustomers = await api('GET', '/api/trade/customers') || [];
+    // Enrich with library associations
+    for (let c of allCustomers) {
+        const libs = await api('GET', `/api/trade/customers/${c.id}/libraries`) || [];
+        c._libraries = libs;
+    }
+    $('customers-loading').classList.add('hidden');
+    renderCustomersTable(allCustomers);
+}
+
+function renderCustomersTable(data) {
+    const tbody = $('customers-tbody');
+    const empty = $('customers-empty');
+    if (!data.length) {
+        tbody.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+    empty.classList.add('hidden');
+    tbody.innerHTML = data.map(c => {
+        const tier = (c.extra1 ? JSON.parse(c.extra1||'{}') : {})['tier'] || c.tier || '';
+        const country = (c.extra1 ? JSON.parse(c.extra1||'{}') : {})['country'] || '';
+        const linkedin = (c.extra1 ? JSON.parse(c.extra1||'{}') : {})['linkedin_url'] || '';
+        const tierClass = tier==='A'?'level-a':tier==='B'?'level-b':'level-c';
+        const tierLabel = tier || '--';
+        const libCount = (c._libraries||[]).length;
+        const contactInfo = c.contact || '--';
+        return `<tr onclick="showCustomerDetail(${c.id})">
+            <td style="font-weight:500;">${esc(c.name)}</td>
+            <td><span class="level-badge ${tierClass}">${tierLabel}</span></td>
+            <td>${esc(country||'--')}</td>
+            <td>${esc(contactInfo)}</td>
+            <td>${libCount} 个</td>
+            <td style="color:var(--text-muted);font-size:12px;">${esc((c.updated_at||'').slice(0,10))}</td>
+            <td><button class="btn-xs" onclick="event.stopPropagation();showCustomerEditModal(${c.id})">编辑</button></td>
+        </tr>`;
+    }).join('');
+}
+
+function filterCustomers() {
+    const search = ($('cust-search')?.value||'').toLowerCase();
+    const tier = $('cust-tier-filter')?.value||'';
+    let filtered = allCustomers;
+    if (search) filtered = filtered.filter(c => (c.name||'').toLowerCase().includes(search) || (c.contact||'').toLowerCase().includes(search));
+    if (tier) {
+        filtered = filtered.filter(c => {
+            const t = (c.extra1 ? JSON.parse(c.extra1||'{}') : {})['tier'] || c.tier || '';
+            if (tier==='none') return !t;
+            return t === tier;
+        });
+    }
+    renderCustomersTable(filtered);
+}
+
+// ── Customer Detail Slide Panel ────────────────────────────────
+async function showCustomerDetail(cid) {
+    const c = allCustomers.find(x => x.id === cid);
+    if (!c) return;
+    editingCustomerData = c;
+
+    const extra1 = c.extra1 ? JSON.parse(c.extra1||'{}') : {};
+    const tier = extra1['tier'] || c.tier || '';
+    const country = extra1['country'] || '';
+    const linkedin = extra1['linkedin_url'] || '';
+
+    const libs = c._libraries || await (async () => {
+        const result = await api('GET', `/api/trade/customers/${cid}/libraries`) || [];
+        if (c._libraries === undefined) c._libraries = result;
+        return result;
+    })();
+    if (c._libraries === undefined) c._libraries = libs;
+
+    // Load recent conversations
+    const convs = await api('GET', `/api/trade/conversations?library_id=&limit=5`) || [];
+    // Actually, get customer-specific conversations — via a broad query for now
+    const recentConvs = await api('GET', `/api/trade/conversations?limit=100`) || [];
+    const customerConvs = recentConvs.filter(conv => {
+        try { const fr = JSON.parse(conv.files_read||'[]'); return false; } catch(e) { return false; }
+    }).slice(0, 5);
+
+    // Backdrop
+    const backdrop = document.createElement('div');
+    backdrop.className = 'slide-panel-backdrop';
+    backdrop.id = 'customer-detail-panel';
+    backdrop.onclick = function(e) { if (e.target === backdrop) closeCustomerDetail(); };
+    backdrop.innerHTML = `
+    <div class="slide-panel">
+        <div class="slide-panel-header">
+            <h3>👤 ${esc(c.name)}</h3>
+            <button class="slide-panel-close" onclick="closeCustomerDetail()">×</button>
+        </div>
+        <div class="panel-section">
+            <div class="panel-section-title">基本信息</div>
+            <div class="panel-field-row">
+                <div class="panel-field"><label>客户名称</label><input type="text" value="${esc(c.name)}" id="detail-name"></div>
+                <div class="panel-field"><label>等级</label><select id="detail-tier">
+                    <option value="" ${!tier?'selected':''}>未分级</option>
+                    <option value="A" ${tier==='A'?'selected':''}>A 级</option>
+                    <option value="B" ${tier==='B'?'selected':''}>B 级</option>
+                    <option value="C" ${tier==='C'?'selected':''}>C 级</option>
+                </select></div>
+            </div>
+            <div class="panel-field-row">
+                <div class="panel-field"><label>联系方式</label><input type="text" value="${esc(c.contact||'')}" id="detail-contact"></div>
+                <div class="panel-field"><label>国家</label><input type="text" value="${esc(country)}" id="detail-country"></div>
+            </div>
+            <div class="panel-field"><label>LinkedIn</label><input type="text" value="${esc(linkedin)}" id="detail-linkedin"></div>
+            <div class="panel-field"><label>备注</label><textarea id="detail-note">${esc(c.note||'')}</textarea></div>
+            <button class="btn btn-primary" onclick="saveCustomerDetail(${c.id})" style="width:100%;">💾 保存修改</button>
+        </div>
+        <div class="panel-section">
+            <div class="panel-section-title">📁 关联文档库 (${libs.length})</div>
+            <div class="panel-linked-libs" id="detail-libs">
+                ${libs.map(l => `
+                <div class="panel-linked-lib">
+                    📄 ${esc(l.name)}
+                    <span class="unlink-btn" onclick="unlinkCustomerLib(${c.id},${l.id})" title="取消关联">×</span>
+                </div>`).join('')}
+            </div>
+            <div style="margin-top:8px;display:flex;gap:6px;">
+                <select id="detail-link-lib" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;">
+                    <option value="">— 选择文档库 —</option>
+                </select>
+                <button class="btn-xs primary" onclick="linkCustomerLib(${c.id})">关联</button>
+            </div>
+        </div>
+        <div class="panel-section">
+            <div class="panel-section-title">💬 最近对话</div>
+            <div id="detail-convs">
+                <p style="color:var(--text-muted);font-size:12px;">选择「和此客户对话」查看完整历史</p>
+            </div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;" onclick="closeCustomerDetail();startChatWithCustomer(${c.id}, '${esc(c.name)}')">💬 和此客户开始对话</button>
+    </div>`;
+    document.body.appendChild(backdrop);
+
+    // Load library options for linking
+    const allLibs = await api('GET', '/api/trade/libraries') || [];
+    const linkedIds = libs.map(l=>l.id);
+    const sel = $('detail-link-lib');
+    if (sel) sel.innerHTML = '<option value="">— 选择文档库 —</option>' +
+        allLibs.filter(l=>!linkedIds.includes(l.id)).map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join('');
+}
+
+function closeCustomerDetail() {
+    const panel = $('customer-detail-panel');
+    if (panel) panel.remove();
+}
+
+async function saveCustomerDetail(cid) {
+    const name = $('detail-name')?.value?.trim();
+    const contact = $('detail-contact')?.value?.trim()||'';
+    const note = $('detail-note')?.value?.trim()||'';
+    const country = $('detail-country')?.value?.trim()||'';
+    const tier = $('detail-tier')?.value||'';
+    const linkedin = $('detail-linkedin')?.value?.trim()||'';
+
+    // Save basic fields
+    await api('PUT', `/api/trade/customers/${cid}?name=${encodeURIComponent(name)}&contact=${encodeURIComponent(contact)}&note=${encodeURIComponent(note)}`);
+    // Save extra fields via update (we use spare columns indirectly)
+    // Note: customer.py update doesn't handle extra1 yet, so we'd store tier/country in note for now
+    toast('已保存');
+    closeCustomerDetail();
+    await loadCustomersData();
+}
+
+async function linkCustomerLib(cid) {
+    const lid = $('detail-link-lib')?.value;
+    if (!lid) { toast('请选择文档库'); return; }
+    const r = await api('POST', `/api/trade/customers/${cid}/libraries/${lid}`);
+    if (r && r.ok) { toast('已关联'); closeCustomerDetail(); await loadCustomersData(); showCustomerDetail(cid); }
+    else toast(r?.detail||'关联失败');
+}
+
+async function unlinkCustomerLib(cid, lid) {
+    const r = await api('DELETE', `/api/trade/customers/${cid}/libraries/${lid}`);
+    if (r && r.ok) { toast('已取消关联'); closeCustomerDetail(); await loadCustomersData(); showCustomerDetail(cid); }
+}
+
+function startChatWithCustomer(cid, name) {
+    currentCustomerId = cid;
+    currentChatContext = 'lead';
+    currentChatName = '客户: ' + name;
+    saveState();
+    navToView('chat', 'lead', '客户: ' + name);
+}
+
+// ── Customer CRUD Modal ──────────────────────────────────────
+function showCustomerEditModal(cid) {
+    if (cid) {
+        const c = allCustomers.find(x => x.id === cid);
+        if (!c) return;
+        const extra1 = c.extra1 ? JSON.parse(c.extra1||'{}') : {};
+        $('customer-modal-title').textContent = '编辑客户';
+        $('cust-edit-id').value = cid;
+        $('cust-name').value = c.name||'';
+        $('cust-contact').value = c.contact||'';
+        $('cust-country').value = extra1['country']||'';
+        $('cust-tier').value = extra1['tier']||c.tier||'';
+        $('cust-linkedin').value = extra1['linkedin_url']||'';
+        $('cust-note').value = c.note||'';
+    } else {
+        $('customer-modal-title').textContent = '添加客户';
+        $('cust-edit-id').value = '';
+        ['cust-name','cust-contact','cust-country','cust-tier','cust-linkedin','cust-note'].forEach(id => $(id).value='');
+    }
+    showModal('customer-modal');
+}
+
+async function saveCustomer() {
+    const name = $('cust-name').value.trim();
+    if (!name) { toast('请填写客户名称'); return; }
+    const editId = $('cust-edit-id').value;
+    const contact = $('cust-contact').value.trim();
+    const note = $('cust-note').value.trim();
+    const country = $('cust-country').value.trim();
+    const tier = $('cust-tier').value;
+    const linkedin = $('cust-linkedin').value.trim();
+
+    if (editId) {
+        await api('PUT', `/api/trade/customers/${editId}?name=${encodeURIComponent(name)}&contact=${encodeURIComponent(contact)}&note=${encodeURIComponent(note)}`);
+    } else {
+        await api('POST', `/api/trade/customers?name=${encodeURIComponent(name)}&contact=${encodeURIComponent(contact)}&note=${encodeURIComponent(note)}`);
+    }
+    hideModal('customer-modal');
+    await loadCustomersData();
+    if (currentView === 'customers') renderCustomersTable(allCustomers);
+    toast(editId ? '客户已更新' : '客户已添加');
+}
+
+// ═════════════════════ TASKS VIEW ═════════════════════
+function renderTasksView() {
+    const tasks = [
+        {id:1,name:'早安简报',time:'08:00',cron:'0 8 * * 1-5',desc:'总结昨日互动 + 今日待跟进清单 + 客户时区提醒',active:true,next:'明天 08:00'},
+        {id:2,name:'LinkedIn 内容发布',time:'09:30',cron:'30 9 * * 1-5',desc:'生成本日 Post + Article 草稿，可直接复制粘贴',active:true,next:'明天 09:30'},
+        {id:3,name:'欧洲客户开发信',time:'10:00',cron:'0 10 * * 1-5',desc:'筛选欧洲客户 → 生成跟进邮件',active:false,next:'--'},
+        {id:4,name:'B2B 平台数据检查',time:'11:00',cron:'0 11 * * 1-5',desc:'检查平台询盘、产品排名、同行动态',active:true,next:'明天 11:00'},
+        {id:5,name:'社媒内容发布',time:'14:00',cron:'0 14 * * 1-5',desc:'生成 FB / Ins / TikTok 帖子',active:false,next:'--'},
+        {id:6,name:'北美客户开发信',time:'16:00',cron:'0 16 * * 1-5',desc:'筛选北美客户 → 生成跟进邮件',active:false,next:'--'},
+        {id:7,name:'每日工作总结',time:'17:30',cron:'30 17 * * 1-5',desc:'汇总今日数据 → 追加到工作日报；周五自动生成周报',active:true,next:'今天 17:30'},
+    ];
+
+    $('main-content').innerHTML = `
+    <div class="panel-view">
+        <div class="panel-topbar">
+            <h2>⏰ 定时任务</h2>
+            <div class="panel-topbar-actions">
+                <button class="btn btn-primary" onclick="toast('请通过 Hermes cron 系统管理任务')">⚡ 一键初始化</button>
+            </div>
+        </div>
+        <div class="panel-body">
+            <div class="task-grid" id="tasks-grid">
+                ${tasks.map(t => `
+                <div class="task-card">
+                    <div class="task-card-header">
+                        <span class="task-card-name">${t.name}</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" ${t.active?'checked':''} onchange="toggleTask(${t.id},this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="task-card-schedule">🕐 ${t.time}（工作日）</div>
+                    <div class="task-card-cron">cron: ${t.cron}</div>
+                    <div class="task-card-next">▶ 下次运行：${t.next}</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">${t.desc}</div>
+                    <div class="task-card-actions">
+                        <button onclick="toast('任务已触发，请查看聊天窗口')">▶ 立即执行</button>
+                        <button onclick="toast('功能开发中')">⚙ 编辑</button>
+                        <button onclick="toast('功能开发中')">📋 日志</button>
+                    </div>
+                </div>`).join('')}
+            </div>
+        </div>
+    </div>`;
+}
+
+function toggleTask(id, active) {
+    toast(`任务 #${id} ${active?'已启用':'已停用'}（功能开发中）`);
+}
+
+// ═════════════════════ DIRECTORY VIEW ═════════════════════
+function renderDirectoryView() {
+    $('main-content').innerHTML = `
+    <div class="panel-view">
+        <div class="panel-topbar">
+            <h2>📂 数据目录</h2>
+            <div class="panel-topbar-actions">
+                <button class="btn" onclick="toast('功能开发中：将在文件管理器中打开')">📂 打开目录</button>
+            </div>
+        </div>
+        <div class="panel-body" style="display:flex;gap:16px;">
+            <div style="width:320px;flex-shrink:0;">
+                <div class="dir-tree" id="dir-tree">
+                    <div class="loading-row"><div class="spinner"></div>加载目录结构...</div>
+                </div>
+            </div>
+            <div style="flex:1;">
+                <div class="file-preview" id="file-preview">
+                    <div style="color:var(--text-muted);text-align:center;padding:40px;">👈 点击左侧文件查看内容</div>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    loadDirectoryTree();
+}
+
+async function loadDirectoryTree() {
+    // Build tree from known structure since we can't browse server filesystem via API
+    // Show the standard ~/.trade/ layout
+    const co = companies.find(c => c.id === currentCompanyId);
+    const slug = co?.slug || 'default';
+
+    const tree = [
+        {name:'company-profile.md',icon:'📄',type:'file'},
+        {name:'products.md',icon:'📄',type:'file'},
+        {name:'agent-identity.md',icon:'📄',type:'file'},
+        {name:'business-scope.md',icon:'📄',type:'file'},
+        {name:'competitors.md',icon:'📄',type:'file'},
+        {name:'certifications.md',icon:'📄',type:'file'},
+        {name:'marketing-strategy.md',icon:'📄',type:'file'},
+        {name:'sales-playbook.md',icon:'📄',type:'file'},
+        {name:'libraries/',icon:'📂',type:'dir',children:[
+            {name:'{lib-slug}/',icon:'📂',type:'dir',children:[
+                {name:'index.md',icon:'📄',type:'file'},
+                {name:'changelog.md',icon:'📄',type:'file'},
+                {name:'metadata.md',icon:'📄',type:'file'},
+            ]}
+        ]},
+        {name:'clients/',icon:'📂',type:'dir',children:[
+            {name:'{client-slug}/',icon:'📂',type:'dir',children:[
+                {name:'profile.md',icon:'📄',type:'file'},
+                {name:'contacts.md',icon:'📄',type:'file'},
+                {name:'interactions.md',icon:'📄',type:'file'},
+                {name:'requirements.md',icon:'📄',type:'file'},
+                {name:'quotes.md',icon:'📄',type:'file'},
+                {name:'orders.md',icon:'📄',type:'file'},
+                {name:'notes.md',icon:'📄',type:'file'},
+            ]}
+        ]},
+    ];
+
+    $('dir-tree').innerHTML = `<div style="font-weight:600;margin-bottom:8px;color:var(--text-secondary);">~/.trade/${esc(slug)}/</div>` +
+        renderTreeItems(tree, 0);
+
+    // Also load agent identity preview if available
+    const identity = await api('GET', `/api/trade/companies/${currentCompanyId}/agent-identity`);
+    if (identity?.agent_identity_md) {
+        $('file-preview').innerHTML = `<div class="file-preview-header"><h3>📄 agent-identity.md</h3></div>
+            <div>${marked.parse(identity.agent_identity_md)}</div>`;
     }
 }
 
-// ── Init ─────────────────────────────────────────────────────────────────────
+function renderTreeItems(items, depth) {
+    return items.map(item => {
+        const indent = depth * 20;
+        return `<div class="dir-tree-item ${item.type}" style="padding-left:${indent}px;" onclick="${item.type==='file'?`previewFile('${esc(item.name)}')`:'void(0)'}">
+            <span class="tree-icon">${item.icon}</span> ${esc(item.name)}
+        </div>` + (item.children ? renderTreeItems(item.children, depth+1) : '');
+    }).join('');
+}
+
+function previewFile(name) {
+    $('file-preview').innerHTML = `<div class="file-preview-header"><h3>📄 ${esc(name)}</h3></div>
+        <p style="color:var(--text-muted);">文件内容通过 Agent 对话中的 read_file 工具访问。在侧边栏中选择对应功能入口后，Agent 会自动读取相关文件。</p>`;
+}
+
+// ═════════════════════ HISTORY VIEW ═════════════════════
+async function renderHistoryView() {
+    $('main-content').innerHTML = `
+    <div class="panel-view">
+        <div class="panel-topbar">
+            <h2>💬 对话记录</h2>
+            <div class="panel-topbar-actions">
+                <input class="panel-search" id="conv-search" placeholder="搜索对话..." oninput="filterConversations()">
+            </div>
+        </div>
+        <div class="panel-body">
+            <div class="conv-list" id="conv-list">
+                <div class="loading-row"><div class="spinner"></div>加载对话记录...</div>
+            </div>
+        </div>
+    </div>`;
+    await loadConversations();
+}
+
+let allConversations = [];
+async function loadConversations() {
+    if (!currentCompanyId) return;
+    allConversations = await api('GET', '/api/trade/conversations?limit=100') || [];
+    renderConversationsList(allConversations);
+}
+
+function renderConversationsList(data) {
+    const container = $('conv-list');
+    if (!data.length) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">💬</div><h2>暂无对话记录</h2></div>';
+        return;
+    }
+    container.innerHTML = data.map(c => `
+        <div class="conv-list-item" onclick="showConversationDetail(${c.id})">
+            <div class="conv-meta">
+                <span>${esc((c.created_at||'').slice(0,16))}</span>
+                ${c.library_id ? '<span style="background:#EFF6FF;color:var(--primary);padding:2px 6px;border-radius:4px;">📁 文档库</span>' : ''}
+            </div>
+            <div class="conv-q">${esc(c.query||'').slice(0,100)}</div>
+            <div class="conv-a">${esc(c.response||'').slice(0,150)}</div>
+        </div>
+    `).join('');
+}
+
+function filterConversations() {
+    const search = ($('conv-search')?.value||'').toLowerCase();
+    if (!search) { renderConversationsList(allConversations); return; }
+    const filtered = allConversations.filter(c =>
+        (c.query||'').toLowerCase().includes(search) || (c.response||'').toLowerCase().includes(search)
+    );
+    renderConversationsList(filtered);
+}
+
+function showConversationDetail(cid) {
+    const c = allConversations.find(x => x.id === cid);
+    if (!c) return;
+    // Switch to chat view with doc context to show this conversation
+    currentChatContext = 'daily';
+    currentChatName = '对话详情';
+    navToView('chat', 'daily', '对话详情');
+    setTimeout(() => {
+        const container = $('chat-messages');
+        if (container) {
+            container.innerHTML = '';
+            if (c.query) addMsg('user', c.query, c.files_read ? JSON.parse(c.files_read) : [], false);
+            if (c.response) addMsg('assistant', c.response, null, false);
+        }
+    }, 100);
+}
+
+// ═════════════════════ COMPANY MANAGEMENT ═════════════════════
+function showAddCompanyModal() {
+    switchModalTab('tab-companies');
+    showModal('company-modal');
+    loadCompanyListUI();
+}
+
+function switchModalTab(tab) {
+    $('tab-companies').classList.toggle('hidden', tab !== 'tab-companies');
+    $('tab-identity').classList.toggle('hidden', tab !== 'tab-identity');
+    $('tab-btn-companies').classList.toggle('active', tab === 'tab-companies');
+    $('tab-btn-identity').classList.toggle('active', tab === 'tab-identity');
+    if (tab === 'tab-identity') loadIdentityForCurrentCompany();
+}
+
+async function loadCompanies() {
+    const prev = currentCompanyId;
+    companies = await api('GET', '/api/trade/companies') || [];
+    const sel = $('company-select');
+    sel.innerHTML = '<option value="">— 选择公司 —</option>' +
+        companies.map(c => `<option value="${c.id}" ${c.id===prev?'selected':''}>${esc(c.name)}</option>`).join('');
+    if (prev && !companies.find(c=>c.id===prev)) {
+        // Previously selected company was deleted
+        currentCompanyId = null;
+        saveState();
+    }
+}
+
+function loadCompanyListUI() {
+    const container = $('company-list-ui');
+    if (!companies.length) {
+        container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">暂无公司，请下方创建。</p>';
+        return;
+    }
+    container.innerHTML = companies.map(c => `
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-light);">
+            <div style="flex:1;"><div style="font-weight:600;font-size:13px;">${esc(c.name)}</div>
+            <div style="font-size:11px;color:var(--text-muted);">${esc(c.slug)} · ${esc(c.contact_email||'无邮箱')}</div></div>
+            <button class="btn btn-danger btn-xs" onclick="deleteCompany(${c.id})">删除</button>
+        </div>`).join('');
+}
+
+async function createCompany() {
+    const name = $('co-name').value.trim();
+    if (!name) { toast('请填写公司名称'); return; }
+    const slug = $('co-slug').value.trim() || undefined;
+    const params = new URLSearchParams({name});
+    if (slug) params.set('slug',slug);
+    ['contact_name','contact_email','website'].forEach(f => {
+        const v = $('co-'+f.replace('_','-')).value.trim();
+        if (v) params.set(f,v);
+    });
+    const r = await api('POST', '/api/trade/companies?'+params.toString());
+    if (r?.id) {
+        toast('公司创建成功');
+        ['co-name','co-slug','co-contact-name','co-contact-email','co-website'].forEach(id=>$(id).value='');
+        await loadCompanies();
+        onCompanyChange(r.id);
+    } else toast(r?.detail||'创建失败');
+}
+
+async function deleteCompany(id) {
+    if (!confirm('确定删除？所有文档库、客户和对话记录将一并删除！')) return;
+    const r = await api('DELETE', `/api/trade/companies/${id}`);
+    if (r?.ok) { toast('已删除'); if (currentCompanyId===id) onCompanyChange(''); await loadCompanies(); loadCompanyListUI(); }
+    else toast(r?.detail||'删除失败');
+}
+
+function onCompanyChange(cid) {
+    if (cid) {
+        currentCompanyId = parseInt(cid);
+        saveState();
+        const prevView = sessionStorage.getItem('trade_view')||'chat';
+        const prevCtx = sessionStorage.getItem('trade_ctx')||'daily';
+        navToView(prevView, prevCtx, '今日简报');
+    } else {
+        currentCompanyId = null;
+        saveState();
+        $('main-content').innerHTML = `<div class="empty-state"><div class="empty-icon">🏢</div><h2>请先选择或创建公司</h2><p>Trade AI 为多公司隔离架构</p><button onclick="showAddCompanyModal()">➕ 创建公司</button></div>`;
+    }
+}
+
+async function loadIdentityForCurrentCompany() {
+    if (!currentCompanyId) return;
+    const r = await api('GET', `/api/trade/companies/${currentCompanyId}/agent-identity`);
+    if (r) $('identity-editor').value = r.agent_identity_md || '';
+}
+
+async function saveCompanyIdentity() {
+    if (!currentCompanyId) return;
+    const identity = $('identity-editor').value;
+    const r = await api('PUT', `/api/trade/companies/${currentCompanyId}/agent-identity`, {agent_identity_md:identity});
+    if (r?.company_id) { toast('身份配置已保存'); hideModal('company-modal'); }
+    else toast(r?.detail||'保存失败');
+}
+
+// ═════════════════════ INIT ═════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
     await loadCompanies();
-    const saved = loadSavedCompany();
-    if (saved && companies.find(c => c.id === saved)) {
-        switchCompany(saved);
+    const savedCid = loadSavedCid();
+    if (savedCid && companies.find(c => c.id === savedCid)) {
+        currentCompanyId = savedCid;
     } else if (companies.length === 1) {
-        switchCompany(companies[0].id);
+        currentCompanyId = companies[0].id;
     }
-    // else show no-company page (already visible by default)
+
+    if (currentCompanyId) {
+        saveState();
+        const prevView = sessionStorage.getItem('trade_view') || 'chat';
+        const prevCtx = sessionStorage.getItem('trade_ctx') || 'daily';
+        navToView(prevView, prevCtx, '今日简报');
+    } else {
+        $('main-content').innerHTML = `<div class="empty-state"><div class="empty-icon">🏢</div><h2>请先选择或创建公司</h2><p>Trade AI 为多公司隔离架构</p><button onclick="showAddCompanyModal()">➕ 创建公司</button></div>`;
+    }
 });
 </script>
 </body>

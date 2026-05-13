@@ -1,0 +1,103 @@
+"""
+Trade AI Assistant — 记忆与模型 API 路由。
+
+端点：
+  GET /memory/status         — Hindsight 长期记忆可用性
+  GET /memory/recall         — 搜索长期记忆
+  GET /models/providers      — 已配置的 LLM 提供商列表
+"""
+
+from __future__ import annotations
+
+import os
+from typing import Optional
+
+from fastapi import APIRouter, Header, HTTPException
+
+from trade import chat_memory
+from trade.api.deps import opt_company
+
+router = APIRouter(tags=["memory"])
+
+
+# ── Hindsight 长期记忆 ────────────────────────────────────────────────────
+
+@router.get("/memory/status")
+def memory_status(x_company_id: Optional[str] = Header(None, alias="X-Company-ID")):
+    """检查 Hindsight 长期记忆是否可用。"""
+    try:
+        from trade.memory import is_available as hindsight_available
+        return {
+            "hindsight_available": hindsight_available(),
+            "company_id": opt_company(x_company_id),
+        }
+    except ImportError:
+        return {"hindsight_available": False, "company_id": None}
+
+
+@router.get("/memory/recall")
+def memory_recall(
+    query: str,
+    x_company_id: Optional[str] = Header(None, alias="X-Company-ID"),
+):
+    """搜索 Hindsight 长期记忆中的相关历史对话。"""
+    result = chat_memory.recall_context(query)
+    if not result:
+        return {"results": [], "query": query}
+    return {"results": [result], "query": query}
+
+
+# ── LLM 提供商 ────────────────────────────────────────────────────────────
+
+@router.get("/models/providers")
+def list_providers():
+    """列出已配置的 LLM 提供商及其可用模型。
+
+    从 ~/.hermes/config.yaml 和 PROVIDER_REGISTRY 读取，
+    返回每个提供商的模型列表、API Key 配置状态。
+    """
+    try:
+        from hermes_cli.auth import PROVIDER_REGISTRY
+        from hermes_cli.config import load_config
+
+        cfg = load_config()
+        model_cfg = cfg.get("model", {})
+        active_provider = ""
+        active_model = ""
+        if isinstance(model_cfg, dict):
+            active_provider = model_cfg.get("provider", "")
+            active_model = model_cfg.get("default", "")
+
+        providers = []
+        for pid, pconfig in PROVIDER_REGISTRY.items():
+            # 检查 API Key 是否已配置
+            has_key = False
+            if pconfig.auth_type == "api_key":
+                for env_name in pconfig.api_key_env_vars:
+                    if os.getenv(env_name):
+                        has_key = True
+                        break
+
+            # 获取该提供商的模型列表
+            try:
+                from hermes_cli.models import name_to_models
+                models = name_to_models.get(pid, [])
+            except Exception:
+                models = []
+
+            providers.append({
+                "id": pid,
+                "name": pconfig.display_name or pid,
+                "has_key": has_key,
+                "models": models[:10],
+                "is_active": pid == active_provider,
+                "active_model": active_model if pid == active_provider else "",
+            })
+
+        return {
+            "providers": providers,
+            "active_provider": active_provider,
+            "active_model": active_model,
+        }
+    except Exception as e:
+        return {"providers": [], "error": str(e)}
