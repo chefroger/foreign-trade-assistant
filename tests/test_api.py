@@ -283,6 +283,21 @@ class TestSkillRouter:
         from trade.skill_registry import _SKILLS
         assert len(_SKILLS) == 14
 
+    def test_no_duplicate_triggers(self):
+        """每个 skill 的触发词不应有重复。"""
+        from trade.skill_registry import _SKILLS
+        for s in _SKILLS:
+            triggers = s["triggers"]
+            duplicates = [t for t in triggers if triggers.count(t) > 1]
+            assert not duplicates, f"{s['name']} has duplicate triggers: {duplicates}"
+
+    def test_ambiguous_match_order(self):
+        """'背景调查'同时命中 b2b-osint 和 b2b-email-intel 时，应返回 osint。"""
+        from trade.skill_router import match_skill
+        result = match_skill("背景调查")
+        assert result is not None
+        assert result["name"] == "b2b-osint"
+
 
 # ── Company Endpoint Functions ──────────────────────────────────────────────
 

@@ -13,12 +13,13 @@ Trade AI Assistant — 公司管理 API 路由。
 
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, HTTPException, Depends
 
 from trade import company as company_module
-from trade.api.deps import require_company, opt_company
+from trade.api.deps import require_company
+from trade.api.models import (
+    CompanyCreate, CompanyUpdate, AgentIdentityUpdate,
+)
 
 router = APIRouter(tags=["companies"])
 
@@ -32,21 +33,15 @@ def list_companies():
 
 
 @router.post("/companies")
-def create_company(
-    name: str,
-    slug: Optional[str] = None,
-    logo_url: str = "",
-    website: str = "",
-    contact_name: str = "",
-    contact_email: str = "",
-    address: str = "",
-):
+def create_company(payload: CompanyCreate):
     """注册新公司。slug 省略时自动从 name 生成。"""
     try:
         return company_module.create(
-            name=name, slug=slug, logo_url=logo_url, website=website,
-            contact_name=contact_name, contact_email=contact_email,
-            address=address,
+            name=payload.name, slug=payload.slug,
+            logo_url=payload.logo_url, website=payload.website,
+            contact_name=payload.contact_name, contact_email=payload.contact_email,
+            address=payload.address,
+            work_dir_name=payload.work_dir_name,
         )
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
@@ -64,22 +59,17 @@ def get_company(company_id: int):
 @router.put("/companies/{company_id}")
 def update_company(
     company_id: int,
+    payload: CompanyUpdate,
     x_company_id: int = Depends(require_company),
-    name: Optional[str] = None,
-    logo_url: Optional[str] = None,
-    website: Optional[str] = None,
-    contact_name: Optional[str] = None,
-    contact_email: Optional[str] = None,
-    address: Optional[str] = None,
-    is_active: Optional[bool] = None,
 ):
     """更新公司字段。X-Company-ID 必须与目标公司匹配。"""
     if x_company_id != company_id:
         raise HTTPException(status_code=403, detail="Cannot update another company's record.")
     result = company_module.update(
-        company_id, name=name, logo_url=logo_url, website=website,
-        contact_name=contact_name, contact_email=contact_email,
-        address=address, is_active=is_active,
+        company_id,
+        name=payload.name, logo_url=payload.logo_url, website=payload.website,
+        contact_name=payload.contact_name, contact_email=payload.contact_email,
+        address=payload.address, is_active=payload.is_active,
     )
     if not result:
         raise HTTPException(status_code=404, detail="Company not found")
@@ -106,14 +96,14 @@ def get_company_agent_identity(company_id: int):
 @router.put("/companies/{company_id}/agent-identity")
 def update_company_agent_identity(
     company_id: int,
+    payload: AgentIdentityUpdate,
     x_company_id: int = Depends(require_company),
-    agent_identity_md: str = "",
 ):
     """更新公司的 Agent 身份（写入 DB 缓存）。"""
     if x_company_id != company_id:
         raise HTTPException(status_code=403, detail="Cannot update another company's identity.")
     result = company_module.update_trade_company(
-        company_id, agent_identity_md=agent_identity_md
+        company_id, agent_identity_md=payload.agent_identity_md,
     )
     if not result:
         raise HTTPException(status_code=404, detail="Company not found")

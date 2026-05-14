@@ -173,9 +173,11 @@ def match_skill(query: str) -> Optional[dict]:
     explicit_match = _EXPLICIT_RE.search(query)
     if explicit_match:
         matched_text = explicit_match.group(0)
+        # 归一化：将空格和下划线转为连字符，以匹配 "用 b2b email intel" 这种写法
+        normalized_match = matched_text.lower().replace(" ", "-").replace("_", "-")
         skill_name_candidate = next(
             (name for name in skill_names()
-             if name in matched_text.lower()),
+             if name in normalized_match),
             None,
         )
         if skill_name_candidate:

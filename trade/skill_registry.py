@@ -32,12 +32,12 @@ _SKILLS: list[dict] = [
         "triggers": [
             # Chinese
             "背景调查", "背调", "尽职调查", "查一下这家公司", "查一下这个域名",
-            "域名查一下", "域名注册时间", "制裁名单", "OFAC", "企业邮箱验证",
-            "查公司", "风险评估", "红旗", "客户真实性", "这个公司是真的吗",
-            "公司查一下", "域名查一下", "whois", "骗子特征", "背调",
+            "域名注册时间", "制裁名单", "OFAC", "企业邮箱验证",
+            "查公司", "风险评估", "客户真实性", "这个公司是真的吗",
+            "公司查一下", "whois", "骗子特征",
             # English
             "due diligence", "osint", "company verification", "domain age",
-            "risk assessment", "红旗", "check company", "check domain",
+            "risk assessment", "check company", "check domain",
             "whois lookup", "sanctions check", "osint check",
             # Fragments
             "帮我背调", "查一下这个公司", "域名老不老", "邮箱是真的假的",
@@ -134,7 +134,7 @@ _SKILLS: list[dict] = [
             # English
             "lead generation", "find customers", "customer development",
             "cold email", "outreach", "prospect", "prospecting",
-            "lead gen", "leadgen", "lead generation",
+            "lead gen", "leadgen",
             "follow up", "follow-up", "quotation", "quote", "negotiation",
             "closing", "rfq", "inquiry",
             # English fragments
@@ -292,7 +292,7 @@ _SKILLS: list[dict] = [
             "linkedin post", "linkedin outreach", "linkedin profile optimization",
             "linkedin company page", "linkedin personal branding",
             # Fragments
-            "发领英", "写领英", "领英怎么发", "linkedin post",
+            "发领英", "写领英", "领英怎么发",
         ],
         "aliases": [],
         "input_fmt": "LinkedIn目标（个人品牌/公司主页/开发客户）+ 产品/行业信息",
