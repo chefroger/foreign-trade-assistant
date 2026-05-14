@@ -146,12 +146,20 @@ class TestChatEndpointHTTP:
         class _A:
             def chat(self, q): return "mocked-response"
 
-        # 确保 DB 中有公司 1 用于 require_company 校验
+        # 桌面工作目录重定向到 tmp_path
         import trade.company as co
+        def _mock_setup(cname, slug, suggested_name=""):
+            wd = tmp_path / (suggested_name or cname)
+            wd.mkdir(parents=True, exist_ok=True)
+            for cat_name, _ in co._WORK_DIR_CATEGORIES:
+                (wd / cat_name).mkdir(parents=True, exist_ok=True)
+            return wd, True
+        monkeypatch.setattr(co, "_setup_work_directory", _mock_setup)
+
         try:
             co.create(name="Smoke Test Co", slug="smoke-test")
         except ValueError:
-            pass  # already exists from a previous test run
+            pass
         monkeypatch.setattr(co, "get_trade_company",
                             lambda cid: {"company_id": cid, "data_dir": str(tmp_path), "agent_identity_md": "", "is_active": 1})
 

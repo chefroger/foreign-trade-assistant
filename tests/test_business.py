@@ -22,11 +22,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 @pytest.fixture
 def test_db(monkeypatch, tmp_path):
-    """创建临时数据库并初始化 schema，mock 掉 _get_db_path。"""
+    """创建临时数据库并初始化 schema，mock 掉 _get_db_path 和桌面工作目录。"""
     db_path = tmp_path / "trade.db"
 
     import trade.database as _db
-    original = _db._get_db_path
+    original_db = _db._get_db_path
     _db._get_db_path = lambda: db_path
 
     from trade.database import get_connection, SCHEMA_SQL, _add_spare_columns
@@ -37,9 +37,22 @@ def test_db(monkeypatch, tmp_path):
     conn.commit()
     conn.close()
 
+    # 把桌面工作目录重定向到 tmp_path，避免污染真实桌面
+    import trade.company as _co
+    original_setup = _co._setup_work_directory
+
+    def _mock_work_dir(company_name, slug, suggested_name=""):
+        work_dir = tmp_path / (suggested_name or company_name)
+        work_dir.mkdir(parents=True, exist_ok=True)
+        for cat_name, _ in _co._WORK_DIR_CATEGORIES:
+            (work_dir / cat_name).mkdir(parents=True, exist_ok=True)
+        return work_dir, True
+
+    monkeypatch.setattr(_co, "_setup_work_directory", _mock_work_dir)
+
     yield db_path
 
-    _db._get_db_path = original
+    _db._get_db_path = original_db
 
 
 @pytest.fixture

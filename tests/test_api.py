@@ -62,11 +62,11 @@ def setup_mocks():
 
 @pytest.fixture
 def test_db(monkeypatch, tmp_path, setup_mocks):
-    """创建临时测试数据库。"""
+    """创建临时测试数据库（mock 桌面工作目录到 tmp_path）。"""
     db_path = tmp_path / "trade.db"
 
     import trade.database as _db
-    original = _db._get_db_path
+    original_db = _db._get_db_path
     _db._get_db_path = lambda: db_path
 
     from trade.database import get_connection, SCHEMA_SQL, _add_spare_columns
@@ -77,9 +77,19 @@ def test_db(monkeypatch, tmp_path, setup_mocks):
     conn.commit()
     conn.close()
 
+    # 桌面工作目录重定向到 tmp_path
+    import trade.company as _co
+    def _mock_setup(company_name, slug, suggested_name=""):
+        wd = tmp_path / (suggested_name or company_name)
+        wd.mkdir(parents=True, exist_ok=True)
+        for cat_name, _ in _co._WORK_DIR_CATEGORIES:
+            (wd / cat_name).mkdir(parents=True, exist_ok=True)
+        return wd, True
+    monkeypatch.setattr(_co, "_setup_work_directory", _mock_setup)
+
     yield db_path
 
-    _db._get_db_path = original
+    _db._get_db_path = original_db
 
 
 @pytest.fixture
