@@ -597,6 +597,8 @@ function esc(s) { const d = document.createElement('div'); d.textContent = s||''
 // ═════════════════════ NAVIGATION ═════════════════════
 // 视图缓存：{ viewKey: { element, rendered, context } }
 const viewCache = {};
+// 当前活跃的 chat 容器（用于解决多视图 DOM 中相同 ID 元素的查找问题）
+let currentChatContainer = null;
 
 function navToView(view, chatCtx, chatName) {
     // 未选择公司时，所有菜单点击都显示固定提示页
@@ -662,6 +664,8 @@ function navToView(view, chatCtx, chatName) {
     }
 
     viewCache[cacheKey].element.style.display = 'flex';
+    // 记录当前活跃的 chat 容器
+    if (view === 'chat') currentChatContainer = viewCache[cacheKey].element;
 }
 
 // ═════════════════════ CHAT VIEW ═════════════════════
@@ -717,22 +721,26 @@ function renderChatViewInto(container, ctx, name) {
 
 function onChatLibraryChange(libId) {
     currentLibraryId = libId ? parseInt(libId) : null;
-    const tag = $('chat-context-tag');
+    const ct = currentChatContainer;
+    if (!ct) return;
+    const tag = ct.querySelector('#chat-context-tag');
     if (libId) {
-        const sel = $('chat-library-select');
+        const sel = ct.querySelector('#chat-library-select');
         tag.textContent = '📁 ' + (sel.options[sel.selectedIndex]?.text || '');
         tag.style.display = 'block';
     } else {
         tag.style.display = 'none';
     }
-    $('chat-messages').innerHTML = '';
+    ct.querySelector('#chat-messages').innerHTML = '';
     loadChatHistory();
 }
 
 async function loadChatLibrarySelect() {
     if (!currentCompanyId) return;
+    const ct = currentChatContainer;
+    if (!ct) return;
     const data = await api('GET', '/api/trade/libraries');
-    const sel = $('chat-library-select');
+    const sel = ct.querySelector('#chat-library-select');
     if (!sel) return;
     sel.innerHTML = '<option value="">— 选择文档库 —</option>' +
         (data||[]).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('');
@@ -759,12 +767,16 @@ async function createLibrary() {
 }
 
 async function clearChat() {
-    $('chat-messages').innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div><h2>${esc(currentChatName)}</h2></div>`;
+    const ct = currentChatContainer;
+    if (!ct) return;
+    ct.querySelector('#chat-messages').innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div><h2>${esc(currentChatName)}</h2></div>`;
 }
 
 // ═════════════════════ CHAT MESSAGES ═════════════════════
 function addMsg(role, content, files, save) {
-    const container = $('chat-messages');
+    const ct = currentChatContainer;
+    if (!ct) return;
+    const container = ct.querySelector('#chat-messages');
     // Remove empty state
     const emptyEl = container.querySelector('.empty-state');
     if (emptyEl) emptyEl.remove();
@@ -794,10 +806,12 @@ function addMsg(role, content, files, save) {
 
 async function loadChatHistory() {
     if (!currentCompanyId) return;
+    const ct = currentChatContainer;
+    if (!ct) return;
     const params = currentLibraryId ? `?library_id=${currentLibraryId}&limit=30` : '?limit=30';
     const data = await api('GET', `/api/trade/conversations${params}`);
     if (!data || !data.length) return;
-    const container = $('chat-messages');
+    const container = ct.querySelector('#chat-messages');
     // Remove empty state
     const emptyEl = container.querySelector('.empty-state');
     if (emptyEl) emptyEl.remove();
@@ -822,16 +836,18 @@ function fmtArg(v) { return typeof v==='string' ? (v.length>80?v.slice(0,77)+'..
 
 async function sendMsg() {
     if (!currentCompanyId) { toast('请先选择公司'); return; }
-    const input = $('msg-input');
+    const ct = currentChatContainer;
+    if (!ct) { toast('请先点击一个聊天入口'); return; }
+    const input = ct.querySelector('#msg-input');
     const query = input.value.trim();
     if (!query) return;
 
-    // If in lead/platform/social context, prepend context hint
     addMsg('user', query, null);
     input.value = '';
-    $('send-btn').disabled = true;
+    const sendBtn = ct.querySelector('#send-btn');
+    if (sendBtn) sendBtn.disabled = true;
 
-    const container = $('chat-messages');
+    const container = ct.querySelector('#chat-messages');
     const progDiv = document.createElement('div');
     progDiv.className = 'message assistant';
     const pid = 'prog-' + Date.now();
@@ -873,7 +889,7 @@ async function sendMsg() {
             body:JSON.stringify({library_id:currentLibraryId,customer_id:currentCustomerId,query}),
             signal:AbortSignal.timeout(600000),
         });
-        if (!r.ok) { progDiv.remove(); addMsg('assistant', `⚠️ 请求失败 (${r.status})`, null); $('send-btn').disabled = false; return; }
+        if (!r.ok) { progDiv.remove(); addMsg('assistant', `⚠️ 请求失败 (${r.status})`, null); sendBtn.disabled = false; return; }
 
         const reader = r.body.getReader(); const decoder = new TextDecoder();
         let buffer = '';
@@ -897,7 +913,7 @@ async function sendMsg() {
                         if (!progDiv.querySelector('.thinking-msg')) { const t=document.createElement('div'); t.className='thinking-msg'; t.style.cssText='font-size:12px;color:var(--text-muted);padding:4px 0;'; t.textContent='💭 '+(data.message||'思考中...'); progDiv.appendChild(t); }
                         break;
                     case 'response': responseText = data.text||''; break;
-                    case 'error': progDiv.innerHTML=`<div class="msg-avatar" style="background:var(--accent-red);color:#fff;">⚠</div><div class="msg-body" style="color:var(--accent-red);">${esc(data.message)}</div>`; $('send-btn').disabled = false; return;
+                    case 'error': progDiv.innerHTML=`<div class="msg-avatar" style="background:var(--accent-red);color:#fff;">⚠</div><div class="msg-body" style="color:var(--accent-red);">${esc(data.message)}</div>`; sendBtn.disabled = false; return;
                     }
                     eventType='';dataStr='';
                 }
@@ -911,7 +927,7 @@ async function sendMsg() {
         if (e.name==='AbortError'||e.name==='TimeoutError') addMsg('assistant','⏰ 请求超时（10分钟）',null);
         else addMsg('assistant',`网络错误：${e.message}`,null);
     }
-    $('send-btn').disabled = false;
+    sendBtn.disabled = false;
 }
 
 // ═════════════════════ CUSTOMERS VIEW ═════════════════════
@@ -1411,7 +1427,8 @@ function showConversationDetail(cid) {
     // 等待 DOM 渲染后填入对话内容
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-            const container = document.getElementById('chat-messages');
+            const ct = currentChatContainer;
+            const container = ct ? ct.querySelector('#chat-messages') : null;
             if (container) {
                 container.innerHTML = '';
                 if (c.query) addMsg('user', c.query, c.files_read ? JSON.parse(c.files_read) : [], false);
