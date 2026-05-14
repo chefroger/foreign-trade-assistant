@@ -81,7 +81,7 @@ class ConversationSave(BaseModel):
     library_id: Optional[int] = Field(None, description="关联的文档库 ID")
     query: str = Field(..., description="用户问题")
     response: str = Field("", description="Agent 回复")
-    files_read: str = Field("[]", description="读取的文件列表 (JSON)")
+    files_read: list[dict] = Field(default_factory=list, description="读取的文件列表")
     library_name: str = Field("", description="文档库名称（用于上下文标注）")
 
 

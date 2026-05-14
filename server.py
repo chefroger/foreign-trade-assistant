@@ -91,15 +91,18 @@ _SESSION_TOKEN = secrets.token_urlsafe(32)
 
 app = FastAPI(title="Foreign Trade Assistant")
 
-# CORS: 单机桌面工具，浏览器与后端在同一进程，不需要跨域。
-# 如果用户通过反向代理访问，应由反向代理处理 CORS。
-# 此处仅允许本机 localhost（所有端口），以兼容 --port 参数。
-app.add_middleware(
-    CORSMiddleware,
-    allow_origin_regex=r"^https?://(127\.0\.0\.1|localhost)(:\d+)?$",
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["X-Hermes-Session-Token", "X-Company-ID", "Content-Type"],
-)
+
+def _install_cors(port: int) -> None:
+    """根据实际监听端口注册 CORS 中间件（仅本机）。"""
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            f"http://127.0.0.1:{port}",
+            f"http://localhost:{port}",
+        ],
+        allow_methods=["GET", "POST", "PUT", "DELETE"],
+        allow_headers=["X-Hermes-Session-Token", "X-Company-ID", "Content-Type"],
+    )
 
 # ── Skills sync check ───────────────────────────────────────────────────────
 import hashlib
@@ -190,12 +193,15 @@ async def status():
     return {"status": "ok", "app": "Foreign Trade Assistant"}
 
 # ── Entry point ───────────────────────────────────────────────────────────
-if __name__ == "__main__":
+def main() -> None:
+    """`trade` console script 入口 + `python server.py` 入口。"""
     parser = argparse.ArgumentParser(description="Foreign Trade Assistant")
     parser.add_argument("--port", type=int, default=9119)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
+
+    _install_cors(args.port)
 
     url = f"http://{args.host}:{args.port}/trade"
     print(f"\n  Foreign Trade Assistant → {url}")
@@ -207,3 +213,6 @@ if __name__ == "__main__":
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
 
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+
+if __name__ == "__main__":
+    main()
