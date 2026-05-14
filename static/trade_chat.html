@@ -501,12 +501,24 @@ body {
         <input type="hidden" id="cust-edit-id">
         <div class="form-group"><label>客户名称 *</label><input type="text" id="cust-name" placeholder="公司名称"></div>
         <div class="form-row">
-            <div class="form-group"><label>联系方式</label><input type="text" id="cust-contact" placeholder="邮箱或电话"></div>
+            <div class="form-group"><label>联系人职位</label><input type="text" id="cust-title" placeholder="CEO / Purchasing Manager"></div>
             <div class="form-group"><label>国家</label><input type="text" id="cust-country" placeholder="如 Italy"></div>
         </div>
         <div class="form-row">
-            <div class="form-group"><label>客户等级</label><select id="cust-tier"><option value="">未分级</option><option value="A">A 级</option><option value="B">B 级</option><option value="C">C 级</option></select></div>
+            <div class="form-group"><label>邮箱</label><input type="text" id="cust-email" placeholder="contact@company.com"></div>
+            <div class="form-group"><label>电话</label><input type="text" id="cust-phone" placeholder="+1 555-0123"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>WhatsApp</label><input type="text" id="cust-whatsapp" placeholder="+1 555-0123"></div>
+            <div class="form-group"><label>微信</label><input type="text" id="cust-wechat" placeholder="WeChat ID"></div>
+        </div>
+        <div class="form-row">
             <div class="form-group"><label>LinkedIn URL</label><input type="text" id="cust-linkedin" placeholder="https://linkedin.com/..."></div>
+            <div class="form-group"><label>公司网站</label><input type="text" id="cust-website" placeholder="https://company.com"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>客户等级</label><select id="cust-tier"><option value="">未分级</option><option value="A">A 级</option><option value="B">B 级</option><option value="C">C 级</option></select></div>
+            <div class="form-group"><label>备用邮箱</label><input type="text" id="cust-backup-email" placeholder="backup@company.com"></div>
         </div>
         <div class="form-group"><label>备注</label><textarea id="cust-note" placeholder="客户需求、注意事项等" style="min-height:80px;"></textarea></div>
         <div class="form-actions">
@@ -1067,9 +1079,17 @@ async function showCustomerDetail(cid) {
     editingCustomerData = c;
 
     const extra1 = c.extra1 ? JSON.parse(c.extra1||'{}') : {};
-    const tier = extra1['tier'] || c.tier || '';
+    const extra2 = c.extra2 ? JSON.parse(c.extra2||'{}') : {};
+    const tier = extra1['tier'] || '';
     const country = extra1['country'] || '';
     const linkedin = extra1['linkedin_url'] || '';
+    const website = extra1['company_website'] || '';
+    const title = extra2['title'] || '';
+    const email = extra2['email'] || '';
+    const phone = extra2['phone'] || '';
+    const whatsapp = extra2['whatsapp'] || '';
+    const wechat = extra2['wechat'] || '';
+    const backupEmail = extra2['backup_email'] || '';
 
     const libs = c._libraries || await (async () => {
         const result = await api('GET', `/api/trade/customers/${cid}/libraries`) || [];
@@ -1106,18 +1126,33 @@ async function showCustomerDetail(cid) {
             <div class="panel-section-title">基本信息</div>
             <div class="panel-field-row">
                 <div class="panel-field"><label>客户名称</label><input type="text" value="${esc(c.name)}" id="detail-name"></div>
+                <div class="panel-field"><label>联系人职位</label><input type="text" value="${esc(title)}" id="detail-title"></div>
+            </div>
+            <div class="panel-field-row">
                 <div class="panel-field"><label>等级</label><select id="detail-tier">
                     <option value="" ${!tier?'selected':''}>未分级</option>
                     <option value="A" ${tier==='A'?'selected':''}>A 级</option>
                     <option value="B" ${tier==='B'?'selected':''}>B 级</option>
                     <option value="C" ${tier==='C'?'selected':''}>C 级</option>
                 </select></div>
-            </div>
-            <div class="panel-field-row">
-                <div class="panel-field"><label>联系方式</label><input type="text" value="${esc(c.contact||'')}" id="detail-contact"></div>
                 <div class="panel-field"><label>国家</label><input type="text" value="${esc(country)}" id="detail-country"></div>
             </div>
-            <div class="panel-field"><label>LinkedIn</label><input type="text" value="${esc(linkedin)}" id="detail-linkedin"></div>
+            <div class="panel-field-row">
+                <div class="panel-field"><label>邮箱</label><input type="text" value="${esc(email)}" id="detail-email"></div>
+                <div class="panel-field"><label>电话</label><input type="text" value="${esc(phone)}" id="detail-phone"></div>
+            </div>
+            <div class="panel-field-row">
+                <div class="panel-field"><label>WhatsApp</label><input type="text" value="${esc(whatsapp)}" id="detail-whatsapp"></div>
+                <div class="panel-field"><label>微信</label><input type="text" value="${esc(wechat)}" id="detail-wechat"></div>
+            </div>
+            <div class="panel-field-row">
+                <div class="panel-field"><label>LinkedIn</label><input type="text" value="${esc(linkedin)}" id="detail-linkedin"></div>
+                <div class="panel-field"><label>公司网站</label><input type="text" value="${esc(website)}" id="detail-website"></div>
+            </div>
+            <div class="panel-field-row">
+                <div class="panel-field"><label>备用邮箱</label><input type="text" value="${esc(backupEmail)}" id="detail-backup-email"></div>
+                <div class="panel-field"><label>联系方式</label><input type="text" value="${esc(c.contact||'')}" id="detail-contact"></div>
+            </div>
             <div class="panel-field"><label>备注</label><textarea id="detail-note">${esc(c.note||'')}</textarea></div>
             <button class="btn btn-primary" onclick="saveCustomerDetail(${c.id})" style="width:100%;">💾 保存修改</button>
         </div>
@@ -1171,9 +1206,16 @@ async function saveCustomerDetail(cid) {
     const country = $('detail-country')?.value?.trim()||'';
     const tier = $('detail-tier')?.value||'';
     const linkedin = $('detail-linkedin')?.value?.trim()||'';
+    const title = $('detail-title')?.value?.trim()||'';
+    const email = $('detail-email')?.value?.trim()||'';
+    const phone = $('detail-phone')?.value?.trim()||'';
+    const whatsapp = $('detail-whatsapp')?.value?.trim()||'';
+    const wechat = $('detail-wechat')?.value?.trim()||'';
+    const website = $('detail-website')?.value?.trim()||'';
+    const backupEmail = $('detail-backup-email')?.value?.trim()||'';
 
-    // Save all fields including extra1
-    await api('PUT', `/api/trade/customers/${cid}`, {name, contact, note, country, tier, linkedin_url: linkedin});
+    await api('PUT', `/api/trade/customers/${cid}`, {name, contact, note, country, tier, linkedin_url: linkedin,
+        title, email, phone, whatsapp, wechat, company_website: website, backup_email: backupEmail});
     toast('已保存');
     closeCustomerDetail();
     await loadCustomersData();
@@ -1206,18 +1248,25 @@ function showCustomerEditModal(cid) {
         const c = allCustomers.find(x => x.id === cid);
         if (!c) return;
         const extra1 = c.extra1 ? JSON.parse(c.extra1||'{}') : {};
+        const extra2 = c.extra2 ? JSON.parse(c.extra2||'{}') : {};
         $('customer-modal-title').textContent = '编辑客户';
         $('cust-edit-id').value = cid;
         $('cust-name').value = c.name||'';
-        $('cust-contact').value = c.contact||'';
+        $('cust-title').value = extra2['title']||'';
         $('cust-country').value = extra1['country']||'';
-        $('cust-tier').value = extra1['tier']||c.tier||'';
+        $('cust-email').value = extra2['email']||'';
+        $('cust-phone').value = extra2['phone']||'';
+        $('cust-whatsapp').value = extra2['whatsapp']||'';
+        $('cust-wechat').value = extra2['wechat']||'';
         $('cust-linkedin').value = extra1['linkedin_url']||'';
+        $('cust-website').value = extra1['company_website']||'';
+        $('cust-tier').value = extra1['tier']||'';
+        $('cust-backup-email').value = extra2['backup_email']||'';
         $('cust-note').value = c.note||'';
     } else {
         $('customer-modal-title').textContent = '添加客户';
         $('cust-edit-id').value = '';
-        ['cust-name','cust-contact','cust-country','cust-tier','cust-linkedin','cust-note'].forEach(id => $(id).value='');
+        ['cust-name','cust-title','cust-country','cust-email','cust-phone','cust-whatsapp','cust-wechat','cust-linkedin','cust-website','cust-tier','cust-backup-email','cust-note'].forEach(id => $(id).value='');
     }
     showModal('customer-modal');
 }
@@ -1231,8 +1280,16 @@ async function saveCustomer() {
     const country = $('cust-country').value.trim();
     const tier = $('cust-tier').value;
     const linkedin = $('cust-linkedin').value.trim();
+    const title = $('cust-title').value.trim();
+    const email = $('cust-email').value.trim();
+    const phone = $('cust-phone').value.trim();
+    const whatsapp = $('cust-whatsapp').value.trim();
+    const wechat = $('cust-wechat').value.trim();
+    const website = $('cust-website').value.trim();
+    const backupEmail = $('cust-backup-email').value.trim();
 
-    const body = {name, contact, note, country, tier, linkedin_url: linkedin};
+    const body = {name, contact, note, country, tier, linkedin_url: linkedin,
+        title, email, phone, whatsapp, wechat, company_website: website, backup_email: backupEmail};
     if (editId) {
         await api('PUT', `/api/trade/customers/${editId}`, body);
     } else {
