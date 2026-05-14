@@ -91,12 +91,11 @@ def get_hermes_home() -> Path:
 │               ├── orders.md       # [可选] 订单记录
 │               └── notes.md        # [可选] 备注
 │
-├── prompts/                        # Trade 系统提示词（备份）
-│   └── trade-system-prompt.md
+├── prompts/                        # 用户自定义系统提示词
+│   └── system.md                  # 全局 system prompt（覆盖代码默认值）
 │
-└── skills/                         # Trade 专属技能（用户级覆盖）
-    └── b2b-document/
-        └── SKILL.md
+└── data/                           # 数据库
+    └── trade.db                    # SQLite 数据库（用户运行时数据）
 ```
 
 ---
@@ -523,16 +522,34 @@ trade init-company --name "Kechen" --slug "kechen"
 
 ---
 
-## 七、与 `data/trade.db` 的关系
+## 七、与数据库和桌面工作目录的关系
+
+### 数据存储三层
 
 | 数据类型 | 存储位置 | 用途 |
 |---------|---------|------|
-| 结构化数据（CRUD） | `data/trade.db` (SQLite) | 快速查询、API 返回 |
+| 结构化数据（CRUD） | `~/.trade/data/trade.db` (SQLite) | 快速查询、API 返回 |
 | 非结构化知识 | `~/.trade/companies/*.md` | Agent 上下文、人工编辑 |
-| 知识图谱 | Cognee (graph + vector) | 语义召回、跨会话记忆 |
-| 原始文档 | 用户指定目录 | Agent 按需读取 |
+| 业务文档 | `~/Desktop/{公司名}/` (桌面工作目录) | 报价单、合同、客户资料等原始文件 |
 
-三者互补：SQLite 提供快速 CRUD，Markdown 文件提供深度上下文，Cognee 提供语义连接。
+### 桌面工作目录
+
+创建公司时自动在桌面建立工作目录，按外贸业务流程分类：
+
+```
+~/Desktop/{公司名}/
+├── 报价单/
+├── 合同/
+├── 客户资料/
+├── 产品规格/
+├── 发票/
+├── 物流单据/
+├── 认证资质/
+└── 营销素材/
+```
+
+每个子目录自动注册为 document library。用户只需将文件放入对应文件夹，
+Agent 通过 `read_file` 直接读取。无需上传文件。
 
 ---
 
