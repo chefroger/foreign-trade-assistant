@@ -826,6 +826,7 @@ async function loadChatHistory() {
     const data = await api('GET', `/api/trade/conversations${params}`);
     if (!data || !data.length) return;
     const container = ct.querySelector('#chat-messages');
+    if (!container) return;
     // Remove empty state
     const emptyEl = container.querySelector('.empty-state');
     if (emptyEl) emptyEl.remove();
@@ -1534,14 +1535,20 @@ function showConversationDetail(cid) {
     currentChatName = '对话详情';
     currentCustomerId = null;
 
-    // 如果目标视图已缓存，先删除以便强制刷新加载新数据
+    // 强制重建视图
     const cacheKey = 'chat-' + currentChatContext;
     if (viewCache[cacheKey]) {
         viewCache[cacheKey].element.remove();
         delete viewCache[cacheKey];
     }
 
+    // 先切换到目标视图（会重置 currentChatContainer）
     navToView('chat', currentChatContext, currentChatName);
+
+    // 手动再次触发加载（确保数据刷新）
+    setTimeout(() => {
+        if (currentChatContainer) loadChatHistory();
+    }, 200);
 }
 
 // ═════════════════════ COMPANY MANAGEMENT ═════════════════════
