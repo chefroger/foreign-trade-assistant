@@ -124,3 +124,65 @@ class TestSmokeChatModule:
 
             # create_agent should NOT set HERMES_YOLO_MODE (moved to server.py startup)
             assert os.environ.get("HERMES_YOLO_MODE", "") != "true"
+
+
+class TestChatEndpointHTTP:
+    """真实 HTTP 请求测试：POST /api/trade/chat 不能因依赖注入崩成 500。"""
+
+    @pytest.mark.asyncio
+    async def test_chat_endpoint_returns_200_mocked(self, monkeypatch, tmp_path):
+        """关键回归：/chat 端点完整调用链通验。
+
+        使用独立 FastAPI app（不与 server.py 共享全局状态），
+        避免 test_api.py 中 module-scope mock 的泄漏。
+        """
+        monkeypatch.setenv("TRADE_HOME", str(tmp_path))
+        import trade.database as _db
+        _db._get_db_path = lambda p=tmp_path: p / "trade.db"
+        from trade.database import init_db
+        init_db()
+
+        # Mock Hermes + agent 依赖
+        class _A:
+            def chat(self, q): return "mocked-response"
+
+        # 确保 DB 中有公司 1 用于 require_company 校验
+        import trade.company as co
+        try:
+            co.create(name="Smoke Test Co", slug="smoke-test")
+        except ValueError:
+            pass  # already exists from a previous test run
+        monkeypatch.setattr(co, "get_trade_company",
+                            lambda cid: {"company_id": cid, "data_dir": str(tmp_path), "agent_identity_md": "", "is_active": 1})
+
+        import trade.helpers
+        monkeypatch.setattr(trade.helpers, "check_provider", lambda: None)
+        monkeypatch.setattr(trade.helpers, "get_agent_kwargs", lambda: {"provider":"x","model":"x","base_url":"","api_key":""})
+        monkeypatch.setattr(trade.helpers, "build_query", lambda c, l, q: q)
+        monkeypatch.setattr(trade.helpers, "create_agent", lambda **kw: _A())
+
+        # chat.py 在模块级别 import create_agent，已被其他测试缓存，需 patch 两处
+        import trade.api.chat as chat_mod
+        monkeypatch.setattr(chat_mod, "create_agent", lambda **kw: _A())
+        monkeypatch.setattr(chat_mod, "build_query", lambda c, l, q: q)
+        monkeypatch.setattr(chat_mod.chat_memory, "save_with_context", lambda **kw: {"id": 1})
+
+        from trade.api.deps import set_session_token
+        set_session_token("test-token")
+
+        # 构建独立 app
+        from fastapi import FastAPI
+        from trade.api import router as trade_router
+        app = FastAPI()
+        app.include_router(trade_router, prefix="/api/trade")
+
+        import httpx
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            r = await client.post(
+                "/api/trade/chat",
+                json={"query": "hi"},
+                headers={"X-Hermes-Session-Token": "test-token", "X-Company-ID": "1"},
+            )
+            assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
+            assert r.json()["response"] == "mocked-response"
