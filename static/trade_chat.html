@@ -1521,16 +1521,46 @@ function filterConversations() {
 function showConversationDetail(cid) {
     const c = allConversations.find(x => x.id === cid);
     if (!c) return;
-    // 切到聊天视图
-    currentChatContext = 'daily';
+    // 设置文档库上下文（如果该对话关联了文档库）
+    if (c.library_id) {
+        currentLibraryId = c.library_id;
+        currentChatContext = 'docs';
+    } else {
+        currentLibraryId = null;
+        currentChatContext = 'daily';
+    }
     currentChatName = '对话详情';
-    navToView('chat', 'daily', '对话详情');
-    // 等待 DOM 渲染后填入对话内容
+    // 如果有关联客户，也设置
+    currentCustomerId = null;
+
+    navToView('chat', currentChatContext, currentChatName);
+    // 等待 DOM 渲染后加载完整对话历史
     requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
+        requestAnimationFrame(async () => {
             const ct = currentChatContainer;
-            const container = ct ? ct.querySelector('#chat-messages') : null;
-            if (container) {
+            if (!ct) return;
+            const container = ct.querySelector('#chat-messages');
+            if (!container) return;
+
+            // 加载该库/公司的完整历史，以便看到上下文
+            const params = currentLibraryId
+                ? `?library_id=${currentLibraryId}&limit=50`
+                : '?limit=50';
+            const data = await api('GET', `/api/trade/conversations${params}`);
+            if (data && data.length) {
+                container.innerHTML = '';
+                data.reverse().forEach(conv => {
+                    if (conv.query) addMsg('user', conv.query, conv.files_read ? JSON.parse(conv.files_read) : [], false);
+                    if (conv.response) addMsg('assistant', conv.response, null, false);
+                });
+                // 高亮目标对话
+                setTimeout(() => {
+                    const msgs = container.querySelectorAll('.message');
+                    // 简单滚动到底部展示完整上下文
+                    container.scrollTop = container.scrollHeight;
+                }, 100);
+            } else {
+                // fallback：至少显示这条对话
                 container.innerHTML = '';
                 if (c.query) addMsg('user', c.query, c.files_read ? JSON.parse(c.files_read) : [], false);
                 if (c.response) addMsg('assistant', c.response, null, false);
