@@ -75,6 +75,22 @@ load_hermes_dotenv(hermes_home=get_hermes_home())
 # Hermes 会检查此环境变量以跳过工具审批
 os.environ["HERMES_YOLO_MODE"] = "true"
 
+# 屏蔽 Hermes 可选工具缺失的 stderr 警告（如 fal_client 图片生成工具）
+# 这些工具在外贸场景中不需要，但 Hermes 启动时会打印警告干扰用户
+import io as _io
+_sys_stderr_filtered = _io.TextIOWrapper(
+    open(sys.stderr.fileno(), "wb", buffering=0, closefd=False),
+    encoding=sys.stderr.encoding, errors="replace",
+)
+_sys_stderr_filtered_write = _sys_stderr_filtered.write
+def _filtered_write(data):
+    # 静默屏蔽无害的工具缺失警告
+    if "Could not import tool module" in data or "No module named" in data:
+        return len(data)  # 假装写入成功
+    return _sys_stderr_filtered_write(data)
+_sys_stderr_filtered.write = _filtered_write
+sys.stderr = _sys_stderr_filtered
+
 # ── Server ────────────────────────────────────────────────────────────────
 import secrets
 import webbrowser
