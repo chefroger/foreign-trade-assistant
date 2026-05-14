@@ -22,6 +22,7 @@ def create(
     linkedin_url: str = "",
     company_website: str = "",
     social_media: Optional[dict] = None,
+    title: str = "",
     email: str = "",
     backup_email: str = "",
     phone: str = "",
@@ -39,6 +40,7 @@ def create(
         "social_media": social_media or {},
     }, ensure_ascii=False)
     extra2 = _json.dumps({
+        "title": title,
         "email": email,
         "backup_email": backup_email,
         "phone": phone,
@@ -107,7 +109,7 @@ def update(
     import json as _json
 
     extra1_keys = {"country", "tier", "linkedin_url", "company_website", "social_media"}
-    extra2_keys = {"email", "backup_email", "phone", "whatsapp", "wechat", "source", "last_contact_at"}
+    extra2_keys = {"title", "email", "backup_email", "phone", "whatsapp", "wechat", "source", "last_contact_at"}
     basic_allowed = {"name", "contact", "note"}
 
     extra1_updates = {k: v for k, v in kwargs.items() if k in extra1_keys and v is not None}
@@ -357,6 +359,7 @@ def bulk_save(
             linkedin_url=cust.get("linkedin_url", ""),
             company_website=cust.get("company_website", ""),
             social_media=cust.get("social_media"),
+            title=cust.get("title", ""),
             email=cust.get("email", ""),
             backup_email=cust.get("backup_email", ""),
             phone=cust.get("phone", ""),

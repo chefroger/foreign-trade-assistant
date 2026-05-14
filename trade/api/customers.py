@@ -45,7 +45,7 @@ def create_customer(
         payload.name, payload.contact, payload.note, company_id=x_company_id,
         country=payload.country, tier=payload.tier, linkedin_url=payload.linkedin_url,
         company_website=payload.company_website, social_media=payload.social_media,
-        email=payload.email, backup_email=payload.backup_email,
+        title=payload.title, email=payload.email, backup_email=payload.backup_email,
         phone=payload.phone, whatsapp=payload.whatsapp,
         wechat=payload.wechat, source=payload.source,
     )
