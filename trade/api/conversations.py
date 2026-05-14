@@ -11,10 +11,9 @@ Trade AI Assistant — 对话记录 API 路由。
 
 from __future__ import annotations
 
-import json as _json
 from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends
 
 from trade import chat_memory
 from trade import library as library_module
@@ -42,13 +41,8 @@ def save_conversation(
     x_company_id: int = Depends(require_company),
 ):
     """保存对话回合到 SQLite + Hindsight 长期记忆。"""
-    try:
-        files = _json.loads(payload.files_read)
-    except _json.JSONDecodeError:
-        files = []
-
-    lib_name = ""
-    if payload.library_id:
+    lib_name = payload.library_name
+    if payload.library_id and not lib_name:
         lib = library_module.get(payload.library_id, company_id=x_company_id)
         if lib:
             lib_name = lib["name"]
@@ -56,7 +50,7 @@ def save_conversation(
     return chat_memory.save_with_context(
         company_id=x_company_id, library_id=payload.library_id,
         query=payload.query, response=payload.response,
-        files_read=files, library_name=lib_name,
+        files_read=payload.files_read, library_name=lib_name,
     )
 
 
