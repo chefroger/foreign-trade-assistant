@@ -31,7 +31,13 @@ python -m trade.customer
 python -m trade.chat_memory
 ```
 
-This project has **no test suite** and **no linter/formatter configured**.
+## Testing
+
+```bash
+python -m pytest tests/ -v       # 126 tests (database / business / API / OSINT / smoke)
+```
+
+Tests use temporary databases (monkeypatch `_get_db_path`), no production data is touched.
 
 ## Architecture
 

@@ -2,14 +2,19 @@
 Trade AI Assistant — OSINT Layer 4: 制裁名单筛查。
 
 筛查 OFAC / UN / EU 制裁名单，支持精确匹配和模糊匹配。
-CSV 数据自动下载并缓存在内存中，无网络时使用内置 fallback 数据。
+CSV 数据下载后持久化到本地缓存文件（~/.trade/cache/sanctions/），
+进程重启后无需重新下载。网络不可用时读缓存 fallback。
 """
 
 from __future__ import annotations
 
 import csv
 import io
+import json
 import logging
+import os
+import time
+from pathlib import Path
 from typing import Optional
 
 from trade.osint.constants import http_get
@@ -17,14 +22,80 @@ from trade.osint.constants import http_get
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 制裁名单内存缓存（进程生命周期内有效）
+# 制裁名单持久化缓存
 # ─────────────────────────────────────────────────────────────────────────────
 
+# 内存缓存（进程生命周期内有效）
 _sanctions_cache: dict[str, list[dict]] = {
     "OFAC": [],
     "UN": [],
     "EU": [],
 }
+
+# 文件缓存目录
+_CACHE_DIR = Path(os.environ.get("TRADE_HOME", Path.home() / ".trade")) / "cache" / "sanctions"
+_CACHE_TTL_SECONDS = 86400  # 24 小时
+
+
+def _get_cache_path(list_name: str) -> Path:
+    """制裁名单文件缓存路径。"""
+    return _CACHE_DIR / f"{list_name}.json"
+
+
+def _load_from_file_cache(list_name: str) -> list[dict] | None:
+    """从文件缓存加载制裁名单。过期返回 None。"""
+    cache_file = _get_cache_path(list_name)
+    if not cache_file.is_file():
+        return None
+
+    try:
+        with open(cache_file, encoding="utf-8") as f:
+            cached = json.load(f)
+
+        age = time.time() - cached.get("_loaded_at", 0)
+        if age > _CACHE_TTL_SECONDS:
+            logger.debug("制裁名单缓存已过期: %s (%.1f 小时)", list_name, age / 3600)
+            return None
+
+        logger.info("制裁名单从文件缓存加载: %s (%d 条)", list_name, len(cached.get("entries", [])))
+        return cached.get("entries", [])
+    except Exception as e:
+        logger.warning("制裁名单文件缓存读取失败: %s", e)
+        return None
+
+
+def _load_from_file_cache_expired(list_name: str) -> list[dict] | None:
+    """加载文件缓存（忽略 TTL，作为最后的 fallback）。"""
+    cache_file = _get_cache_path(list_name)
+    if not cache_file.is_file():
+        return None
+    try:
+        with open(cache_file, encoding="utf-8") as f:
+            cached = json.load(f)
+        entries = cached.get("entries", [])
+        if entries:
+            logger.info("使用过期缓存: %s (%d 条)", list_name, len(entries))
+            return entries
+    except Exception:
+        pass
+    return None
+
+
+def _save_to_file_cache(list_name: str, entries: list[dict]) -> None:
+    """持久化制裁名单到文件缓存。"""
+    _CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cache_file = _get_cache_path(list_name)
+    try:
+        with open(cache_file, "w", encoding="utf-8") as f:
+            json.dump({
+                "entries": entries,
+                "_loaded_at": time.time(),
+                "_list": list_name,
+                "_count": len(entries),
+            }, f, ensure_ascii=False)
+        logger.info("制裁名单已缓存: %s (%d 条)", list_name, len(entries))
+    except Exception as e:
+        logger.warning("制裁名单文件缓存写入失败: %s", e)
 
 
 def check_sanctions(name: str, country: str | None = None) -> dict:
@@ -150,40 +221,46 @@ def check_sanctions(name: str, country: str | None = None) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _load_ofac_sanctions() -> None:
-    """下载并解析 OFAC SDN (Specially Designated Nationals) CSV 列表。
+    """加载 OFAC SDN 列表（文件缓存 → 网络下载 → fallback）。"""
+    # 1. 优先读文件缓存
+    cached = _load_from_file_cache("OFAC")
+    if cached is not None:
+        _sanctions_cache["OFAC"] = cached
+        return
 
-    网络可用时从 treasury.gov 下载完整列表；
-    网络不可用时使用内存内置的 fallback 条目。
-    """
-    # OFAC SDN 列表 URL（首选旧 CSV 端点，部分镜像仍可用；备用新地址）
+    # 2. 网络下载
     url = "https://www.treasury.gov/ofac/downloads/sanctions/SDN-List.csv"
     entries: list[dict] = []
 
     try:
         response = http_get(url, timeout=30)
-        if not response:
-            _sanctions_cache["OFAC"] = _get_fallback_ofac_entries()
-            return
+        if response:
+            reader = csv.DictReader(io.StringIO(response))
+            for row in reader:
+                name = row.get("SDN_Name", "").strip()
+                if not name:
+                    name = row.get("Last Name", "").strip()
+                if name:
+                    entries.append({
+                        "name": name,
+                        "label": "OFAC SDN",
+                        "type": row.get("SDN_Type", ""),
+                        "program": row.get("Program", ""),
+                        "country": row.get("Country", ""),
+                    })
 
-        # 解析 CSV 格式的制裁名单
-        reader = csv.DictReader(io.StringIO(response))
-        for row in reader:
-            name = row.get("SDN_Name", "").strip()
-            if not name:
-                name = row.get("Last Name", "").strip()
-            if name:
-                entries.append({
-                    "name": name,
-                    "label": "OFAC SDN",
-                    "type": row.get("SDN_Type", ""),
-                    "program": row.get("Program", ""),
-                    "country": row.get("Country", ""),
-                })
-
-        logger.info("OFAC 制裁名单加载完成: %d 条记录", len(entries))
-
+        if entries:
+            logger.info("OFAC 制裁名单下载完成: %d 条记录", len(entries))
+            _save_to_file_cache("OFAC", entries)
+        else:
+            raise ValueError("No entries parsed from OFAC CSV")
     except Exception as e:
-        logger.warning("OFAC 列表下载失败，使用内存备份: %s", e)
+        logger.warning("OFAC 下载失败: %s", e)
+        # 3. Fallback：读过期缓存
+        stale = _load_from_file_cache_expired("OFAC")
+        if stale is not None:
+            _sanctions_cache["OFAC"] = stale
+            return
         entries = _get_fallback_ofac_entries()
 
     _sanctions_cache["OFAC"] = entries

@@ -120,6 +120,30 @@ powershell -File scripts/build.ps1  # → dist/Foreign Trade Assistant.exe
 
 ---
 
+## ⚠️ 安全部署说明
+
+Foreign Trade Assistant 在 `HERMES_YOLO_MODE=true` 下运行——AI Agent 执行工具（读写文件、终端命令等）
+**无需人工审批**。这是必须的，因为目标用户（外贸业务员）不具备判断 Agent 工具调用的技术能力。
+
+### 因此请务必：
+
+1. **仅在内网或本机使用**：不要将服务暴露在公网上
+2. **防火墙保护**：确保 `127.0.0.1:9119` 不被外部访问
+3. **API Key 安全**：`~/.hermes/.env` 中的 LLM API Key 不要分享
+4. **定期备份**：`~/.trade/` 目录和桌面工作目录中的重要文件
+
+### YOLO 模式说明
+
+```
+启动时输出：
+  ⚠️  HERMES_YOLO_MODE enabled — 工具审批已跳过
+     如需更高安全隔离，仅限受控内网环境使用
+```
+
+这是设计决定，不是配置疏忽。如果需要工具审批流程，请使用 Hermes 原生的交互模式。
+
+---
+
 ## 功能概览
 
 | 功能 | 入口 | 说明 |
