@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Trade AI Assistant — 智能外贸销售助手</title>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 <script>marked.setOptions({ breaks: true, gfm: true });</script>
 <style>
 :root {
@@ -739,7 +740,12 @@ function addMsg(role, content, files, save) {
     avatar.textContent = role === 'user' ? '👤' : '🤖';
     const body = document.createElement('div');
     body.className = 'msg-body';
-    body.innerHTML = marked.parse(content || '');
+    const raw = marked.parse(content || '');
+    body.innerHTML = DOMPurify.sanitize(raw, {
+        ALLOWED_TAGS: ['p','br','strong','em','b','i','ul','ol','li','h1','h2','h3','h4','h5','h6',
+            'blockquote','code','pre','a','table','thead','tbody','tr','th','td','hr','span','div','img'],
+        ALLOWED_ATTR: ['href','target','class','id','style','src','alt','width','height'],
+    });
     if (files && files.length) {
         const s = document.createElement('div'); s.className = 'sources';
         s.innerHTML = '<div class="sources-title">📄 参考文件</div>' + files.map(f => `<div>📎 ${esc(f.file||f)}</div>`).join('');
@@ -1264,7 +1270,7 @@ async function loadDirectoryTree() {
     const identity = await api('GET', `/api/trade/companies/${currentCompanyId}/agent-identity`);
     if (identity?.agent_identity_md) {
         $('file-preview').innerHTML = `<div class="file-preview-header"><h3>📄 agent-identity.md</h3></div>
-            <div>${marked.parse(identity.agent_identity_md)}</div>`;
+            <div>${DOMPurify.sanitize(marked.parse(identity.agent_identity_md), {ALLOWED_TAGS:['p','br','strong','em','ul','ol','li','h1','h2','h3','blockquote','code','pre','a','table','thead','tbody','tr','th','td','hr','span'],ALLOWED_ATTR:['href','target','class']})}</div>`;
     }
 }
 

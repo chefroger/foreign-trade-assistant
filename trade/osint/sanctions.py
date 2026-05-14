@@ -155,6 +155,7 @@ def _load_ofac_sanctions() -> None:
     网络可用时从 treasury.gov 下载完整列表；
     网络不可用时使用内存内置的 fallback 条目。
     """
+    # OFAC SDN 列表 URL（首选旧 CSV 端点，部分镜像仍可用；备用新地址）
     url = "https://www.treasury.gov/ofac/downloads/sanctions/SDN-List.csv"
     entries: list[dict] = []
 
