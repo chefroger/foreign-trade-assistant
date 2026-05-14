@@ -21,10 +21,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install pytest pytest-asyncio httpx
+          # Core runtime deps (hermes-agent excluded — not needed for unit tests)
+          pip install fastapi "uvicorn[standard]" pydantic pyyaml packaging python-multipart
+          # Document extraction deps
+          pip install pymupdf openpyxl python-docx python-pptx xlrd beautifulsoup4
+          # Install trade package in dev mode
+          pip install -e . --no-deps
 
       - name: Run tests
         run: python -m pytest tests/ -v
