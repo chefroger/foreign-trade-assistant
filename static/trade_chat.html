@@ -1440,7 +1440,11 @@ async function createCompany() {
     });
     const r = await api('POST', '/api/trade/companies', body);
     if (r?.id) {
-        toast('公司创建成功');
+        if (r.work_dir_is_new === false) {
+            toast(`桌面目录已存在，已创建为：${r.work_dir.split('/').pop()}`);
+        } else {
+            toast('公司创建成功，桌面工作目录已就绪');
+        }
         ['co-name','co-slug','co-contact-name','co-contact-email','co-website'].forEach(id=>$(id).value='');
         await loadCompanies();
         onCompanyChange(r.id);
