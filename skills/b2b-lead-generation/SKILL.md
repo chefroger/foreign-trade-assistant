@@ -21,6 +21,18 @@ injection_prompt: |
      - 跟进时间表：Day1 / Day3 / Day7 / Day14
   
   如果用户没有明确说明产品或市场，请先询问这两个关键信息。
+
+  4. 【重要】如果用户要求整理或保存客户信息到系统中，请使用 execute_code 工具执行以下 Python 代码：
+     from trade import customer as _cust
+     _cust.bulk_save(
+         company_id={当前公司ID},
+         customers=[
+             {"name": "公司名", "contact": "邮箱/电话", "note": "备注",
+              "country": "国家", "tier": "A/B/C", "linkedin_url": "链接"},
+             ...
+         ]
+     )
+     执行后会返回 {"created": N, "skipped": N}。请告知用户保存结果。
 ---
 
 Subject: [Personalization — company name or recent news] + [Value prop]

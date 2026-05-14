@@ -67,12 +67,18 @@ class CustomerCreate(BaseModel):
     name: str = Field(..., description="客户名称")
     contact: str = Field("", description="联系方式")
     note: str = Field("", description="备注")
+    country: str = Field("", description="国家")
+    tier: str = Field("", description="客户等级 (A/B/C)")
+    linkedin_url: str = Field("", description="LinkedIn URL")
 
 
 class CustomerUpdate(BaseModel):
     name: Optional[str] = Field(None, description="客户名称")
     contact: Optional[str] = Field(None, description="联系方式")
     note: Optional[str] = Field(None, description="备注")
+    country: Optional[str] = Field(None, description="国家")
+    tier: Optional[str] = Field(None, description="客户等级 (A/B/C)")
+    linkedin_url: Optional[str] = Field(None, description="LinkedIn URL")
 
 
 # ── Conversation ───────────────────────────────────────────────────────────────

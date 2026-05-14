@@ -43,6 +43,7 @@ def create_customer(
     """创建新客户（归属于当前公司）。"""
     return customer_module.create(
         payload.name, payload.contact, payload.note, company_id=x_company_id,
+        country=payload.country, tier=payload.tier, linkedin_url=payload.linkedin_url,
     )
 
 

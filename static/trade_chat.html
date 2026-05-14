@@ -1127,10 +1127,8 @@ async function saveCustomerDetail(cid) {
     const tier = $('detail-tier')?.value||'';
     const linkedin = $('detail-linkedin')?.value?.trim()||'';
 
-    // Save basic fields
-    await api('PUT', `/api/trade/customers/${cid}`, {name, contact, note});
-    // Save extra fields via update (we use spare columns indirectly)
-    // Note: customer.py update doesn't handle extra1 yet, so we'd store tier/country in note for now
+    // Save all fields including extra1
+    await api('PUT', `/api/trade/customers/${cid}`, {name, contact, note, country, tier, linkedin_url: linkedin});
     toast('已保存');
     closeCustomerDetail();
     await loadCustomersData();
@@ -1189,10 +1187,11 @@ async function saveCustomer() {
     const tier = $('cust-tier').value;
     const linkedin = $('cust-linkedin').value.trim();
 
+    const body = {name, contact, note, country, tier, linkedin_url: linkedin};
     if (editId) {
-        await api('PUT', `/api/trade/customers/${editId}`, {name, contact, note});
+        await api('PUT', `/api/trade/customers/${editId}`, body);
     } else {
-        await api('POST', `/api/trade/customers`, {name, contact, note});
+        await api('POST', `/api/trade/customers`, body);
     }
     hideModal('customer-modal');
     await loadCustomersData();

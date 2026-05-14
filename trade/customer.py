@@ -16,13 +16,24 @@ def create(
     contact: str = "",
     note: str = "",
     company_id: Optional[int] = None,
+    *,
+    country: str = "",
+    tier: str = "",
+    linkedin_url: str = "",
 ) -> dict:
     """Create a customer scoped to a company. Returns the new row as a dict."""
+    import json as _json
+    extra1 = _json.dumps({
+        "country": country,
+        "tier": tier,
+        "linkedin_url": linkedin_url,
+    }, ensure_ascii=False)
+
     conn = get_connection()
     try:
         cur = conn.execute(
-            "INSERT INTO customers (company_id, name, contact, note) VALUES (?, ?, ?, ?)",
-            (company_id, name, contact, note),
+            "INSERT INTO customers (company_id, name, contact, note, extra1) VALUES (?, ?, ?, ?, ?)",
+            (company_id, name, contact, note, extra1),
         )
         conn.commit()
         row = conn.execute(
@@ -69,11 +80,42 @@ def update(
     company_id: Optional[int] = None,
     **kwargs,
 ) -> Optional[dict]:
-    """Update customer fields (name, contact, note)."""
-    allowed = {"name", "contact", "note"}
-    updates = {k: v for k, v in kwargs.items() if k in allowed}
-    if not updates:
+    """Update customer fields (name, contact, note, country, tier, linkedin_url)."""
+    import json as _json
+
+    # 分离基础字段和 extra1 字段
+    extra1_keys = {"country", "tier", "linkedin_url"}
+    extra1_updates = {k: v for k, v in kwargs.items() if k in extra1_keys and v is not None}
+    basic_allowed = {"name", "contact", "note"}
+    basic_updates = {k: v for k, v in kwargs.items() if k in basic_allowed and v is not None}
+
+    # 如果 extra1 有更新，先读取现有的 extra1 JSON 再 merge
+    if extra1_updates:
+        conn = get_connection()
+        try:
+            row = conn.execute("SELECT extra1 FROM customers WHERE id = ?", (customer_id,)).fetchone()
+            if row and row["extra1"]:
+                try:
+                    current_extra1 = _json.loads(row["extra1"])
+                except (_json.JSONDecodeError, TypeError):
+                    current_extra1 = {}
+            else:
+                current_extra1 = {}
+            current_extra1.update(extra1_updates)
+            new_extra1 = _json.dumps(current_extra1, ensure_ascii=False)
+            conn.execute(
+                "UPDATE customers SET extra1 = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+                (new_extra1, customer_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    if not basic_updates:
         return get(customer_id, company_id)
+
+    set_clause = ", ".join(f"{k} = ?" for k in basic_updates)
+    values = list(basic_updates.values()) + [customer_id]
 
     set_clause = ", ".join(f"{k} = ?" for k in updates)
     values = list(updates.values()) + [customer_id]
@@ -222,6 +264,53 @@ def _library_row_to_dict(row) -> dict:
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
+
+
+# ── 批量保存客户（Agent 可调用）────────────────────────────────────────────────
+
+def bulk_save(company_id: int, customers: list[dict]) -> dict:
+    """批量导入客户列表，自动跳过已存在的同名客户。
+
+    Agent 从对话或文档中提取客户信息后，可调用此函数批量写入数据库。
+
+    Args:
+        company_id: 公司 ID
+        customers: 客户字典列表，每个可含:
+            name (必填), contact, note, country, tier, linkedin_url
+
+    Returns:
+        {"created": N, "skipped": N, "total": N}
+    """
+    created = 0
+    skipped = 0
+
+    # 先获取现有客户名称集合
+    existing_names = {c["name"].lower() for c in list_by_company(company_id)}
+
+    for cust in customers:
+        name = (cust.get("name") or "").strip()
+        if not name:
+            skipped += 1
+            continue
+
+        # 跳过同名客户
+        if name.lower() in existing_names:
+            skipped += 1
+            continue
+
+        create(
+            name=name,
+            contact=cust.get("contact", ""),
+            note=cust.get("note", ""),
+            company_id=company_id,
+            country=cust.get("country", ""),
+            tier=cust.get("tier", ""),
+            linkedin_url=cust.get("linkedin_url", ""),
+        )
+        existing_names.add(name.lower())
+        created += 1
+
+    return {"created": created, "skipped": skipped, "total": created + skipped}
 
 
 # ── CLI smoke test ───────────────────────────────────────────────────────────
