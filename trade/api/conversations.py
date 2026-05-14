@@ -19,6 +19,7 @@ from fastapi import APIRouter, Header, HTTPException, Depends
 from trade import chat_memory
 from trade import library as library_module
 from trade.api.deps import require_company
+from trade.api.models import ConversationSave, ConversationUpdate
 
 router = APIRouter(tags=["conversations"])
 
@@ -37,27 +38,25 @@ def list_conversations(
 
 @router.post("/conversations")
 def save_conversation(
-    library_id: Optional[int] = None,
-    query: str = "",
-    response: str = "",
-    files_read: str = "[]",
+    payload: ConversationSave,
     x_company_id: int = Depends(require_company),
 ):
     """保存对话回合到 SQLite + Hindsight 长期记忆。"""
     try:
-        files = _json.loads(files_read)
+        files = _json.loads(payload.files_read)
     except _json.JSONDecodeError:
         files = []
 
     lib_name = ""
-    if library_id:
-        lib = library_module.get(library_id, company_id=x_company_id)
+    if payload.library_id:
+        lib = library_module.get(payload.library_id, company_id=x_company_id)
         if lib:
             lib_name = lib["name"]
 
     return chat_memory.save_with_context(
-        company_id=x_company_id, library_id=library_id, query=query,
-        response=response, files_read=files, library_name=lib_name,
+        company_id=x_company_id, library_id=payload.library_id,
+        query=payload.query, response=payload.response,
+        files_read=files, library_name=lib_name,
     )
 
 
@@ -76,11 +75,11 @@ def get_conversation(
 @router.put("/conversations/{conversation_id}")
 def update_conversation_response(
     conversation_id: int,
-    response: str,
+    payload: ConversationUpdate,
     x_company_id: int = Depends(require_company),
 ):
     """更新对话的回复字段。"""
-    result = chat_memory.update_response(x_company_id, conversation_id, response)
+    result = chat_memory.update_response(x_company_id, conversation_id, payload.response)
     if not result:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return result

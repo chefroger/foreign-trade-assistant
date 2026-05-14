@@ -16,10 +16,11 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends
 
 from trade import customer as customer_module
 from trade.api.deps import require_company
+from trade.api.models import CustomerCreate, CustomerUpdate
 
 router = APIRouter(tags=["customers"])
 
@@ -36,13 +37,13 @@ def list_customers(
 
 @router.post("/customers")
 def create_customer(
-    name: str,
-    contact: str = "",
-    note: str = "",
+    payload: CustomerCreate,
     x_company_id: int = Depends(require_company),
 ):
     """创建新客户（归属于当前公司）。"""
-    return customer_module.create(name, contact, note, company_id=x_company_id)
+    return customer_module.create(
+        payload.name, payload.contact, payload.note, company_id=x_company_id,
+    )
 
 
 @router.get("/customers/{customer_id}")
@@ -60,16 +61,11 @@ def get_customer(
 @router.put("/customers/{customer_id}")
 def update_customer(
     customer_id: int,
+    payload: CustomerUpdate,
     x_company_id: int = Depends(require_company),
-    name: Optional[str] = None,
-    contact: Optional[str] = None,
-    note: Optional[str] = None,
 ):
     """更新客户字段（必须属于当前公司）。"""
-    kwargs = {
-        k: v for k, v in {"name": name, "contact": contact, "note": note}.items()
-        if v is not None
-    }
+    kwargs = payload.model_dump(exclude_none=True)
     result = customer_module.update(customer_id, company_id=x_company_id, **kwargs)
     if not result:
         raise HTTPException(status_code=404, detail="Customer not found")

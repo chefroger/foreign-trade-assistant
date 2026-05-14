@@ -116,9 +116,13 @@ def delete(library_id: int, company_id: Optional[int] = None) -> bool:
         conn.close()
 
 
-def count_files(library_id: int) -> int:
-    """Count files in the library's root_path directory (non-recursive)."""
-    lib = get(library_id)
+def count_files(library_id: int, company_id: Optional[int] = None) -> int:
+    """Count files in the library's root_path directory (non-recursive).
+
+    company_id is optional for backward compatibility but should always be
+    passed by API callers to enforce multi-tenant isolation.
+    """
+    lib = get(library_id, company_id=company_id)
     if not lib:
         return 0
     root = Path(lib["root_path"])
@@ -139,6 +143,3 @@ def _row_to_dict(row) -> dict:
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
-
-
-    print("\nCleaned up test library.")

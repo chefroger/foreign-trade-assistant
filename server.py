@@ -91,13 +91,12 @@ _SESSION_TOKEN = secrets.token_urlsafe(32)
 
 app = FastAPI(title="Foreign Trade Assistant")
 
-# CORS: 仅允许本机访问（单机桌面工具）
+# CORS: 单机桌面工具，浏览器与后端在同一进程，不需要跨域。
+# 如果用户通过反向代理访问，应由反向代理处理 CORS。
+# 此处仅允许本机 localhost（所有端口），以兼容 --port 参数。
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:9119",
-        "http://localhost:9119",
-    ],
+    allow_origin_regex=r"^https?://(127\.0\.0\.1|localhost)(:\d+)?$",
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["X-Hermes-Session-Token", "X-Company-ID", "Content-Type"],
 )

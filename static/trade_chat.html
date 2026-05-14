@@ -1061,7 +1061,7 @@ async function saveCustomerDetail(cid) {
     const linkedin = $('detail-linkedin')?.value?.trim()||'';
 
     // Save basic fields
-    await api('PUT', `/api/trade/customers/${cid}?name=${encodeURIComponent(name)}&contact=${encodeURIComponent(contact)}&note=${encodeURIComponent(note)}`);
+    await api('PUT', `/api/trade/customers/${cid}`, {name, contact, note});
     // Save extra fields via update (we use spare columns indirectly)
     // Note: customer.py update doesn't handle extra1 yet, so we'd store tier/country in note for now
     toast('已保存');
@@ -1123,9 +1123,9 @@ async function saveCustomer() {
     const linkedin = $('cust-linkedin').value.trim();
 
     if (editId) {
-        await api('PUT', `/api/trade/customers/${editId}?name=${encodeURIComponent(name)}&contact=${encodeURIComponent(contact)}&note=${encodeURIComponent(note)}`);
+        await api('PUT', `/api/trade/customers/${editId}`, {name, contact, note});
     } else {
-        await api('POST', `/api/trade/customers?name=${encodeURIComponent(name)}&contact=${encodeURIComponent(contact)}&note=${encodeURIComponent(note)}`);
+        await api('POST', `/api/trade/customers`, {name, contact, note});
     }
     hideModal('customer-modal');
     await loadCustomersData();
@@ -1416,14 +1416,14 @@ async function createCompany() {
     const name = $('co-name').value.trim();
     if (!name) { toast('请填写公司名称'); return; }
     const slug = $('co-slug').value.trim();
-    const params = new URLSearchParams({name});
-    if (slug) params.set('slug',slug);
+    const body = {name};
+    if (slug) body.slug = slug;
     ['contact_name','contact_email','website'].forEach(f => {
         const elId = 'co-' + f.replace(/_/g, '-');
         const v = (document.getElementById(elId)?.value || '').trim();
-        if (v) params.set(f, v);
+        if (v) body[f] = v;
     });
-    const r = await api('POST', '/api/trade/companies?'+params.toString());
+    const r = await api('POST', '/api/trade/companies', body);
     if (r?.id) {
         toast('公司创建成功');
         ['co-name','co-slug','co-contact-name','co-contact-email','co-website'].forEach(id=>$(id).value='');
