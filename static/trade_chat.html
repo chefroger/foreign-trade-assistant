@@ -655,8 +655,8 @@ function navToView(view, chatCtx, chatName) {
 
         switch (view) {
             case 'chat':
-                currentLibraryId = null;
-                currentCustomerId = null;
+                // 不在此处重置 currentLibraryId / currentCustomerId
+                // 调用方（如 showConversationDetail）可能在 navToView 之前已经设置了这些值
                 renderChatViewInto(container, chatCtx, chatName);
                 break;
             case 'customers':
@@ -1521,7 +1521,7 @@ function filterConversations() {
 function showConversationDetail(cid) {
     const c = allConversations.find(x => x.id === cid);
     if (!c) return;
-    // 设置文档库上下文（如果该对话关联了文档库）
+    // 设置上下文，让 navToView → loadChatHistory 自动加载完整历史
     if (c.library_id) {
         currentLibraryId = c.library_id;
         currentChatContext = 'docs';
@@ -1530,43 +1530,16 @@ function showConversationDetail(cid) {
         currentChatContext = 'daily';
     }
     currentChatName = '对话详情';
-    // 如果有关联客户，也设置
     currentCustomerId = null;
 
-    navToView('chat', currentChatContext, currentChatName);
-    // 等待 DOM 渲染后加载完整对话历史
-    requestAnimationFrame(() => {
-        requestAnimationFrame(async () => {
-            const ct = currentChatContainer;
-            if (!ct) return;
-            const container = ct.querySelector('#chat-messages');
-            if (!container) return;
+    // 如果目标视图已缓存，先删除以便强制刷新加载新数据
+    const cacheKey = 'chat-' + currentChatContext;
+    if (viewCache[cacheKey]) {
+        viewCache[cacheKey].element.remove();
+        delete viewCache[cacheKey];
+    }
 
-            // 加载该库/公司的完整历史，以便看到上下文
-            const params = currentLibraryId
-                ? `?library_id=${currentLibraryId}&limit=50`
-                : '?limit=50';
-            const data = await api('GET', `/api/trade/conversations${params}`);
-            if (data && data.length) {
-                container.innerHTML = '';
-                data.reverse().forEach(conv => {
-                    if (conv.query) addMsg('user', conv.query, conv.files_read ? JSON.parse(conv.files_read) : [], false);
-                    if (conv.response) addMsg('assistant', conv.response, null, false);
-                });
-                // 高亮目标对话
-                setTimeout(() => {
-                    const msgs = container.querySelectorAll('.message');
-                    // 简单滚动到底部展示完整上下文
-                    container.scrollTop = container.scrollHeight;
-                }, 100);
-            } else {
-                // fallback：至少显示这条对话
-                container.innerHTML = '';
-                if (c.query) addMsg('user', c.query, c.files_read ? JSON.parse(c.files_read) : [], false);
-                if (c.response) addMsg('assistant', c.response, null, false);
-            }
-        });
-    });
+    navToView('chat', currentChatContext, currentChatName);
 }
 
 // ═════════════════════ COMPANY MANAGEMENT ═════════════════════
