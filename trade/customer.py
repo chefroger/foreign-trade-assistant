@@ -20,6 +20,14 @@ def create(
     country: str = "",
     tier: str = "",
     linkedin_url: str = "",
+    company_website: str = "",
+    social_media: Optional[dict] = None,
+    email: str = "",
+    backup_email: str = "",
+    phone: str = "",
+    whatsapp: str = "",
+    wechat: str = "",
+    source: str = "",
 ) -> dict:
     """Create a customer scoped to a company. Returns the new row as a dict."""
     import json as _json
@@ -27,13 +35,23 @@ def create(
         "country": country,
         "tier": tier,
         "linkedin_url": linkedin_url,
+        "company_website": company_website,
+        "social_media": social_media or {},
+    }, ensure_ascii=False)
+    extra2 = _json.dumps({
+        "email": email,
+        "backup_email": backup_email,
+        "phone": phone,
+        "whatsapp": whatsapp,
+        "wechat": wechat,
+        "source": source,
     }, ensure_ascii=False)
 
     conn = get_connection()
     try:
         cur = conn.execute(
-            "INSERT INTO customers (company_id, name, contact, note, extra1) VALUES (?, ?, ?, ?, ?)",
-            (company_id, name, contact, note, extra1),
+            "INSERT INTO customers (company_id, name, contact, note, extra1, extra2) VALUES (?, ?, ?, ?, ?, ?)",
+            (company_id, name, contact, note, extra1, extra2),
         )
         conn.commit()
         row = conn.execute(
@@ -80,32 +98,57 @@ def update(
     company_id: Optional[int] = None,
     **kwargs,
 ) -> Optional[dict]:
-    """Update customer fields (name, contact, note, country, tier, linkedin_url)."""
+    """Update customer fields。
+
+    基础字段: name, contact, note
+    extra1 字段: country, tier, linkedin_url, company_website, social_media
+    extra2 字段: email, backup_email, phone, whatsapp, wechat, source, last_contact_at
+    """
     import json as _json
 
-    # 分离基础字段和 extra1 字段
-    extra1_keys = {"country", "tier", "linkedin_url"}
-    extra1_updates = {k: v for k, v in kwargs.items() if k in extra1_keys and v is not None}
+    extra1_keys = {"country", "tier", "linkedin_url", "company_website", "social_media"}
+    extra2_keys = {"email", "backup_email", "phone", "whatsapp", "wechat", "source", "last_contact_at"}
     basic_allowed = {"name", "contact", "note"}
+
+    extra1_updates = {k: v for k, v in kwargs.items() if k in extra1_keys and v is not None}
+    extra2_updates = {k: v for k, v in kwargs.items() if k in extra2_keys and v is not None}
     basic_updates = {k: v for k, v in kwargs.items() if k in basic_allowed and v is not None}
 
-    # 如果 extra1 有更新，先读取现有的 extra1 JSON 再 merge
+    # Merge extra1 updates
     if extra1_updates:
         conn = get_connection()
         try:
             row = conn.execute("SELECT extra1 FROM customers WHERE id = ?", (customer_id,)).fetchone()
+            current = {}
             if row and row["extra1"]:
                 try:
-                    current_extra1 = _json.loads(row["extra1"])
+                    current = _json.loads(row["extra1"])
                 except (_json.JSONDecodeError, TypeError):
-                    current_extra1 = {}
-            else:
-                current_extra1 = {}
-            current_extra1.update(extra1_updates)
-            new_extra1 = _json.dumps(current_extra1, ensure_ascii=False)
+                    pass
+            current.update(extra1_updates)
             conn.execute(
                 "UPDATE customers SET extra1 = ?, updated_at = datetime('now','localtime') WHERE id = ?",
-                (new_extra1, customer_id),
+                (_json.dumps(current, ensure_ascii=False), customer_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    # Merge extra2 updates
+    if extra2_updates:
+        conn = get_connection()
+        try:
+            row = conn.execute("SELECT extra2 FROM customers WHERE id = ?", (customer_id,)).fetchone()
+            current = {}
+            if row and row["extra2"]:
+                try:
+                    current = _json.loads(row["extra2"])
+                except (_json.JSONDecodeError, TypeError):
+                    pass
+            current.update(extra2_updates)
+            conn.execute(
+                "UPDATE customers SET extra2 = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+                (_json.dumps(current, ensure_ascii=False), customer_id),
             )
             conn.commit()
         finally:
@@ -268,7 +311,12 @@ def _library_row_to_dict(row) -> dict:
 
 # ── 批量保存客户（Agent 可调用）────────────────────────────────────────────────
 
-def bulk_save(company_id: int, customers: list[dict]) -> dict:
+def bulk_save(
+    company_id: int,
+    customers: list[dict],
+    *,
+    library_id: int | None = None,
+) -> dict:
     """批量导入客户列表，自动跳过已存在的同名客户。
 
     Agent 从对话或文档中提取客户信息后，可调用此函数批量写入数据库。
@@ -276,7 +324,10 @@ def bulk_save(company_id: int, customers: list[dict]) -> dict:
     Args:
         company_id: 公司 ID
         customers: 客户字典列表，每个可含:
-            name (必填), contact, note, country, tier, linkedin_url
+            name (必填), contact, note, country, tier, linkedin_url,
+            company_website, social_media (dict), email, backup_email,
+            phone, whatsapp, wechat, source
+        library_id: 如果从文档库扫描提取，自动关联此文档库
 
     Returns:
         {"created": N, "skipped": N, "total": N}
@@ -284,7 +335,6 @@ def bulk_save(company_id: int, customers: list[dict]) -> dict:
     created = 0
     skipped = 0
 
-    # 先获取现有客户名称集合
     existing_names = {c["name"].lower() for c in list_by_company(company_id)}
 
     for cust in customers:
@@ -293,12 +343,11 @@ def bulk_save(company_id: int, customers: list[dict]) -> dict:
             skipped += 1
             continue
 
-        # 跳过同名客户
         if name.lower() in existing_names:
             skipped += 1
             continue
 
-        create(
+        result = create(
             name=name,
             contact=cust.get("contact", ""),
             note=cust.get("note", ""),
@@ -306,7 +355,23 @@ def bulk_save(company_id: int, customers: list[dict]) -> dict:
             country=cust.get("country", ""),
             tier=cust.get("tier", ""),
             linkedin_url=cust.get("linkedin_url", ""),
+            company_website=cust.get("company_website", ""),
+            social_media=cust.get("social_media"),
+            email=cust.get("email", ""),
+            backup_email=cust.get("backup_email", ""),
+            phone=cust.get("phone", ""),
+            whatsapp=cust.get("whatsapp", ""),
+            wechat=cust.get("wechat", ""),
+            source=cust.get("source", "agent"),
         )
+
+        # 如果指定了文档库，自动关联
+        if library_id:
+            try:
+                link_library(result["id"], library_id, company_id)
+            except ValueError:
+                pass
+
         existing_names.add(name.lower())
         created += 1
 

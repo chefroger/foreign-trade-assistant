@@ -937,9 +937,13 @@ async function renderCustomersViewInto(container) {
         <div class="panel-topbar">
             <h2>👥 客户管理${coName ? `<span style="margin-left:10px;padding:3px 10px;background:rgba(59,130,246,0.08);color:var(--primary);border-radius:999px;font-size:12px;font-weight:500;">🏢 ${esc(coName)}</span>` : ''}</h2>
             <div class="panel-topbar-actions">
+                <button class="btn btn-danger" id="batch-delete-btn" style="display:none;" onclick="batchDeleteCustomers()">🗑 批量删除</button>
                 <input class="panel-search" id="cust-search" placeholder="搜索客户..." oninput="filterCustomers()">
                 <select id="cust-tier-filter" onchange="filterCustomers()" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--bg-card);">
                     <option value="">全部等级</option><option value="A">A 级</option><option value="B">B 级</option><option value="C">C 级</option><option value="none">未分级</option>
+                </select>
+                <select id="cust-sort" onchange="renderCustomersTable(allCustomers)" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--bg-card);">
+                    <option value="name">按名称排序</option><option value="updated_at">按最近跟进</option>
                 </select>
                 <button class="btn btn-primary" onclick="showCustomerEditModal()">+ 添加客户</button>
             </div>
@@ -947,6 +951,7 @@ async function renderCustomersViewInto(container) {
         <div class="panel-body">
             <table class="data-table" id="customers-table">
                 <thead><tr>
+                    <th style="width:36px;"><input type="checkbox" id="select-all-customers" onchange="toggleSelectAllCustomers(this)" title="全选"></th>
                     <th>客户名称</th><th>等级</th><th>国家</th><th>联系方式</th><th>关联文档库</th><th>最近跟进</th><th>操作</th>
                 </tr></thead>
                 <tbody id="customers-tbody"></tbody>
@@ -971,33 +976,73 @@ async function loadCustomersData() {
     renderCustomersTable(allCustomers);
 }
 
+function _parseExtra1(c) { try { return JSON.parse(c.extra1||'{}'); } catch(e) { return {}; } }
+
 function renderCustomersTable(data) {
     const tbody = $('customers-tbody');
     const empty = $('customers-empty');
     if (!data.length) {
         tbody.innerHTML = '';
         empty.classList.remove('hidden');
+        $('batch-delete-btn').style.display = 'none';
         return;
     }
     empty.classList.add('hidden');
-    tbody.innerHTML = data.map(c => {
-        const tier = (c.extra1 ? JSON.parse(c.extra1||'{}') : {})['tier'] || c.tier || '';
-        const country = (c.extra1 ? JSON.parse(c.extra1||'{}') : {})['country'] || '';
-        const linkedin = (c.extra1 ? JSON.parse(c.extra1||'{}') : {})['linkedin_url'] || '';
+
+    // Sort
+    const sortBy = ($('cust-sort')?.value) || 'name';
+    const sorted = [...data].sort((a, b) => {
+        if (sortBy === 'updated_at') return (b.updated_at || '').localeCompare(a.updated_at || '');
+        return (a.name || '').localeCompare(b.name || '');
+    });
+
+    tbody.innerHTML = sorted.map(c => {
+        const ex1 = _parseExtra1(c);
+        const tier = ex1['tier'] || '';
+        const country = ex1['country'] || '';
         const tierClass = tier==='A'?'level-a':tier==='B'?'level-b':'level-c';
         const tierLabel = tier || '--';
         const libCount = (c._libraries||[]).length;
         const contactInfo = c.contact || '--';
-        return `<tr onclick="showCustomerDetail(${c.id})">
-            <td style="font-weight:500;">${esc(c.name)}</td>
-            <td><span class="level-badge ${tierClass}">${tierLabel}</span></td>
-            <td>${esc(country||'--')}</td>
-            <td>${esc(contactInfo)}</td>
-            <td>${libCount} 个</td>
-            <td style="color:var(--text-muted);font-size:12px;">${esc((c.updated_at||'').slice(0,10))}</td>
+        return `<tr>
+            <td onclick="event.stopPropagation()"><input type="checkbox" class="cust-checkbox" value="${c.id}" onchange="updateBatchDeleteBtn()"></td>
+            <td style="font-weight:500;cursor:pointer;" onclick="showCustomerDetail(${c.id})">${esc(c.name)}</td>
+            <td onclick="showCustomerDetail(${c.id})"><span class="level-badge ${tierClass}">${tierLabel}</span></td>
+            <td onclick="showCustomerDetail(${c.id})">${esc(country||'--')}</td>
+            <td onclick="showCustomerDetail(${c.id})">${esc(contactInfo)}</td>
+            <td onclick="showCustomerDetail(${c.id})">${libCount} 个</td>
+            <td onclick="showCustomerDetail(${c.id})" style="color:var(--text-muted);font-size:12px;">${esc((c.updated_at||'').slice(0,10))}</td>
             <td><button class="btn-xs" onclick="event.stopPropagation();showCustomerEditModal(${c.id})">编辑</button></td>
         </tr>`;
     }).join('');
+
+    $('select-all-customers').checked = false;
+    $('batch-delete-btn').style.display = 'none';
+}
+
+function toggleSelectAllCustomers(el) {
+    document.querySelectorAll('.cust-checkbox').forEach(cb => cb.checked = el.checked);
+    updateBatchDeleteBtn();
+}
+
+function updateBatchDeleteBtn() {
+    const checked = document.querySelectorAll('.cust-checkbox:checked').length;
+    $('batch-delete-btn').style.display = checked > 0 ? 'inline-flex' : 'none';
+}
+
+async function batchDeleteCustomers() {
+    const checked = document.querySelectorAll('.cust-checkbox:checked');
+    if (!checked.length) return;
+    if (!confirm(`确定删除选中的 ${checked.length} 个客户？此操作不可恢复。`)) return;
+
+    let deleted = 0;
+    for (const cb of checked) {
+        const r = await api('DELETE', `/api/trade/customers/${cb.value}`);
+        if (r?.ok) deleted++;
+    }
+    toast(`已删除 ${deleted} 个客户`);
+    await loadCustomersData();
+    if (currentView === 'customers') renderCustomersTable(allCustomers);
 }
 
 function filterCustomers() {

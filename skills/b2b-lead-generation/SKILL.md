@@ -27,12 +27,20 @@ injection_prompt: |
      _cust.bulk_save(
          company_id={当前公司ID},
          customers=[
-             {"name": "公司名", "contact": "邮箱/电话", "note": "备注",
-              "country": "国家", "tier": "A/B/C", "linkedin_url": "链接"},
+             {"name": "公司名", "contact": "联系方式", "note": "备注",
+              "country": "国家", "tier": "A/B/C", "linkedin_url": "LinkedIn链接",
+              "company_website": "公司网站", "email": "邮箱", "backup_email": "备用邮箱",
+              "phone": "电话", "whatsapp": "WhatsApp", "wechat": "微信",
+              "social_media": {"facebook": "链接", "instagram": "链接", "tiktok": "链接",
+                                "youtube": "链接", "twitter": "链接"},
+              "source": "agent"},
              ...
-         ]
+         ],
+         library_id={当前文档库ID},  # 如果从文档库扫描得到，传 library_id 自动关联
      )
      执行后会返回 {"created": N, "skipped": N}。请告知用户保存结果。
+     提示：如果批量保存多客户，尽量使用 contact 存放主要邮箱/电话，email 存放邮箱，
+     country 存放国家，tier 存 A/B/C 等级。source 填 "agent"。
 ---
 
 Subject: [Personalization — company name or recent news] + [Value prop]

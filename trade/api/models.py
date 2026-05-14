@@ -70,6 +70,14 @@ class CustomerCreate(BaseModel):
     country: str = Field("", description="国家")
     tier: str = Field("", description="客户等级 (A/B/C)")
     linkedin_url: str = Field("", description="LinkedIn URL")
+    company_website: str = Field("", description="公司网站")
+    social_media: Optional[dict] = Field(None, description="社媒联系方式 {facebook, instagram, tiktok, youtube, twitter}")
+    email: str = Field("", description="邮箱")
+    backup_email: str = Field("", description="备用邮箱")
+    phone: str = Field("", description="电话")
+    whatsapp: str = Field("", description="WhatsApp")
+    wechat: str = Field("", description="微信")
+    source: str = Field("", description="客户来源 (manual/agent/import)")
 
 
 class CustomerUpdate(BaseModel):
@@ -79,6 +87,13 @@ class CustomerUpdate(BaseModel):
     country: Optional[str] = Field(None, description="国家")
     tier: Optional[str] = Field(None, description="客户等级 (A/B/C)")
     linkedin_url: Optional[str] = Field(None, description="LinkedIn URL")
+    company_website: Optional[str] = Field(None, description="公司网站")
+    social_media: Optional[dict] = Field(None, description="社媒联系方式")
+    email: Optional[str] = Field(None, description="邮箱")
+    backup_email: Optional[str] = Field(None, description="备用邮箱")
+    phone: Optional[str] = Field(None, description="电话")
+    whatsapp: Optional[str] = Field(None, description="WhatsApp")
+    wechat: Optional[str] = Field(None, description="微信")
 
 
 # ── Conversation ───────────────────────────────────────────────────────────────
