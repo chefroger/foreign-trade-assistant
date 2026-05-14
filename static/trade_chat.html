@@ -657,6 +657,8 @@ function navToView(view, chatCtx, chatName) {
             case 'chat':
                 // 不在此处重置 currentLibraryId / currentCustomerId
                 // 调用方（如 showConversationDetail）可能在 navToView 之前已经设置了这些值
+                // 先设置 currentChatContainer 让 loadChatHistory 能正常工作
+                currentChatContainer = container;
                 renderChatViewInto(container, chatCtx, chatName);
                 break;
             case 'customers':
