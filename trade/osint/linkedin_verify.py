@@ -1,25 +1,19 @@
 """
 Trade AI Assistant — OSINT Layer 6: LinkedIn 公司页验证。
 
-通过 Google 搜索 "site:linkedin.com/company {domain}" 查找 LinkedIn 公司页，
-验证域名一致性和公司在线存在的真实性。
+LinkedIn 是外贸获客的核心渠道。我们不使用容易被反爬屏蔽的 Google 搜索方案，
+而是生成精确的 browser_navigate 指令，由 Hermes Agent 通过内置浏览器直接访问
+LinkedIn 进行验证，确保稳定可靠。
 """
 
 from __future__ import annotations
 
-import re
-import urllib.parse
-import urllib.request
-
 
 def linkedin_company_verify(domain: str, company_name: str) -> dict:
-    """LinkedIn 公司页验证（通过 Google 搜索 + LinkedIn 页面分析）。
+    """生成 LinkedIn 验证的 browser_navigate 指令。
 
-    通过 Google 搜索 "site:linkedin.com/company {domain}" 找到公司页，
-    然后验证域名一致性。
-
-    注意：这是一个简化实现，仅做存在性验证和域名交叉对比。
-    完整版需要 Hermes 的 browser_navigate 工具抓取 LinkedIn 页面获取员工规模等详情。
+    不直接发起 HTTP 请求（会被反爬），而是返回 Hermes Agent 可直接执行的
+    浏览器导航指令。Agent 看到此输出后会依次打开 LinkedIn 页面进行验证。
 
     Args:
         domain: 公司域名（如 "acme.com"）
@@ -27,72 +21,47 @@ def linkedin_company_verify(domain: str, company_name: str) -> dict:
 
     Returns:
         {
+            "method": "browser_navigate",           # 执行方式
             "domain": str,
             "company_name": str,
-            "linkedin_found": bool,                    # 是否找到了 LinkedIn 公司页
-            "linkedin_url": str | None,                # LinkedIn 公司页 URL
-            "employee_count": str | None,             # 员工规模（需要 browser_navigate 获取）
-            "industry": str | None,                   # 行业（需要 browser_navigate 获取）
-            "founded": int | None,                    # 成立年份（需要 browser_navigate 获取）
-            "domain_match": bool,                      # 域名是否与 LinkedIn 公司页 URL 匹配
-            "error": str | None,
+            "steps": [
+                {"action": "navigate", "url": str, "purpose": str},
+                ...
+            ],
+            "summary_instruction": str,             # LLM 应采取的行动总结
         }
     """
-    domain_clean = _extract_domain(domain) or domain.lower()
-    result: dict = {
+    domain_clean = domain.lower().strip()
+    domain_clean = domain_clean.replace("https://", "").replace("http://", "")
+    domain_clean = domain_clean.replace("www.", "")
+    domain_clean = domain_clean.rstrip("/").split("/")[0]
+
+    # 构建公司名搜索词（URL 编码）
+    import urllib.parse
+    company_encoded = urllib.parse.quote(company_name)
+
+    return {
+        "method": "browser_navigate",
         "domain": domain_clean,
         "company_name": company_name,
-        "linkedin_found": False,
-        "linkedin_url": None,
-        "employee_count": None,
-        "industry": None,
-        "founded": None,
-        "domain_match": False,
-        "error": None,
-    }
-
-    # 搜索 LinkedIn 公司页（通过 Google）
-    search_url = (
-        f"https://www.google.com/search?q=site:linkedin.com/company+%22{urllib.parse.quote(domain_clean)}%22"
-        "&num=5"
-    )
-
-    try:
-        req = urllib.request.Request(
-            search_url,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        "steps": [
+            {
+                "action": "navigate",
+                "url": f"https://www.linkedin.com/search/results/companies/?keywords={company_encoded}",
+                "purpose": f"搜索 LinkedIn 上的公司页，验证 '{company_name}' 是否存在",
             },
-        )
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            html = resp.read().decode("utf-8", errors="replace")
-
-        # 从 Google 搜索结果中提取 LinkedIn URL
-        linkedin_urls = re.findall(
-            r'href="(https://(?:www\.)?linkedin\.com/company/[^"&?/]+)"',
-            html,
-        )
-
-        if linkedin_urls:
-            # 取第一个（最相关）结果
-            linkedin_url = linkedin_urls[0].rstrip("/")
-            result["linkedin_found"] = True
-            result["linkedin_url"] = linkedin_url
-
-            # 域名一致性检查：保守策略 — 只要能找到公司页就认为是匹配的。
-            # 严格域名匹配需要 browser_navigate 抓取公司页详情。
-            result["domain_match"] = True
-
-    except Exception as exc:
-        result["error"] = str(exc)
-
-    return result
-
-
-def _extract_domain(url_or_domain: str) -> str | None:
-    """从 URL 或域名中提取干净的主域名。"""
-    val = url_or_domain.strip().lower()
-    val = re.sub(r"^https?://", "", val)
-    val = val.rstrip("/").split("/")[0]
-    val = re.sub(r"^www\.", "", val)
-    return val if "." in val else None
+            {
+                "action": "navigate",
+                "url": f"https://www.linkedin.com/company/{domain_clean.split('.')[0]}",
+                "purpose": f"尝试直接访问 {domain_clean} 对应的 LinkedIn 公司页",
+            },
+        ],
+        "summary_instruction": (
+            "请使用 browser_navigate 工具访问 LinkedIn 搜索公司页，验证以下信息：\n"
+            f"1. 公司 '{company_name}'（域名 {domain_clean}）是否有 LinkedIn 公司主页\n"
+            "2. 如果有，公司规模（员工数）、所属行业、成立年份\n"
+            "3. 公司主页域名是否与 {domain_clean} 一致\n"
+            "4. 综合评估公司在线存在的真实性\n\n"
+            "将验证结果填入 OSINT 报告的 ## LinkedIn 部分。"
+        ),
+    }

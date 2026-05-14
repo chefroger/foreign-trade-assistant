@@ -108,13 +108,12 @@ def generate_recommendations(report: dict) -> list[str]:
         elif not sa.get("hits"):
             recs.append("✅ 未在任何制裁名单中发现匹配项")
 
-    # ── LinkedIn 建议 ──
+    # ── LinkedIn 建议（需 Agent 通过 browser_navigate 实际执行后补充）───
     li = layers.get("linkedin")
-    if li:
-        if li.get("linkedin_found"):
-            count = li.get("employee_count", "未知")
-            recs.append(f"✅ LinkedIn 公司页存在，员工规模：{count}")
-        else:
-            recs.append("⚠️ 未找到 LinkedIn 公司页，建议要求对方提供公司证明")
+    if li and li.get("method") == "browser_navigate":
+        recs.append(
+            "🔍 LinkedIn 验证需要通过浏览器访问 LinkedIn 完成。"
+            "请使用 browser_navigate 工具按 linkedin 层的 steps 指令执行验证。"
+        )
 
     return recs

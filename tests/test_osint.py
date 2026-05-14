@@ -207,23 +207,28 @@ class TestTechStack:
 
 
 class TestLinkedInVerify:
-    """测试 LinkedIn 公司页验证。"""
+    """测试 LinkedIn 公司页验证（browser_navigate 指令生成）。"""
 
-    def test_basic_verification(self):
-        """基本验证逻辑：通过 Google 搜索查找 LinkedIn 公司页。"""
-        result = linkedin_company_verify("microsoft.com", "Microsoft")
-        assert result["domain"] == "microsoft.com"
-        # microsoft.com 大概率有 LinkedIn 公司页
-        # 但不一定每次都能通过 Google 搜索找到（受限于 Google 的反爬机制）
-        assert "linkedin_found" in result
+    def test_returns_browser_navigate_steps(self):
+        """不发起 HTTP 请求，只生成 browser_navigate 指令。"""
+        result = linkedin_company_verify("acme.com", "ACME Corp")
+        assert result["method"] == "browser_navigate"
+        assert result["domain"] == "acme.com"
+        assert result["company_name"] == "ACME Corp"
+        assert len(result["steps"]) >= 2
+        assert result["steps"][0]["action"] == "navigate"
+        assert "linkedin.com" in result["steps"][0]["url"]
+        assert "summary_instruction" in result
 
-    def test_result_has_all_fields(self):
-        """返回结果应包含所有定义字段。"""
+    def test_domain_cleanup(self):
+        """域名清理：去掉协议和路径。"""
+        result = linkedin_company_verify("https://www.example.com/path", "Test")
+        assert result["domain"] == "example.com"
+
+    def test_has_all_fields(self):
+        """返回结果包含所有定义字段。"""
         result = linkedin_company_verify("example.com", "Example Corp")
-        expected_fields = {
-            "domain", "company_name", "linkedin_found", "linkedin_url",
-            "employee_count", "industry", "founded", "domain_match", "error",
-        }
+        expected_fields = {"method", "domain", "company_name", "steps", "summary_instruction"}
         assert expected_fields.issubset(result.keys())
 
 

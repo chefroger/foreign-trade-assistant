@@ -128,15 +128,12 @@ async def osint_full_check(
     else:
         report["layers"]["sanctions"] = None
 
-    # ── Layer 6 (可选): LinkedIn 验证 ─────────────────────────────────
+    # ── Layer 6: LinkedIn 验证（生成 browser_navigate 指令）─────────────
     if include_linkedin and lookup_domain:
         linkedin_result = linkedin_company_verify(lookup_domain, target)
         report["layers"]["linkedin"] = linkedin_result
-
-        if not linkedin_result.get("linkedin_found"):
-            report["flags"].append("no_linkedin")
-        if linkedin_result.get("domain_match") is False:
-            report["flags"].append("linkedin_domain_mismatch")
+        # LinkedIn 验证通过 Hermes browser_navigate 执行，无网络请求风险
+        # 此处不做自动评分（需 Agent 实际执行后人工/LLM 判断）
     else:
         report["layers"]["linkedin"] = None
 
