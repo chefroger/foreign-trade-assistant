@@ -1524,7 +1524,7 @@ function filterConversations() {
 function showConversationDetail(cid) {
     const c = allConversations.find(x => x.id === cid);
     if (!c) return;
-    // 设置上下文，让 navToView → loadChatHistory 自动加载完整历史
+
     if (c.library_id) {
         currentLibraryId = c.library_id;
         currentChatContext = 'docs';
@@ -1535,20 +1535,26 @@ function showConversationDetail(cid) {
     currentChatName = '对话详情';
     currentCustomerId = null;
 
-    // 强制重建视图
+    // 强制重建目标视图
     const cacheKey = 'chat-' + currentChatContext;
     if (viewCache[cacheKey]) {
         viewCache[cacheKey].element.remove();
         delete viewCache[cacheKey];
     }
 
-    // 先切换到目标视图（会重置 currentChatContainer）
     navToView('chat', currentChatContext, currentChatName);
 
-    // 手动再次触发加载（确保数据刷新）
-    setTimeout(() => {
-        if (currentChatContainer) loadChatHistory();
-    }, 200);
+    // 用 MutationObserver 等 DOM 渲染完成后再拉取数据
+    const tryLoad = () => {
+        const ct = currentChatContainer;
+        if (!ct || !ct.querySelector('#chat-messages')) {
+            // DOM 还没到位，再等一轮
+            requestAnimationFrame(tryLoad);
+            return;
+        }
+        loadChatHistory();
+    };
+    requestAnimationFrame(tryLoad);
 }
 
 // ═════════════════════ COMPANY MANAGEMENT ═════════════════════
