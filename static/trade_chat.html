@@ -756,8 +756,15 @@ async function loadChatLibrarySelect() {
     const data = await api('GET', '/api/trade/libraries');
     const sel = ct.querySelector('#chat-library-select');
     if (!sel) return;
+    // 按名称去重（同名文档库只保留一个）
+    const seen = new Set();
+    const unique = (data||[]).filter(l => {
+        if (seen.has(l.name)) return false;
+        seen.add(l.name);
+        return true;
+    });
     sel.innerHTML = '<option value="">— 选择文档库 —</option>' +
-        (data||[]).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('');
+        unique.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('');
 }
 
 function showAddLibraryModal() {
