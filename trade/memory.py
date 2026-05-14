@@ -269,9 +269,20 @@ def retain_to_hermes_memory(
     entry = "\n".join(entry_lines)
 
     try:
-        lock_fd = open(LOCK_FILE, "w")
-        import fcntl
-        fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
+        # 跨平台文件锁：用临时锁文件存在性 + 短重试替代 fcntl (仅 Unix)
+        import time as _time
+        for _attempt in range(5):
+            if not LOCK_FILE.exists():
+                try:
+                    LOCK_FILE.write_text(str(os.getpid()), encoding="utf-8")
+                    break
+                except OSError:
+                    _time.sleep(0.05)
+            else:
+                _time.sleep(0.05)
+        else:
+            return False  # 无法获取锁
+
         try:
             existing = ""
             if MEMORY_FILE.exists():
@@ -284,8 +295,10 @@ def retain_to_hermes_memory(
                 content_str = existing[:idx_s] + entry + "\n\n" + existing[idx_s:]
             MEMORY_FILE.write_text(content_str, encoding="utf-8")
         finally:
-            fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
-            lock_fd.close()
+            try:
+                LOCK_FILE.unlink(missing_ok=True)
+            except OSError:
+                pass
         return True
     except Exception:
         return False
