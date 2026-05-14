@@ -133,7 +133,7 @@ powershell -File scripts/build.ps1  # → dist/Foreign Trade Assistant.exe
 | 客户管理 | 侧边栏 → 销售转化 | 客户表格（A/B/C 分级）、详情面板、文档库关联 |
 | 文档库 | 侧边栏 → 销售转化 | 按目录读取本地文档，Agent 自动分析 |
 | 文档生成 | 侧边栏 → 销售转化 | 生成 PPTX/DOCX/XLSX 专业商务文档 |
-| 客户背调 | 侧边栏 → 工具 | WHOIS + 邮箱验证 + 制裁名单 + 技术栈 + LinkedIn 交叉验证 |
+| 客户背调 | 侧边栏 → 工具 | 6 层验证：WHOIS + 邮箱验证 + 制裁名单 + 技术栈 + LinkedIn（Hermes 浏览器） + 邮箱注册检测 |
 | 定时任务 | 侧边栏 → 工具 | 7 个工作日自动化任务（早安简报/开发信/社媒等） |
 | 数据目录 | 侧边栏 → 工具 | 浏览 `~/.trade/` 目录结构和文件 |
 | 对话记录 | 侧边栏 → 历史 | 查看/搜索/删除历史对话 |
@@ -152,13 +152,14 @@ trade/                     B2B 业务层
 │   ├── conversations.py     对话记录
 │   ├── memory.py            Hindsight 记忆 + LLM 提供商
 │   ├── onboarding.py        首次引导
-│   └── deps.py              共享依赖
+│   ├── deps.py              共享依赖 + session token 校验
+│   └── models.py             Pydantic 请求/响应模型
 ├── osint/                 客户背调模块（6 层检测）
 │   ├── whois.py             域名 WHOIS
 │   ├── email_verify.py      企业邮箱验证
 │   ├── sanctions.py         制裁名单筛查
 │   ├── tech_stack.py        技术栈检测
-│   ├── linkedin_verify.py   LinkedIn 验证
+│   ├── linkedin_verify.py   LinkedIn 验证（browser_navigate 指令生成）
 │   ├── scoring.py           风险评分
 │   └── orchestrator.py      编排器
 ├── database.py             SQLite 连接 + schema + 迁移
@@ -177,7 +178,7 @@ trade/                     B2B 业务层
 └── post_install.py         Skills 安装到 Hermes
 
 skills/                     14 个 B2B skills（安装到 ~/.hermes/skills/）
-tests/                      119 个测试（database/business/api/osint）
+tests/                      126 个测试（database/business/api/osint/smoke）
 static/trade_chat.html      Chat SPA 前端
 scripts/
 ├── install.sh              一键安装脚本（macOS/Linux）
@@ -197,7 +198,7 @@ server.py                   FastAPI 入口
 
 ```bash
 pip install -e ".[dev]"
-python -m pytest tests/ -v       # 运行 119 个测试
+python -m pytest tests/ -v       # 运行 126 个测试
 python -m trade.database          # 初始化/检查数据库
 ```
 
