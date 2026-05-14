@@ -516,6 +516,21 @@ body {
     </div>
 </div>
 
+<!-- Library Modal (添加文档库) -->
+<div class="modal-backdrop hidden" id="library-modal">
+    <div class="modal">
+        <h3>📁 添加文档库</h3>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">将本地文件夹关联为文档库，Agent 可通过 read_file 读取其中的文件。</p>
+        <div class="form-group"><label>库名称 *</label><input type="text" id="lib-name" placeholder="例如：产品报价库"></div>
+        <div class="form-group"><label>文件夹路径 *</label><input type="text" id="lib-path" placeholder="/Users/xxx/Documents/客户资料"><p class="hint">📌 Mac: 文件夹上右键 → Option键 → 复制路径名</p></div>
+        <div class="form-group"><label>描述</label><input type="text" id="lib-desc" placeholder="可选"></div>
+        <div class="form-actions">
+            <button class="btn" onclick="hideModal('library-modal')">取消</button>
+            <button class="btn btn-primary" onclick="createLibrary()">添加</button>
+        </div>
+    </div>
+</div>
+
 <div id="toast-container"></div>
 
 <script>
@@ -676,7 +691,8 @@ function renderChatViewInto(container, ctx, name) {
                 ${ctx === 'docs' ? `
                 <select id="chat-library-select" onchange="onChatLibraryChange(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--bg-card);">
                     <option value="">— 选择文档库 —</option>
-                </select>` : ''}
+                </select>
+                <button onclick="showAddLibraryModal()" title="添加文档库" style="height:30px;width:30px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-card);cursor:pointer;font-size:16px;">+</button>` : ''}
                 <button onclick="clearChat()">🗑️ 清屏</button>
             </div>
         </div>
@@ -720,6 +736,26 @@ async function loadChatLibrarySelect() {
     if (!sel) return;
     sel.innerHTML = '<option value="">— 选择文档库 —</option>' +
         (data||[]).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('');
+}
+
+function showAddLibraryModal() {
+    ['lib-name','lib-path','lib-desc'].forEach(id => $(id).value = '');
+    showModal('library-modal');
+}
+
+async function createLibrary() {
+    const name = $('lib-name').value.trim();
+    const path = $('lib-path').value.trim();
+    if (!name || !path) { toast('请填写库名称和文件夹路径'); return; }
+    const desc = $('lib-desc').value.trim();
+    const r = await api('POST', '/api/trade/libraries', {name, root_path: path, description: desc});
+    if (r?.id) {
+        toast(`文档库「${name}」已添加`);
+        hideModal('library-modal');
+        loadChatLibrarySelect();
+    } else {
+        toast(r?.detail || '添加失败');
+    }
 }
 
 async function clearChat() {
