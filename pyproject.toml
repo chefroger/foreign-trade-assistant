@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "foreign-trade-assistant"
-version = "0.2.0"
-description = "Foreign Trade Assistant — B2B document Q&A for trade and manufacturing sales teams"
+version = "0.3.0"
+description = "Foreign Trade Assistant — AI sales assistant for B2B trade companies. Lead generation, customer due diligence, document analysis, social media, and daily automation."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Roger Lau" }]
