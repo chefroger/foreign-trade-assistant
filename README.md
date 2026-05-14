@@ -1,5 +1,9 @@
 # Foreign Trade Assistant
 
+[![Test](https://github.com/chefroger/foreign-trade-assistant/actions/workflows/test.yml/badge.svg)](https://github.com/chefroger/foreign-trade-assistant/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
+
 外贸公司的 AI 销售助手 — 覆盖「引流 → 转化」全链路的智能销售系统。
 
 基于 [Hermes Agent](https://github.com/chefroger/hermes-agent)（chefroger fork），
