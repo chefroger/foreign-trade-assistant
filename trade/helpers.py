@@ -194,17 +194,21 @@ def _get_history_block(company_id: int, total_prompt_chars: int) -> tuple[str, i
 
     return block, _estimate_tokens(block)
 
-def build_query(company_id: int, library_id: int | None, query: str) -> str:
+def build_query(
+    company_id: int,
+    library_id: int | None,
+    query: str,
+    customer_id: int | None = None,
+) -> str:
     """Assemble the full prompt with company identity + doc context + skill injection.
 
     company_id determines which company identity is injected into the system prompt.
     library_id optionally adds document-library context.
-    query is first passed through skill_router.augment_query() which detects
-    which b2b-* skill should be triggered (even from vague/abbreviated input)
-    and prepends a precise skill augmentation block.
+    customer_id optionally adds customer context (customer name, linked libraries).
     """
     from trade import library as _lib
     from trade import company as _company
+    from trade import customer as _cust
     from trade import skill_router
 
     # 0. Skill auto-detection — must happen before anything else so the LLM
@@ -224,7 +228,22 @@ def build_query(company_id: int, library_id: int | None, query: str) -> str:
         db_identity=db_identity,
     )
 
-    # 2. Library document context
+    # 2. Customer context (injected before library context)
+    customer_context = ""
+    if customer_id:
+        cust = _cust.get(customer_id, company_id=company_id)
+        if cust:
+            customer_context = (
+                f"\n[上下文] 用户正在与客户「{cust['name']}」"
+                f"（联系方式：{cust.get('contact', '未填写')}）对话。"
+            )
+            # 顺便注入该客户关联的文档库信息
+            linked_libs = _cust.get_libraries(customer_id, company_id=company_id)
+            if linked_libs:
+                lib_names = "、".join(l["name"] for l in linked_libs)
+                customer_context += f"该客户关联的文档库：{lib_names}。"
+
+    # 3. Library document context
     doc_context = ""
     if library_id:
         lib = _lib.get(library_id, company_id=company_id)
@@ -234,15 +253,15 @@ def build_query(company_id: int, library_id: int | None, query: str) -> str:
                 "中提问。必要时使用 read_file 读取目录中的文件。"
             )
 
-    # 3. History block (injected before the query, sized by token budget)
+    # 5. History block (injected before the query, sized by token budget)
     pre_history_chars = (
-        len(system_prompt) + len(doc_context) +
+        len(system_prompt) + len(customer_context) + len(doc_context) +
         len(augmented_query) + 200
     )
     history_block, _ = _get_history_block(company_id, pre_history_chars)
 
-    # 4. Assemble final prompt
-    final_prompt = system_prompt + doc_context
+    # 6. Assemble final prompt
+    final_prompt = system_prompt + customer_context + doc_context
     if history_block:
         final_prompt = f"{final_prompt}\n\n{history_block}"
 

@@ -166,13 +166,13 @@ class TestChatEndpointHTTP:
         import trade.helpers
         monkeypatch.setattr(trade.helpers, "check_provider", lambda: None)
         monkeypatch.setattr(trade.helpers, "get_agent_kwargs", lambda: {"provider":"x","model":"x","base_url":"","api_key":""})
-        monkeypatch.setattr(trade.helpers, "build_query", lambda c, l, q: q)
+        monkeypatch.setattr(trade.helpers, "build_query", lambda c, l, q, **kw: q)
         monkeypatch.setattr(trade.helpers, "create_agent", lambda **kw: _A())
 
         # chat.py 在模块级别 import create_agent，已被其他测试缓存，需 patch 两处
         import trade.api.chat as chat_mod
         monkeypatch.setattr(chat_mod, "create_agent", lambda **kw: _A())
-        monkeypatch.setattr(chat_mod, "build_query", lambda c, l, q: q)
+        monkeypatch.setattr(chat_mod, "build_query", lambda c, l, q, **kw: q)
         monkeypatch.setattr(chat_mod.chat_memory, "save_with_context", lambda **kw: {"id": 1})
 
         from trade.api.deps import set_session_token

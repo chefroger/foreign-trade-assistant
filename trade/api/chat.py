@@ -39,7 +39,8 @@ async def trade_chat(
         raise HTTPException(status_code=400, detail="query is required")
 
     library_id = body.get("library_id")
-    full_query = build_query(cid, library_id, query)
+    customer_id = body.get("customer_id")
+    full_query = build_query(cid, library_id, query, customer_id=customer_id)
 
     def _call_agent():
         try:
@@ -92,7 +93,8 @@ async def trade_chat_stream(
         raise HTTPException(status_code=400, detail="query is required")
 
     library_id = body.get("library_id")
-    full_query = build_query(cid, library_id, query)
+    customer_id = body.get("customer_id")
+    full_query = build_query(cid, library_id, query, customer_id=customer_id)
 
     loop = asyncio.get_running_loop()
     event_queue: asyncio.Queue = asyncio.Queue()

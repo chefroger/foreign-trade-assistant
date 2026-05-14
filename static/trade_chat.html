@@ -981,13 +981,18 @@ async function showCustomerDetail(cid) {
     })();
     if (c._libraries === undefined) c._libraries = libs;
 
-    // Load recent conversations
-    const convs = await api('GET', `/api/trade/conversations?library_id=&limit=5`) || [];
-    // Actually, get customer-specific conversations — via a broad query for now
-    const recentConvs = await api('GET', `/api/trade/conversations?limit=100`) || [];
-    const customerConvs = recentConvs.filter(conv => {
-        try { const fr = JSON.parse(conv.files_read||'[]'); return false; } catch(e) { return false; }
-    }).slice(0, 5);
+    // 加载该客户关联文档库的最近对话（每个库 3 条）
+    let recentConvs = [];
+    for (const lib of libs.slice(0, 3)) {
+        const libConvs = await api('GET', `/api/trade/conversations?library_id=${lib.id}&limit=3`) || [];
+        recentConvs = recentConvs.concat(libConvs);
+    }
+    // 去重 + 按时间排序 + 取最近 5 条
+    const seen = new Set();
+    recentConvs = recentConvs
+        .filter(c => { const k = c.id; if (seen.has(k)) return false; seen.add(k); return true; })
+        .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+        .slice(0, 5);
 
     // Backdrop
     const backdrop = document.createElement('div');
@@ -1036,9 +1041,13 @@ async function showCustomerDetail(cid) {
             </div>
         </div>
         <div class="panel-section">
-            <div class="panel-section-title">💬 最近对话</div>
+            <div class="panel-section-title">💬 最近对话 (${recentConvs.length})</div>
             <div id="detail-convs">
-                <p style="color:var(--text-muted);font-size:12px;">选择「和此客户对话」查看完整历史</p>
+                ${recentConvs.length ? recentConvs.map(conv => `
+                <div class="panel-conv-item" onclick="closeCustomerDetail();showConversationDetail(${conv.id})">
+                    <div class="conv-time">${esc((conv.created_at||'').slice(0,16))}</div>
+                    <div class="conv-query">${esc((conv.query||'').slice(0,80))}</div>
+                </div>`).join('') : '<p style="color:var(--text-muted);font-size:12px;">暂无关联对话。点击下方按钮开始和此客户对话。</p>'}
             </div>
         </div>
         <button class="btn btn-primary" style="width:100%;" onclick="closeCustomerDetail();startChatWithCustomer(${c.id}, '${esc(c.name)}')">💬 和此客户开始对话</button>
