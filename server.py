@@ -212,31 +212,34 @@ async def status():
 
 import subprocess as _sp
 
-_GATEWAY_PORT = 8642
-
 def _is_gateway_running() -> bool:
-    """检查 Hermes Gateway 是否已在运行。"""
-    import urllib.request as _ur
+    """检查是否有 Hermes Gateway 进程在运行。"""
     try:
-        req = _ur.Request(f"http://127.0.0.1:{_GATEWAY_PORT}/health", method="GET")
-        with _ur.urlopen(req, timeout=2) as resp:
-            return resp.status == 200
+        result = _sp.run(
+            ["pgrep", "-f", "hermes.*gateway"],
+            capture_output=True, text=True, timeout=3,
+        )
+        return result.returncode == 0 and bool(result.stdout.strip())
     except Exception:
         return False
 
 def _ensure_gateway_running() -> None:
     """如果 Gateway 未运行，启动它。Gateway 独立于 Trade 生命周期，Trade 退出后仍保持运行。"""
     if _is_gateway_running():
-        print(f"  Hermes Gateway → http://127.0.0.1:{_GATEWAY_PORT} (already running)")
+        print(f"  Hermes Gateway → running (cron scheduler active)")
         return
 
     try:
+        # 使用 hermes CLI（而非 python -m），确保使用正确的 venv
+        import shutil as _sh
+        hermes_bin = _sh.which("hermes") or "hermes"
         _sp.Popen(
-            [sys.executable, "-m", "hermes_cli", "gateway", "--port", str(_GATEWAY_PORT)],
+            [hermes_bin, "gateway", "run"],
             stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
-            start_new_session=True,  # 独立进程组，Trade 退出不影响
+            start_new_session=True,
+            env={**os.environ, "GATEWAY_ALLOW_ALL_USERS": "true"},
         )
-        print(f"  Hermes Gateway → http://127.0.0.1:{_GATEWAY_PORT} (started, cron tasks enabled)")
+        print(f"  Hermes Gateway → started (cron scheduler active)")
     except Exception as e:
         print(f"  ⚠️  Hermes Gateway 启动失败: {e}")
 
