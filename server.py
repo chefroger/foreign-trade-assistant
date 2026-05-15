@@ -66,16 +66,8 @@ def _check_hermes_version():
 
     print(f"  ✓ Hermes {_hv} (compatible: >={_MIN_HERMES_VERSION},<{_MAX_HERMES_VERSION})")
 
-_check_hermes_version()
-
-# Load Hermes .env before any other imports (AIAgent depends on it)
-from hermes_cli.env_loader import load_hermes_dotenv
-from hermes_constants import get_hermes_home
-load_hermes_dotenv(hermes_home=get_hermes_home())
-# Hermes 会检查此环境变量以跳过工具审批
-os.environ["HERMES_YOLO_MODE"] = "true"
-
-# 屏蔽 Hermes 可选工具缺失的警告（logging Filter，不影响真实错误）
+# 在任何 Hermes import 之前安装日志过滤器，
+# 确保 Hermes 启动时的可选工具缺失警告被正确屏蔽
 import logging as _logging
 import warnings as _warnings
 
@@ -88,6 +80,15 @@ class _ToolImportNoiseFilter(_logging.Filter):
 _logging.getLogger().addFilter(_ToolImportNoiseFilter())
 _warnings.filterwarnings("ignore", message=r".*Could not import tool module.*")
 _warnings.filterwarnings("ignore", message=r".*No module named.*")
+
+_check_hermes_version()
+
+# Load Hermes .env before any other imports (AIAgent depends on it)
+from hermes_cli.env_loader import load_hermes_dotenv
+from hermes_constants import get_hermes_home
+load_hermes_dotenv(hermes_home=get_hermes_home())
+# Hermes 会检查此环境变量以跳过工具审批
+os.environ["HERMES_YOLO_MODE"] = "true"
 
 # ── Server ────────────────────────────────────────────────────────────────
 import secrets

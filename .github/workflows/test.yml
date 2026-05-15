@@ -15,6 +15,10 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install ruff
+      - name: Python syntax check
+        run: |
+          python -m compileall -q trade/ server.py
+          echo "✓ All files compile successfully"
       - run: ruff check trade/ server.py
 
   test:
