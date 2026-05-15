@@ -165,7 +165,11 @@ def check_sanctions(name: str, country: str | None = None) -> dict:
                 score = min(score * 1.2, 0.95)
                 matched_field = "name_contained_in_query"
 
-            if score >= 0.6:  # 阈值 0.6，过滤低相关度匹配
+            # 短查询（<8 字符）仅接受精确匹配，防止 "ABC" 误报命中大量无关实体
+            is_short = len(name_normalized) < 8
+            threshold = 0.75 if not is_short else 1.0
+
+            if score >= threshold:
                 hits.append({
                     "list": list_name,
                     "list_label": entry.get("label", list_name),

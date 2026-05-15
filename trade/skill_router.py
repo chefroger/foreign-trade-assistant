@@ -25,10 +25,13 @@ from trade.skill_registry import (
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# mtime 缓存：{skill_name: (mtime, injection_prompt)}
+# mtime 缓存：OrderedDict LRU（上限 128，远大于 14 个 skill）
 # ─────────────────────────────────────────────────────────────────────────────
 
-_INJECTION_CACHE: dict[str, tuple[float, str]] = {}
+from collections import OrderedDict
+
+_INJECTION_CACHE_MAX = int(os.environ.get("TRADE_SKILL_CACHE_MAX", "128"))
+_INJECTION_CACHE: OrderedDict[str, tuple[float, str]] = OrderedDict()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SKILL.md → injection_prompt 加载器
@@ -134,7 +137,11 @@ def _load_injection_prompt(skill_name: str) -> str | None:
     injection = fm.get("injection_prompt", "")
 
     if injection:
+        # LRU: 移动到末尾 + 超限时弹出最老项
+        _INJECTION_CACHE.pop(cache_key, None)
         _INJECTION_CACHE[cache_key] = (mtime, injection)
+        while len(_INJECTION_CACHE) > _INJECTION_CACHE_MAX:
+            _INJECTION_CACHE.popitem(last=False)
 
     return injection or None
 

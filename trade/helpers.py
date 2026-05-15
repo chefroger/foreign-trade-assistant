@@ -132,16 +132,24 @@ def create_agent(
     if err:
         raise RuntimeError(err)
 
+    # toolsets 可通过 TRADE_ENABLED_TOOLSETS 环境变量覆盖（逗号分隔）
+    _toolsets = os.environ.get("TRADE_ENABLED_TOOLSETS", "").strip()
+    if _toolsets:
+        enabled_toolsets = [t.strip() for t in _toolsets.split(",") if t.strip()]
+    else:
+        enabled_toolsets = ["web", "search", "file", "terminal", "code_execution",
+                            "browser", "skills", "memory", "cronjob", "todo"]
+
     return AIAgent(
         quiet_mode=True,
-        max_iterations=90,
+        max_iterations=int(os.environ.get("TRADE_MAX_ITERATIONS", "90")),
         provider=kwargs["provider"] or None,
         base_url=kwargs["base_url"] or None,
         model=kwargs["model"] or None,
         api_key=kwargs["api_key"] or None,
         tool_start_callback=tool_start_callback,
         tool_complete_callback=tool_complete_callback,
-        enabled_toolsets=["web", "search", "file", "terminal", "code_execution", "browser", "skills", "memory", "cronjob", "todo"],
+        enabled_toolsets=enabled_toolsets,
     )
 
 

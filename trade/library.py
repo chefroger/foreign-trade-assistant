@@ -38,10 +38,15 @@ def list_by_company(company_id: Optional[int] = None) -> list[dict]:
     """Return all libraries for a company, newest first. company_id=None means unassigned."""
     conn = get_connection()
     try:
-        rows = conn.execute(
-            "SELECT * FROM libraries WHERE company_id IS ? ORDER BY id DESC",
-            (company_id,),
-        ).fetchall()
+        if company_id is None:
+            rows = conn.execute(
+                "SELECT * FROM libraries WHERE company_id IS NULL ORDER BY id DESC"
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM libraries WHERE company_id = ? ORDER BY id DESC",
+                (company_id,),
+            ).fetchall()
         return [_row_to_dict(r) for r in rows]
     finally:
         conn.close()

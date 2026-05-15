@@ -32,7 +32,7 @@ from trade import company as _company_module
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# utoboarding state — lightweight in-memory flag to prevent double-triggering
+# onboarding state — lightweight in-memory flag to prevent double-triggering
 # ─────────────────────────────────────────────────────────────────────────────
 
 # 是否已完成首次引导的全局标志（进程级，非持久化）。

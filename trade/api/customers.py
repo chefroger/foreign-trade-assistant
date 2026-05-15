@@ -29,20 +29,20 @@ router = APIRouter(tags=["customers"])
 
 @router.get("/customers")
 def list_customers(
-    x_company_id: int = Depends(require_company),
+    cid: int = Depends(require_company),
 ):
     """列出当前公司的所有客户。"""
-    return customer_module.list_by_company(x_company_id)
+    return customer_module.list_by_company(cid)
 
 
 @router.post("/customers")
 def create_customer(
     payload: CustomerCreate,
-    x_company_id: int = Depends(require_company),
+    cid: int = Depends(require_company),
 ):
     """创建新客户（归属于当前公司）。"""
     return customer_module.create(
-        payload.name, payload.contact, payload.note, company_id=x_company_id,
+        payload.name, payload.contact, payload.note, company_id=cid,
         country=payload.country, tier=payload.tier, linkedin_url=payload.linkedin_url,
         company_website=payload.company_website, social_media=payload.social_media,
         title=payload.title, email=payload.email, backup_email=payload.backup_email,
@@ -54,10 +54,10 @@ def create_customer(
 @router.get("/customers/{customer_id}")
 def get_customer(
     customer_id: int,
-    x_company_id: int = Depends(require_company),
+    cid: int = Depends(require_company),
 ):
     """获取客户详情（必须属于当前公司）。"""
-    cust = customer_module.get(customer_id, company_id=x_company_id)
+    cust = customer_module.get(customer_id, company_id=cid)
     if not cust:
         raise HTTPException(status_code=404, detail="Customer not found")
     return cust
@@ -67,11 +67,11 @@ def get_customer(
 def update_customer(
     customer_id: int,
     payload: CustomerUpdate,
-    x_company_id: int = Depends(require_company),
+    cid: int = Depends(require_company),
 ):
     """更新客户字段（必须属于当前公司）。"""
     kwargs = payload.model_dump(exclude_none=True)
-    result = customer_module.update(customer_id, company_id=x_company_id, **kwargs)
+    result = customer_module.update(customer_id, company_id=cid, **kwargs)
     if not result:
         raise HTTPException(status_code=404, detail="Customer not found")
     return result
@@ -80,10 +80,10 @@ def update_customer(
 @router.delete("/customers/{customer_id}")
 def delete_customer(
     customer_id: int,
-    x_company_id: int = Depends(require_company),
+    cid: int = Depends(require_company),
 ):
     """删除客户（必须属于当前公司）。"""
-    if not customer_module.delete(customer_id, company_id=x_company_id):
+    if not customer_module.delete(customer_id, company_id=cid):
         raise HTTPException(status_code=404, detail="Customer not found")
     return {"ok": True}
 
@@ -94,11 +94,11 @@ def delete_customer(
 def link_library_to_customer(
     customer_id: int,
     library_id: int,
-    x_company_id: int = Depends(require_company),
+    cid: int = Depends(require_company),
 ):
     """将文档库关联到客户（两者必须属于同一公司）。"""
     try:
-        customer_module.link_library(customer_id, library_id, company_id=x_company_id)
+        customer_module.link_library(customer_id, library_id, company_id=cid)
         return {"ok": True}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -108,10 +108,10 @@ def link_library_to_customer(
 def unlink_library_from_customer(
     customer_id: int,
     library_id: int,
-    x_company_id: int = Depends(require_company),
+    cid: int = Depends(require_company),
 ):
     """取消文档库与客户的关联。"""
-    if not customer_module.unlink_library(customer_id, library_id, company_id=x_company_id):
+    if not customer_module.unlink_library(customer_id, library_id, company_id=cid):
         raise HTTPException(status_code=404, detail="Link not found")
     return {"ok": True}
 
@@ -119,7 +119,7 @@ def unlink_library_from_customer(
 @router.get("/customers/{customer_id}/libraries")
 def get_customer_libraries(
     customer_id: int,
-    x_company_id: int = Depends(require_company),
+    cid: int = Depends(require_company),
 ):
     """列出客户关联的所有文档库。"""
-    return customer_module.get_libraries(customer_id, company_id=x_company_id)
+    return customer_module.get_libraries(customer_id, company_id=cid)
