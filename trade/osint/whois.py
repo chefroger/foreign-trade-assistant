@@ -149,12 +149,15 @@ def _query_whois_server(domain: str, server: str, port: int = 43, timeout: int =
 
             chunks: list[bytes] = []
             while True:
-                chunk = s.recv(4096)
+                try:
+                    chunk = s.recv(4096)
+                except socket.timeout:
+                    # 超时后已读到的数据视为完整响应
+                    break
                 if not chunk:
+                    # 对端关闭连接，唯一可靠的结束信号
                     break
                 chunks.append(chunk)
-                if len(chunk) < 4096:
-                    break
 
         response = b"".join(chunks).decode("utf-8", errors="replace")
         return response

@@ -148,12 +148,16 @@ def create_agent(
 # ── Token estimation helpers ──────────────────────────────────────────────────
 
 def _estimate_tokens(text: str) -> int:
-    """Rough token estimate: Chinese ~1.5 chars/token, English ~4 chars/token."""
+    """估算文本的 token 数（用于上下文窗口预算）。
+
+    经验值：中文约 1.5 字/token → token = 字数 / 1.5 ≈ 字数 × 0.67
+            英文约 4 字符/token → token = 字符数 / 4 = 字符数 × 0.25
+    """
     if not text:
         return 0
     chinese_chars = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
     non_chinese = len(text) - chinese_chars
-    return int(chinese_chars * 1.5 + non_chinese * 0.25)
+    return int(chinese_chars / 1.5 + non_chinese / 4.0)
 
 
 def _get_history_block(company_id: int, total_prompt_chars: int) -> tuple[str, int]:

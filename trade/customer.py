@@ -100,7 +100,7 @@ def update(
     company_id: Optional[int] = None,
     **kwargs,
 ) -> Optional[dict]:
-    """Update customer fields。
+    """Update customer fields（单事务，部分失败统一回滚）。
 
     基础字段: name, contact, note
     extra1 字段: country, tier, linkedin_url, company_website, social_media
@@ -116,70 +116,58 @@ def update(
     extra2_updates = {k: v for k, v in kwargs.items() if k in extra2_keys and v is not None}
     basic_updates = {k: v for k, v in kwargs.items() if k in basic_allowed and v is not None}
 
-    # Merge extra1 updates
-    if extra1_updates:
-        conn = get_connection()
-        try:
-            row = conn.execute("SELECT extra1 FROM customers WHERE id = ?", (customer_id,)).fetchone()
-            current = {}
-            if row and row["extra1"]:
-                try:
-                    current = _json.loads(row["extra1"])
-                except (_json.JSONDecodeError, TypeError):
-                    pass
-            current.update(extra1_updates)
-            conn.execute(
-                "UPDATE customers SET extra1 = ?, updated_at = datetime('now','localtime') WHERE id = ?",
-                (_json.dumps(current, ensure_ascii=False), customer_id),
-            )
-            conn.commit()
-        finally:
-            conn.close()
-
-    # Merge extra2 updates
-    if extra2_updates:
-        conn = get_connection()
-        try:
-            row = conn.execute("SELECT extra2 FROM customers WHERE id = ?", (customer_id,)).fetchone()
-            current = {}
-            if row and row["extra2"]:
-                try:
-                    current = _json.loads(row["extra2"])
-                except (_json.JSONDecodeError, TypeError):
-                    pass
-            current.update(extra2_updates)
-            conn.execute(
-                "UPDATE customers SET extra2 = ?, updated_at = datetime('now','localtime') WHERE id = ?",
-                (_json.dumps(current, ensure_ascii=False), customer_id),
-            )
-            conn.commit()
-        finally:
-            conn.close()
-
-    if not basic_updates:
+    if not (extra1_updates or extra2_updates or basic_updates):
         return get(customer_id, company_id)
-
-    set_clause = ", ".join(f"{k} = ?" for k in basic_updates)
-    values = list(basic_updates.values()) + [customer_id]
 
     conn = get_connection()
     try:
-        if company_id is not None:
-            n = conn.execute(
-                f"UPDATE customers SET {set_clause}, updated_at = datetime('now','localtime') "
-                "WHERE id = ? AND company_id = ?",
-                values + [company_id],
-            ).rowcount
-        else:
-            n = conn.execute(
-                f"UPDATE customers SET {set_clause}, updated_at = datetime('now','localtime') "
-                "WHERE id = ?",
-                values,
-            ).rowcount
-        conn.commit()
-        if n == 0:
+        # 显式事务
+        conn.execute("BEGIN")
+
+        # 读取当前 JSON 用于合并
+        row = conn.execute(
+            "SELECT extra1, extra2 FROM customers WHERE id = ?", (customer_id,)
+        ).fetchone()
+        if row is None:
+            conn.rollback()
             return None
+        current_extra1 = _json.loads(row["extra1"]) if row["extra1"] else {}
+        current_extra2 = _json.loads(row["extra2"]) if row["extra2"] else {}
+
+        # 合并 extra1
+        if extra1_updates:
+            current_extra1.update(extra1_updates)
+            conn.execute(
+                "UPDATE customers SET extra1 = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+                (_json.dumps(current_extra1, ensure_ascii=False), customer_id),
+            )
+
+        # 合并 extra2
+        if extra2_updates:
+            current_extra2.update(extra2_updates)
+            conn.execute(
+                "UPDATE customers SET extra2 = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+                (_json.dumps(current_extra2, ensure_ascii=False), customer_id),
+            )
+
+        # 基础字段
+        if basic_updates:
+            set_clause = ", ".join(f"{k} = ?" for k in basic_updates)
+            values = list(basic_updates.values()) + [customer_id]
+            sql = f"UPDATE customers SET {set_clause}, updated_at = datetime('now','localtime') WHERE id = ?"
+            if company_id is not None:
+                sql += " AND company_id = ?"
+                values.append(company_id)
+            n = conn.execute(sql, values).rowcount
+            if n == 0:
+                conn.rollback()
+                return None
+
+        conn.commit()
         return get(customer_id, company_id)
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 

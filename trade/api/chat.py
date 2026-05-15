@@ -20,6 +20,7 @@ from trade import chat_memory
 from trade import library as library_module
 from trade.api.deps import require_company
 from trade.helpers import create_agent, build_query
+from trade.api.models import ChatRequest
 
 _log = logging.getLogger(__name__)
 
@@ -30,17 +31,15 @@ router = APIRouter(tags=["chat"])
 
 @router.post("/chat")
 async def trade_chat(
-    body: dict,
+    payload: ChatRequest,
     cid: int = Depends(require_company),
 ):
-    """同步聊天。Body: {query, library_id?, customer_id?}"""
-    query = (body.get("query") or "").strip()
+    """同步聊天。"""
+    query = payload.query.strip()
     if not query:
         raise HTTPException(status_code=400, detail="query is required")
 
-    library_id = body.get("library_id")
-    customer_id = body.get("customer_id")
-    full_query = build_query(cid, library_id, query, customer_id=customer_id)
+    full_query = build_query(cid, payload.library_id, query, customer_id=payload.customer_id)
 
     def _call_agent():
         try:
@@ -64,13 +63,13 @@ async def trade_chat(
         response = "⏰ Agent 执行时间过长（超过 10 分钟），已自动中止。请简化问题后重试。"
 
     lib_name = ""
-    if library_id:
-        lib = library_module.get(library_id, company_id=cid)
+    if payload.library_id:
+        lib = library_module.get(payload.library_id, company_id=cid)
         if lib:
             lib_name = lib["name"]
 
     conv = chat_memory.save_with_context(
-        company_id=cid, library_id=library_id, query=query,
+        company_id=cid, library_id=payload.library_id, query=query,
         response=response, library_name=lib_name,
     )
     return {"response": response, "conversation": conv}
@@ -80,7 +79,7 @@ async def trade_chat(
 
 @router.post("/chat/stream")
 async def trade_chat_stream(
-    body: dict,
+    payload: ChatRequest,
     cid: int = Depends(require_company),
 ):
     """SSE 流式聊天，实时推送 Agent 工具调用进度。
@@ -88,16 +87,14 @@ async def trade_chat_stream(
     使用 asyncio.Queue + call_soon_threadsafe 替代 queue.Queue + executor 轮询，
     每条 SSE 连接只占用 1 条线程。客户端断连时通过 CancelledError 取消 agent。
     """
-    query = (body.get("query") or "").strip()
+    query = payload.query.strip()
     if not query:
         raise HTTPException(status_code=400, detail="query is required")
 
-    library_id = body.get("library_id")
-    customer_id = body.get("customer_id")
-    full_query = build_query(cid, library_id, query, customer_id=customer_id)
+    full_query = build_query(cid, payload.library_id, query, customer_id=payload.customer_id)
 
     loop = asyncio.get_running_loop()
-    event_queue: asyncio.Queue = asyncio.Queue()
+    event_queue: asyncio.Queue = asyncio.Queue(maxsize=1000)
 
     def _emit_threadsafe(event_type: str, data: dict | None = None):
         """工作线程通过 call_soon_threadsafe 投递到 asyncio queue。"""
@@ -133,13 +130,13 @@ async def trade_chat_stream(
             })
 
             lib_name = ""
-            if library_id:
-                lib = library_module.get(library_id, company_id=cid)
+            if payload.library_id:
+                lib = library_module.get(payload.library_id, company_id=cid)
                 if lib:
                     lib_name = lib["name"]
             try:
                 chat_memory.save_with_context(
-                    company_id=cid, library_id=library_id,
+                    company_id=cid, library_id=payload.library_id,
                     query=query, response=result or "",
                     library_name=lib_name,
                 )

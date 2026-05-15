@@ -8,6 +8,7 @@ Trade AI Assistant — API 依赖函数。
 from __future__ import annotations
 
 import os
+import secrets
 from typing import Optional
 
 from fastapi import Header, HTTPException, Request, Depends
@@ -40,7 +41,7 @@ def require_session(request: Request) -> None:
     if not _SESSION_TOKEN:
         # 未初始化（不应发生，防御性编程）
         raise HTTPException(status_code=500, detail="Server not initialized.")
-    if not token or token != _SESSION_TOKEN:
+    if not token or not secrets.compare_digest(token, _SESSION_TOKEN):
         raise HTTPException(status_code=401, detail="Invalid or missing session token.")
 
 

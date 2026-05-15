@@ -120,39 +120,45 @@ def _extract_domain(url_or_domain: str) -> str | None:
 def _query_mx_records(domain: str) -> tuple[list[str], bool]:
     """通过 socket DNS 查询 MX 记录（RFC 1035 协议实现）。
 
-    使用 Google DNS (8.8.8.8) 进行 UDP 查询，无需 dnspython 依赖。
+    使用多 DNS 服务器 fallback 列表，transaction_id 随机生成防 DNS 欺骗。
     """
-    dns_server = "8.8.8.8"
+    import secrets as _secrets
+
+    dns_servers = ["8.8.8.8", "1.1.1.1", "114.114.114.114"]
     dns_port = 53
     timeout = 5
+    last_err = None
 
-    try:
-        # 构建 DNS 查询包
-        transaction_id = struct.pack("!H", 0x1234)  # 固定事务 ID
-        flags = struct.pack("!H", 0x0100)            # 标准查询
-        qdcount = struct.pack("!H", 1)               # 1 个问题
-        ancount = struct.pack("!H", 0)
-        nscount = struct.pack("!H", 0)
-        arcount = struct.pack("!H", 0)
+    for dns_server in dns_servers:
+        try:
+            # 随机 transaction_id，防 DNS 欺骗
+            txid = _secrets.token_bytes(2)
+            flags = struct.pack("!H", 0x0100)         # 标准查询
+            qdcount = struct.pack("!H", 1)
+            zeros = struct.pack("!HHH", 0, 0, 0)      # ancount/nscount/arcount
 
-        # 问题部分：域名 + QTYPE=15 (MX) + QCLASS=1 (IN)
-        question = _build_dns_question(domain, qtype=15)
+            question = _build_dns_question(domain, qtype=15)
+            packet = txid + flags + qdcount + zeros + question
 
-        packet = transaction_id + flags + qdcount + ancount + nscount + arcount + question
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.settimeout(timeout)
+                s.sendto(packet, (dns_server, dns_port))
+                data, _ = s.recvfrom(512)
 
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.settimeout(timeout)
-            s.sendto(packet, (dns_server, dns_port))
-            data, _ = s.recvfrom(512)
+            # 校验响应 transaction_id 必须与请求一致
+            if len(data) < 12 or data[:2] != txid:
+                logger.debug("DNS txid mismatch: %s", dns_server)
+                continue
 
-        # 解析 DNS 响应
-        mx_servers = _parse_dns_mx_response(data)
+            mx_servers = _parse_dns_mx_response(data)
+            return mx_servers, len(mx_servers) > 0
 
-    except Exception as e:
-        logger.debug("MX 查询失败 [%s]: %s", domain, e)
-        mx_servers = []
+        except (socket.timeout, socket.error, OSError) as e:
+            last_err = e
+            continue
 
-    return mx_servers, len(mx_servers) > 0
+    logger.debug("MX 查询全部失败 [%s]: %s", domain, last_err)
+    return [], False
 
 
 def _build_dns_question(domain: str, qtype: int = 1) -> bytes:
