@@ -14,8 +14,10 @@ available on PYTHONPATH.
 """
 
 import argparse
+import hashlib
 import logging as _logging
 import os
+import shutil
 import sys
 import warnings as _warnings
 from pathlib import Path
@@ -119,7 +121,6 @@ def _install_cors(port: int) -> None:
     )
 
 # ── Skills sync check ───────────────────────────────────────────────────────
-import hashlib
 
 
 def _sync_b2b_skills():
@@ -158,7 +159,6 @@ def _sync_b2b_skills():
 
         if _need_copy:
             _dst_dir.mkdir(parents=True, exist_ok=True)
-            import shutil
             shutil.copy2(_src, _dst)
             _synced += 1
             print(f"  ↻ Updated skill: {_skill_dir.name}")
@@ -252,8 +252,7 @@ def _ensure_gateway_running() -> None:
         return
 
     try:
-        import shutil as _sh
-        hermes_bin = _sh.which("hermes") or "hermes"
+        hermes_bin = shutil.which("hermes") or "hermes"
 
         kwargs = {
             "stdout": _sp.DEVNULL,
