@@ -1598,7 +1598,7 @@ function saveCustomTemplate() {
 }
 
 function runSingleTemplate(id) {
-    const t = TASK_TEMPLATES.find(x => x.id === id);
+    const t = getAllTemplates().find(x => x.id === id);
     if (!t) return;
     const prompt = (templateEdits[id] && templateEdits[id].prompt) || t.prompt;
     runSingleTask(t.name, prompt);
@@ -1663,7 +1663,8 @@ async function clearAllCronTasks() {
 async function loadActiveCronJobs() {
     if (!currentCompanyId) return;
     const data = await api('GET', '/api/trade/cron/jobs');
-    const grid = document.getElementById('active-tasks-grid');
+    const ct = currentChatContainer;
+    const grid = ct ? ct.querySelector('#active-tasks-grid') : null;
     if (!grid) return;
     if (!data || !data.length) {
         grid.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:12px;">暂无已激活的定时任务。请从上方模板库钩选后点击「批量生成」。</div>';
