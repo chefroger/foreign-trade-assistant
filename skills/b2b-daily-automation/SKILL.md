@@ -17,7 +17,7 @@ injection_prompt: |
   3. 使用 cronjob 工具创建任务：
      - 指定 schedule（如 "0 8 * * *" 对应每天UTC 8点）
      - 指定 skills（如 b2b-linkedin-marketing 用于内容发布）
-     - 指定 deliver 目标（当前对话 origin 或指定平台）
+     - **必须指定 deliver="local"**（结果写入 ~/.hermes/cron/output/ 本地文件，无需平台推送）
   4. 返回：
      - 已创建的任务 ID
      - 下次执行时间（换算为用户本地时间）
@@ -281,42 +281,49 @@ Use Hermes cron to schedule:
 trade cron create \
   --name "Morning Brief" \
   --schedule "0 8 * * 1-5" \
+  --deliver local \
   --prompt "Generate morning brief for [DATE]. Include: yesterday's activity summary, today's priorities, hot prospects requiring immediate action, client timezone windows for calls, and motivational note. User is in [TIMEZONE], works in B2B [PRODUCT] industry targeting [MARKETS]."
 
 # LinkedIn Post — 09:30 Monday-Friday
 trade cron create \
   --name "LinkedIn Post" \
   --schedule "30 9 * * 1-5" \
+  --deliver local \
   --prompt "Generate LinkedIn post ready to publish. Include: engaging text post with hook, value proposition, and CTA. Add 5 relevant hashtags. User is in [INDUSTRY] exporting [PRODUCT]. Content should be professional but authentic."
 
 # European Outreach — 10:00 Monday-Friday
 trade cron create \
   --name "EU Outreach" \
   --schedule "0 10 * * 1-5" \
+  --deliver local \
   --prompt "Generate [X] personalized outreach emails for European prospects/customers in [COUNTRIES]. For each: reference something specific about them, explain value proposition, include clear CTA. Check CRM for follow-up sequence."
 
 # Platform Check — 11:00 Monday-Friday
 trade cron create \
   --name "Platform Check" \
   --schedule "0 11 * * 1-5" \
+  --deliver local \
   --prompt "Generate platform review checklist for today. Include: new RFQ count, pending quotes requiring follow-up, product view trends, competitor activity notes. Platforms: [ALIBABA/INDIAMART/ETC]."
 
 # Social Media — 14:00 Monday-Friday
 trade cron create \
   --name "Social Media Post" \
   --schedule "0 14 * * 1-5" \
+  --deliver local \
   --prompt "Generate social media post for [PLATFORM]. Today's content type: [TEXT/IMAGE/VIDEO/POLL]. Include: caption, hashtags, media suggestions. User exports [PRODUCT] targeting [AUDIENCE]."
 
 # US Outreach — 16:00 Monday-Friday
 trade cron create \
   --name "US Outreach" \
   --schedule "0 16 * * 1-5" \
+  --deliver local \
   --prompt "Generate [X] personalized outreach emails for US/Americas prospects/customers. Same structure as EU outreach. Target markets: [US/CANADA/LATAM]."
 
 # Daily Summary — 17:30 Monday-Friday
 trade cron create \
   --name "Daily Summary" \
   --schedule "30 17 * * 1-5" \
+  --deliver local \
   --prompt "Generate end-of-day summary. Include: today's accomplishments (inquiries, quotes, follow-ups, orders, social), new items needing action, tomorrow's priorities, and daily KPI tracker. User is in [TIMEZONE]."
 ```
 

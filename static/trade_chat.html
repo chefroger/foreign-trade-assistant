@@ -725,6 +725,63 @@ function renderChatViewInto(container, ctx, name) {
 
     if (ctx === 'docs') loadChatLibrarySelect();
     loadChatHistory();
+    // 如果是今日简报视图，加载 cron 任务清单
+    if (ctx === 'daily') loadCronStatus();
+}
+
+async function loadCronStatus() {
+    if (!currentCompanyId) return;
+    const data = await api('GET', '/api/trade/cron/today');
+    if (!data) return;
+    const ct = currentChatContainer;
+    if (!ct) return;
+    const container = ct.querySelector('#chat-messages');
+    if (!container) return;
+
+    // 移除旧的 cron 面板（如果有）
+    const oldPanel = container.querySelector('.cron-panel');
+    if (oldPanel) oldPanel.remove();
+
+    const {completed, pending, current_time} = data;
+    const allDone = pending.length === 0;
+
+    let html = `<div class="cron-panel" style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow-sm);">`;
+    html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">`;
+    html += `<div style="font-weight:600;font-size:14px;">📋 今日任务清单 <span style="font-weight:400;color:var(--text-muted);font-size:12px;">${current_time}</span></div>`;
+    html += `<div style="font-size:12px;color:${allDone ? 'var(--accent-green)' : 'var(--accent)'};">${allDone ? '✅ 全部完成' : '⏳ ' + pending.length + ' 项待处理'}</div>`;
+    html += `</div>`;
+
+    if (completed.length) {
+        html += `<div style="font-size:12px;color:var(--accent-green);margin-bottom:6px;">已完成 (${completed.length})</div>`;
+        for (const t of completed) {
+            html += `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px;">`;
+            html += `<span style="color:var(--accent-green);">✓</span>`;
+            html += `<span style="font-weight:500;">${esc(t.name)}</span>`;
+            html += `<span style="color:var(--text-muted);font-size:11px;">${t.time}</span>`;
+            html += `</div>`;
+        }
+    }
+
+    if (pending.length) {
+        html += `<div style="font-size:12px;color:var(--text-secondary);margin:6px 0;">待处理 (${pending.length})</div>`;
+        for (const t of pending) {
+            html += `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px;">`;
+            html += `<span style="color:${t.missed ? 'var(--accent-red)' : 'var(--text-muted)'};">${t.missed ? '⚠' : '○'}</span>`;
+            html += `<span style="font-weight:500;color:${t.missed ? 'var(--accent-red)' : ''};">${esc(t.name)}</span>`;
+            html += `<span style="color:var(--text-muted);font-size:11px;">${t.scheduled}</span>`;
+            if (t.missed) html += `<span style="color:var(--accent-red);font-size:11px;">（已过时）</span>`;
+            html += `</div>`;
+        }
+    }
+    html += `</div>`;
+
+    // 插到聊天区域顶部
+    const emptyEl = container.querySelector('.empty-state');
+    if (emptyEl) {
+        emptyEl.insertAdjacentHTML('afterend', html);
+    } else {
+        container.insertAdjacentHTML('afterbegin', html);
+    }
 }
 
 function onChatLibraryChange(libId) {
@@ -859,6 +916,14 @@ async function sendMsg() {
     const input = ct.querySelector('#msg-input');
     const query = input.value.trim();
     if (!query) return;
+
+    // 本地触发：显示工作清单 → 拉取 cron 状态，不调 Agent
+    if (query === '显示工作清单' || query === '工作清单' || query === '今日任务') {
+        addMsg('user', query, null);
+        input.value = '';
+        await loadCronStatus();
+        return;
+    }
 
     addMsg('user', query, null);
     input.value = '';

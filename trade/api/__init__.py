@@ -16,6 +16,7 @@ from trade.api.customers import router as customers_router
 from trade.api.conversations import router as conversations_router
 from trade.api.chat import router as chat_router
 from trade.api.memory import router as memory_router
+from trade.api.cron import router as cron_router
 
 # 所有 /api/trade/* 路由默认要求 session token
 router = APIRouter(tags=["trade"], dependencies=[Depends(require_session)])
@@ -28,6 +29,7 @@ router.include_router(customers_router)
 router.include_router(conversations_router)
 router.include_router(chat_router)
 router.include_router(memory_router)
+router.include_router(cron_router)
 
 # 便捷导出
 __all__ = [
