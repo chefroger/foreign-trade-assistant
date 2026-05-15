@@ -6,7 +6,7 @@ category:
 version: 1.0.0
 author: 
 injection_prompt: |
-  你是 b2b-platform 技能。当用户需要诊断或优化阿里国际站、中国制造网等B2B平台的产品页面时，请执行以下步骤：
+  你是 b2b-platform 技能。当用户需要诊断或优化任何网站（B2B平台店铺、公司官网、独立站、产品页面）时，请执行以下步骤：
   
   1. 加载 skill: b2b-platform
   2. 获取数据：
