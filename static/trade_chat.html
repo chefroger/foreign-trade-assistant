@@ -1448,7 +1448,7 @@ function renderTasksViewInto(container) {
             <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">${esc(t.desc || '')}</div>
             <div class="task-card-actions">
                 <button onclick="editTemplatePrompt('${t.id}')" style="font-size:11px;">✏️ 编辑 Prompt</button>
-                <button onclick="runSingleTemplate('${t.id}')" style="font-size:11px;">▶ 单独生成</button>
+                <button onclick="runSingleTemplate('${t.id}')" style="font-size:11px;">▶ 执行一次</button>
             </div>
         </div>`;
     };
