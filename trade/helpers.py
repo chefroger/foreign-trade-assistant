@@ -141,6 +141,7 @@ def create_agent(
         api_key=kwargs["api_key"] or None,
         tool_start_callback=tool_start_callback,
         tool_complete_callback=tool_complete_callback,
+        enabled_toolsets=["web", "search", "file", "terminal", "code_execution", "browser", "skills", "memory", "cronjob", "todo"],
     )
 
 
