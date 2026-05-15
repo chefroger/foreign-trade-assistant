@@ -232,7 +232,7 @@ def _load_ofac_sanctions() -> None:
         return
 
     # 2. 网络下载
-    url = "https://www.treasury.gov/ofac/downloads/sanctions/SDN-List.csv"
+    url = "https://ofac.treasury.gov/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists/sdn.csv"
     entries: list[dict] = []
 
     try:

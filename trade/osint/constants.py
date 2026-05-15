@@ -46,7 +46,7 @@ SANCTIONS_SOURCES: list[dict] = [
     {
         "name": "OFAC",
         "label": "美国 OFAC SDN 列表",
-        "url": "https://www.treasury.gov/ofac/downloads/sanctions/SDN-List.csv",
+        "url": "https://ofac.treasury.gov/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists/sdn.csv",
         "encoding": "utf-8",
     },
     {
