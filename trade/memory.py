@@ -269,18 +269,26 @@ def retain_to_hermes_memory(
     entry = "\n".join(entry_lines)
 
     try:
-        # 跨平台文件锁：用临时锁文件存在性 + 短重试替代 fcntl (仅 Unix)
+        # 跨平台文件锁：fcntl.flock (Unix) / msvcrt.locking (Windows)
+        # 替代之前的 TOCTOU 竞态（LOCK_FILE.exists() + write_text）
+        import fcntl as _fcntl_module
         import time as _time
+
+        lock_dir = _Path.home() / ".hermes/memories"
+        lock_dir.mkdir(parents=True, exist_ok=True)
+        lock_fd = open(str(LOCK_FILE), "w")
         for _attempt in range(5):
-            if not LOCK_FILE.exists():
-                try:
-                    LOCK_FILE.write_text(str(os.getpid()), encoding="utf-8")
-                    break
-                except OSError:
-                    _time.sleep(0.05)
-            else:
+            try:
+                if os.name == "nt":
+                    import msvcrt as _msvcrt
+                    _msvcrt.locking(lock_fd.fileno(), _msvcrt.LK_NBLCK, 1)
+                else:
+                    _fcntl_module.flock(lock_fd.fileno(), _fcntl_module.LOCK_EX | _fcntl_module.LOCK_NB)
+                break
+            except (BlockingIOError, OSError):
                 _time.sleep(0.05)
         else:
+            lock_fd.close()
             return False  # 无法获取锁
 
         try:
@@ -295,6 +303,13 @@ def retain_to_hermes_memory(
                 content_str = existing[:idx_s] + entry + "\n\n" + existing[idx_s:]
             MEMORY_FILE.write_text(content_str, encoding="utf-8")
         finally:
+            if os.name == "nt":
+                import msvcrt as _msvcrt
+                lock_fd.seek(0)
+                _msvcrt.locking(lock_fd.fileno(), _msvcrt.LK_UNLCK, 1)
+            else:
+                _fcntl_module.flock(lock_fd.fileno(), _fcntl_module.LOCK_UN)
+            lock_fd.close()
             try:
                 LOCK_FILE.unlink(missing_ok=True)
             except OSError:
