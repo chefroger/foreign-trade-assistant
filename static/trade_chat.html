@@ -1404,13 +1404,54 @@ const TASK_TEMPLATES = [
      prompt:'请生成本周复盘报告模板，包含：本周完成事项、KPI 完成情况（新增人脉/有效对话/需求线索/预约会议/内容发布）、亮点与短板分析、竞品洞察、下周行动清单。'},
 ];
 
+function getCustomTemplates() {
+    try { return JSON.parse(localStorage.getItem('trade_custom_templates') || '[]'); } catch(e) { return []; }
+}
+
+function getAllTemplates() {
+    return [...TASK_TEMPLATES, ...getCustomTemplates()];
+}
+
+function deleteCustomTemplate(id) {
+    if (!confirm('删除此自定义模板？')) return;
+    let customs = getCustomTemplates();
+    customs = customs.filter(t => t.id !== id);
+    localStorage.setItem('trade_custom_templates', JSON.stringify(customs));
+    const ct = currentChatContainer;
+    if (ct && currentView === 'tasks') renderTasksViewInto(ct);
+}
+
 function renderTasksViewInto(container) {
     const coName = currentCompanyId ? (companies.find(c => c.id === currentCompanyId)?.name || '') : '';
+    const allTemplates = getAllTemplates();
 
-    // 将编辑时间后的数字也传给模板
-    const selectedIds = new Set(
-        TASK_TEMPLATES.filter(t => t.required).map(t => t.id)
-    );
+    const renderCard = (t) => {
+        const isCustom = t.custom === true;
+        const hasEdit = templateEdits[t.id];
+        const displayTime = (hasEdit && hasEdit.time) || t.time;
+        return `
+        <div class="task-card" style="position:relative;">
+            ${isCustom ? `<button onclick="deleteCustomTemplate('${t.id}')" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;font-size:14px;color:var(--accent-red);">×</button>` : ''}
+            <div class="task-card-header">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input type="checkbox" class="task-template-check" data-id="${t.id}" ${t.required ? 'checked disabled' : ''}>
+                    <span class="task-card-name">${t.name}</span>
+                    ${t.required ? '<span style="font-size:10px;color:var(--accent);background:#FEF3C7;padding:1px 6px;border-radius:999px;">必选</span>' : ''}
+                    ${isCustom ? '<span style="font-size:10px;color:var(--primary);background:#EFF6FF;padding:1px 6px;border-radius:999px;">自定义</span>' : ''}
+                </label>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin:6px 0;">
+                <span style="font-size:11px;color:var(--text-muted);">🕐</span>
+                <input type="text" class="task-time-input" data-id="${t.id}" value="${esc(displayTime)}" style="width:100px;padding:2px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:11px;font-family:monospace;" onchange="onTemplateTimeChange('${t.id}', this.value)">
+                ${t.cron ? `<span style="font-size:10px;color:var(--text-muted);font-family:monospace;">${esc(t.cron)}</span>` : ''}
+            </div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">${esc(t.desc || '')}</div>
+            <div class="task-card-actions">
+                <button onclick="editTemplatePrompt('${t.id}')" style="font-size:11px;">✏️ 编辑 Prompt</button>
+                <button onclick="runSingleTemplate('${t.id}')" style="font-size:11px;">▶ 单独生成</button>
+            </div>
+        </div>`;
+    };
 
     container.innerHTML = `
     <div class="panel-view" style="display:flex;flex-direction:column;height:100%;overflow-y:auto;">
@@ -1423,27 +1464,12 @@ function renderTasksViewInto(container) {
         </div>
         <div class="panel-body" style="overflow-y:auto;padding:16px 20px;">
             <!-- 模板库 -->
-            <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">📋 任务模板库（钩选 → 编辑时间 → 批量生成）</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <div style="font-size:13px;font-weight:600;color:var(--text-secondary);">📋 任务模板库（钩选 → 编辑时间 → 批量生成）</div>
+                <button class="btn btn-xs" onclick="showAddCustomTemplateModal()" style="color:var(--primary);">➕ 自定义模板</button>
+            </div>
             <div class="task-grid" id="task-templates-grid">
-                ${TASK_TEMPLATES.map(t => `
-                <div class="task-card" style="position:relative;">
-                    <div class="task-card-header">
-                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                            <input type="checkbox" class="task-template-check" data-id="${t.id}" ${t.required ? 'checked disabled' : ''} onchange="onTemplateCheckChange()">
-                            <span class="task-card-name">${t.name}</span>
-                            ${t.required ? '<span style="font-size:10px;color:var(--accent);background:#FEF3C7;padding:1px 6px;border-radius:999px;">必选</span>' : ''}
-                        </label>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px;margin:6px 0;">
-                        <span style="font-size:11px;color:var(--text-muted);">🕐</span>
-                        <input type="text" class="task-time-input" data-id="${t.id}" value="${t.time}" style="width:100px;padding:2px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:11px;font-family:monospace;" onchange="onTemplateTimeChange('${t.id}', this.value)">
-                    </div>
-                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">${t.desc}</div>
-                    <div class="task-card-actions">
-                        <button onclick="editTemplatePrompt('${t.id}')" style="font-size:11px;">✏️ 编辑 Prompt</button>
-                        <button onclick="runSingleTemplate('${t.id}')" style="font-size:11px;">▶ 单独生成</button>
-                    </div>
-                </div>`).join('')}
+                ${allTemplates.map(renderCard).join('')}
             </div>
 
             <!-- 分隔线 -->
@@ -1480,12 +1506,95 @@ function editTemplatePrompt(id) {
     const t = TASK_TEMPLATES.find(x => x.id === id);
     if (!t) return;
     const currentPrompt = (templateEdits[id] && templateEdits[id].prompt) || t.prompt;
-    const newPrompt = prompt(`编辑 "${t.name}" 的 Prompt：`, currentPrompt);
-    if (newPrompt !== null) {
+    showPromptEditorModal(t.name, currentPrompt, (newPrompt) => {
         if (!templateEdits[id]) templateEdits[id] = {};
         templateEdits[id].prompt = newPrompt;
         toast(`"${t.name}" Prompt 已更新`);
-    }
+    });
+}
+
+function showPromptEditorModal(title, currentText, onSave) {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.id = 'prompt-editor-modal';
+    backdrop.onclick = function(e) { if (e.target === backdrop) backdrop.remove(); };
+    backdrop.innerHTML = `
+    <div class="modal" style="max-width:640px;width:95%;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h3>✏️ 编辑：${esc(title)}</h3>
+            <button class="slide-panel-close" onclick="document.getElementById('prompt-editor-modal').remove()">×</button>
+        </div>
+        <div class="form-group">
+            <label>任务 Prompt（Agent 将按此指令执行）</label>
+            <textarea id="prompt-editor-text" style="width:100%;min-height:200px;font-family:monospace;font-size:13px;padding:10px;">${esc(currentText)}</textarea>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+            <button class="btn" onclick="document.getElementById('prompt-editor-modal').remove()">取消</button>
+            <button class="btn btn-primary" onclick="(function(){
+                const text = document.getElementById('prompt-editor-text').value;
+                document.getElementById('prompt-editor-modal').remove();
+                arguments[0](text);
+            })(arguments[0])">💾 保存</button>
+        </div>
+    </div>`;
+    // 保存回调绑定
+    const saveBtn = backdrop.querySelector('.btn-primary');
+    saveBtn.setAttribute('data-onsave', 'true');
+    // 重新绑定 onclick
+    const textarea = backdrop.querySelector('#prompt-editor-text');
+    saveBtn.onclick = function() {
+        const newText = textarea.value;
+        backdrop.remove();
+        onSave(newText);
+    };
+    document.body.appendChild(backdrop);
+}
+
+function showAddCustomTemplateModal() {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.id = 'custom-template-modal';
+    backdrop.onclick = function(e) { if (e.target === backdrop) backdrop.remove(); };
+    backdrop.innerHTML = `
+    <div class="modal" style="max-width:600px;width:95%;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h3>➕ 自定义任务模板</h3>
+            <button class="slide-panel-close" onclick="document.getElementById('custom-template-modal').remove()">×</button>
+        </div>
+        <div class="form-group"><label>任务名称 *</label><input type="text" id="custom-tmpl-name" placeholder="例如：海关数据每日监控"></div>
+        <div class="form-row">
+            <div class="form-group"><label>执行时间 *</label><input type="text" id="custom-tmpl-time" placeholder="09:00 或 09:00-10:30" value="09:00"></div>
+            <div class="form-group"><label>Cron 表达式</label><input type="text" id="custom-tmpl-cron" placeholder="0 9 * * 1-5" value="0 9 * * 1-5"></div>
+        </div>
+        <div class="form-group"><label>任务描述</label><input type="text" id="custom-tmpl-desc" placeholder="简要描述任务内容"></div>
+        <div class="form-group"><label>执行 Prompt *</label><textarea id="custom-tmpl-prompt" style="width:100%;min-height:150px;font-family:monospace;font-size:13px;padding:10px;" placeholder="Agent 将按此指令执行..."></textarea></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+            <button class="btn" onclick="document.getElementById('custom-template-modal').remove()">取消</button>
+            <button class="btn btn-primary" onclick="saveCustomTemplate()">💾 保存模板</button>
+        </div>
+    </div>`;
+    document.body.appendChild(backdrop);
+}
+
+function saveCustomTemplate() {
+    const name = document.getElementById('custom-tmpl-name').value.trim();
+    const time = document.getElementById('custom-tmpl-time').value.trim();
+    const cron = document.getElementById('custom-tmpl-cron').value.trim();
+    const desc = document.getElementById('custom-tmpl-desc').value.trim();
+    const prompt = document.getElementById('custom-tmpl-prompt').value.trim();
+    if (!name || !time || !prompt) { toast('请填写任务名称、时间和 Prompt'); return; }
+
+    const id = 'custom-' + Date.now();
+    const tpl = {id, name, time, cron, desc, prompt, custom: true};
+    let customs = [];
+    try { customs = JSON.parse(localStorage.getItem('trade_custom_templates') || '[]'); } catch(e) {}
+    customs.push(tpl);
+    localStorage.setItem('trade_custom_templates', JSON.stringify(customs));
+    document.getElementById('custom-template-modal').remove();
+    toast(`自定义模板「${name}」已添加`);
+    // 刷新视图
+    const ct = currentChatContainer;
+    if (ct && currentView === 'tasks') renderTasksViewInto(ct);
 }
 
 function runSingleTemplate(id) {
@@ -1513,14 +1622,16 @@ function batchCreateCronTasks() {
     const checks = document.querySelectorAll('.task-template-check:checked');
     if (!checks.length) { toast('请至少选择一个任务模板'); return; }
 
+    const allTemplates = getAllTemplates();
     const selected = [];
     checks.forEach(cb => {
         const id = cb.dataset.id;
-        const t = TASK_TEMPLATES.find(x => x.id === id);
+        const t = allTemplates.find(x => x.id === id);
         if (!t) return;
         const time = (templateEdits[id] && templateEdits[id].time) || t.time;
+        const cronExpr = t.cron || cronFromTime(time);
         const prompt = (templateEdits[id] && templateEdits[id].prompt) || t.prompt;
-        selected.push(`- ${t.name} | 时间: ${time} | Prompt: ${prompt}`);
+        selected.push(`任务名: ${t.name} | schedule: ${cronExpr} | Prompt: ${prompt}`);
     });
 
     navToView('chat', 'daily', '定时任务批量创建');
@@ -1584,6 +1695,15 @@ function runActiveJob(jobId) {
             sendMsg();
         }
     }, 300);
+}
+
+function cronFromTime(timeStr) {
+    // 将 "09:00" 或 "09:00-10:30" 转换为 cron 表达式
+    const first = timeStr.split('-')[0].trim(); // "09:00"
+    const parts = first.split(':');
+    if (parts.length !== 2) return '0 9 * * 1-5';
+    const h = parseInt(parts[0]), m = parseInt(parts[1]);
+    return `${m} ${h} * * 1-5`;
 }
 
 // ═════════════════════ DIRECTORY VIEW ═════════════════════
