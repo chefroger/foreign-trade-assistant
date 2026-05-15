@@ -12,10 +12,9 @@ import os
 import re
 import shutil
 from pathlib import Path
-from typing import Optional
 
-from trade.database import get_connection
 from trade import library as _library_module
+from trade.database import get_connection
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -34,7 +33,7 @@ else:
     TRADE_HOME = Path.home() / ".trade"
 
 
-def _db_get_one(sql: str, args: tuple = ()) -> Optional[tuple]:
+def _db_get_one(sql: str, args: tuple = ()) -> tuple | None:
     """Execute a single-row query and return the row or None."""
     conn = get_connection()
     try:
@@ -122,19 +121,19 @@ def list_all() -> list[dict]:
         conn.close()
 
 
-def get(company_id: int) -> Optional[dict]:
+def get(company_id: int) -> dict | None:
     """Return company row dict or None."""
     row = _db_get_one("SELECT * FROM companies WHERE id = ?", (company_id,))
     return _row_to_company(row) if row else None
 
 
-def slug_from_id(company_id: int) -> Optional[str]:
+def slug_from_id(company_id: int) -> str | None:
     """Return company slug by ID (for prompt file path resolution)."""
     row = _db_get_one("SELECT slug FROM companies WHERE id = ?", (company_id,))
     return row[0] if row else None
 
 
-def get_by_slug(slug: str) -> Optional[dict]:
+def get_by_slug(slug: str) -> dict | None:
     """Return one company by slug, or None."""
     conn = get_connection()
     try:
@@ -244,7 +243,7 @@ def _register_work_libraries(company_id: int, work_dir: Path) -> list[dict]:
 
 def create(
     name: str,
-    slug: Optional[str] = None,
+    slug: str | None = None,
     logo_url: str = "",
     website: str = "",
     contact_name: str = "",
@@ -315,14 +314,14 @@ def create(
 
 def update(
     company_id: int,
-    name: Optional[str] = None,
-    logo_url: Optional[str] = None,
-    website: Optional[str] = None,
-    contact_name: Optional[str] = None,
-    contact_email: Optional[str] = None,
-    address: Optional[str] = None,
-    is_active: Optional[bool] = None,
-) -> Optional[dict]:
+    name: str | None = None,
+    logo_url: str | None = None,
+    website: str | None = None,
+    contact_name: str | None = None,
+    contact_email: str | None = None,
+    address: str | None = None,
+    is_active: bool | None = None,
+) -> dict | None:
     """Update company fields. Only provided (non-None) fields are changed."""
     conn = get_connection()
     try:
@@ -386,7 +385,7 @@ def _row_to_company(row) -> dict:
 # trade_companies table
 # ─────────────────────────────────────────────────────────────────────────────
 
-def get_trade_company(company_id: int) -> Optional[dict]:
+def get_trade_company(company_id: int) -> dict | None:
     """Return trade_companies entry for a company, or None."""
     conn = get_connection()
     try:
@@ -401,10 +400,10 @@ def get_trade_company(company_id: int) -> Optional[dict]:
 
 def update_trade_company(
     company_id: int,
-    data_dir: Optional[str] = None,
-    agent_identity_md: Optional[str] = None,
-    is_active: Optional[bool] = None,
-) -> Optional[dict]:
+    data_dir: str | None = None,
+    agent_identity_md: str | None = None,
+    is_active: bool | None = None,
+) -> dict | None:
     """Update trade_companies fields."""
     conn = get_connection()
     try:

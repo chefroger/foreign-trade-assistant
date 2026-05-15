@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 import urllib.request
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +64,7 @@ SANCTIONS_SOURCES: list[dict] = [
 ]
 
 # 制裁名单本地缓存目录路径（由外部 setter 设置）
-_sanctions_cache_dir: Optional[str] = None
+_sanctions_cache_dir: str | None = None
 
 
 def set_sanctions_cache_dir(cache_dir: str) -> None:
@@ -74,7 +73,7 @@ def set_sanctions_cache_dir(cache_dir: str) -> None:
     _sanctions_cache_dir = cache_dir
 
 
-def get_sanctions_cache_dir() -> Optional[str]:
+def get_sanctions_cache_dir() -> str | None:
     """获取当前制裁名单缓存目录。"""
     return _sanctions_cache_dir
 

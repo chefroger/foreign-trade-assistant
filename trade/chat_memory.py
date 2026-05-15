@@ -10,7 +10,6 @@ All operations are scoped to a company_id for multi-tenancy isolation.
 
 import json
 import logging
-from typing import Optional
 
 from trade.database import get_connection
 
@@ -18,11 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 def save(
-    company_id: Optional[int],
+    company_id: int | None,
     query: str,
     response: str = "",
-    library_id: Optional[int] = None,
-    files_read: Optional[list[dict]] = None,
+    library_id: int | None = None,
+    files_read: list[dict] | None = None,
 ) -> dict:
     """Save a conversation turn scoped to a company. Returns the new row as a dict."""
     conn = get_connection()
@@ -76,7 +75,7 @@ def list_by_library(
         conn.close()
 
 
-def get(company_id: int, conversation_id: int) -> Optional[dict]:
+def get(company_id: int, conversation_id: int) -> dict | None:
     """Get a single conversation by id, scoped to a company."""
     conn = get_connection()
     try:
@@ -89,7 +88,7 @@ def get(company_id: int, conversation_id: int) -> Optional[dict]:
         conn.close()
 
 
-def update_response(company_id: int, conversation_id: int, response: str) -> Optional[dict]:
+def update_response(company_id: int, conversation_id: int, response: str) -> dict | None:
     """Update the response field for a conversation."""
     conn = get_connection()
     try:
@@ -122,11 +121,11 @@ def delete(company_id: int, conversation_id: int) -> bool:
 # ── Hindsight integration ───────────────────────────────────────────────────
 
 def save_with_context(
-    company_id: Optional[int],
+    company_id: int | None,
     query: str,
     response: str = "",
-    library_id: Optional[int] = None,
-    files_read: Optional[list[dict]] = None,
+    library_id: int | None = None,
+    files_read: list[dict] | None = None,
     *,
     library_name: str = "",
     customer_name: str = "",
@@ -140,8 +139,8 @@ def save_with_context(
 
     if retain_to_memory:
         try:
-            from trade.memory import retain_conversation, retain_to_hermes_memory
             from trade import company as _company
+            from trade.memory import retain_conversation, retain_to_hermes_memory
 
             # Hindsight memory (API key required — fire and forget)
             try:

@@ -8,15 +8,15 @@ server.py 通过 ``from trade.api import router`` 挂载到 /api/trade。
 
 from fastapi import APIRouter, Depends
 
-from trade.api.deps import require_company, opt_company, require_session
-from trade.api.companies import router as companies_router
-from trade.api.onboarding import router as onboarding_router
-from trade.api.libraries import router as libraries_router
-from trade.api.customers import router as customers_router
-from trade.api.conversations import router as conversations_router
 from trade.api.chat import router as chat_router
-from trade.api.memory import router as memory_router
+from trade.api.companies import router as companies_router
+from trade.api.conversations import router as conversations_router
 from trade.api.cron import router as cron_router
+from trade.api.customers import router as customers_router
+from trade.api.deps import opt_company, require_company, require_session
+from trade.api.libraries import router as libraries_router
+from trade.api.memory import router as memory_router
+from trade.api.onboarding import router as onboarding_router
 
 # 所有 /api/trade/* 路由默认要求 session token
 router = APIRouter(tags=["trade"], dependencies=[Depends(require_session)])

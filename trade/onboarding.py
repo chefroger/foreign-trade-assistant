@@ -25,11 +25,9 @@ Trade AI Assistant — 首次运行引导模块。
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
-from trade.database import get_connection
 from trade import company as _company_module
-
+from trade.database import get_connection
 
 # ─────────────────────────────────────────────────────────────────────────────
 # onboarding state — lightweight in-memory flag to prevent double-triggering
@@ -125,7 +123,7 @@ def create_first_company(
     company_name: str,
     contact_name: str = "",
     contact_email: str = "",
-    identity_data: Optional[dict] = None,
+    identity_data: dict | None = None,
     *,
     work_dir_name: str = "",
 ) -> dict:

@@ -14,9 +14,24 @@ available on PYTHONPATH.
 """
 
 import argparse
+import logging as _logging
 import os
 import sys
+import warnings as _warnings
 from pathlib import Path
+
+
+# 在任何 Hermes import 之前安装日志过滤器，
+# 确保 Hermes 启动时的可选工具缺失警告被正确屏蔽
+class _ToolImportNoiseFilter(_logging.Filter):
+    """过滤 Hermes 启动时无关的可选工具缺失警告。"""
+    _NOISE = ("Could not import tool module", "No module named")
+    def filter(self, record: _logging.LogRecord) -> bool:
+        return not any(p in record.getMessage() for p in self._NOISE)
+
+_logging.getLogger().addFilter(_ToolImportNoiseFilter())
+_warnings.filterwarnings("ignore", message=r".*Could not import tool module.*")
+_warnings.filterwarnings("ignore", message=r".*No module named.*")
 
 # ── Bootstrap: ensure Foreign Trade Assistant imports BEFORE Hermes ──────
 # Hermes also has a `trade/` package; our `trade/` must take priority.
@@ -49,8 +64,8 @@ def _check_hermes_version():
     try:
         from hermes_cli import __version__ as _hv
     except ImportError:
-        print(f"  ✗ Cannot import Hermes. Is hermes-agent installed?")
-        print(f"    Install: pip install hermes-agent")
+        print("  ✗ Cannot import Hermes. Is hermes-agent installed?")
+        print("    Install: pip install hermes-agent")
         sys.exit(1)
 
     _current = Version(_hv)
@@ -66,26 +81,12 @@ def _check_hermes_version():
 
     print(f"  ✓ Hermes {_hv} (compatible: >={_MIN_HERMES_VERSION},<{_MAX_HERMES_VERSION})")
 
-# 在任何 Hermes import 之前安装日志过滤器，
-# 确保 Hermes 启动时的可选工具缺失警告被正确屏蔽
-import logging as _logging
-import warnings as _warnings
-
-class _ToolImportNoiseFilter(_logging.Filter):
-    """过滤 Hermes 启动时无关的可选工具缺失警告。"""
-    _NOISE = ("Could not import tool module", "No module named")
-    def filter(self, record: _logging.LogRecord) -> bool:
-        return not any(p in record.getMessage() for p in self._NOISE)
-
-_logging.getLogger().addFilter(_ToolImportNoiseFilter())
-_warnings.filterwarnings("ignore", message=r".*Could not import tool module.*")
-_warnings.filterwarnings("ignore", message=r".*No module named.*")
-
 _check_hermes_version()
 
 # Load Hermes .env before any other imports (AIAgent depends on it)
 from hermes_cli.env_loader import load_hermes_dotenv
 from hermes_constants import get_hermes_home
+
 load_hermes_dotenv(hermes_home=get_hermes_home())
 # Hermes 会检查此环境变量以跳过工具审批
 os.environ["HERMES_YOLO_MODE"] = "true"
@@ -94,12 +95,10 @@ os.environ["HERMES_YOLO_MODE"] = "true"
 import secrets
 import webbrowser
 
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-
 import uvicorn
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 # Session token — same ephemeral auth pattern as Hermes dashboard
 _SESSION_TOKEN = secrets.token_urlsafe(32)
@@ -121,6 +120,7 @@ def _install_cors(port: int) -> None:
 
 # ── Skills sync check ───────────────────────────────────────────────────────
 import hashlib
+
 
 def _sync_b2b_skills():
     """Ensure Hermes has the latest B2B skills from the project.
@@ -166,7 +166,7 @@ def _sync_b2b_skills():
     if _synced > 0:
         print(f"  Skills synced: {_synced} updated (Hermes will pick up changes on next request)")
     else:
-        print(f"  Skills: up-to-date")
+        print("  Skills: up-to-date")
 
 _sync_b2b_skills()
 
@@ -175,15 +175,18 @@ _sync_b2b_skills()
 # On fresh install: creates all tables.
 # On v0→v1 upgrade: migrates schema + creates default company.
 from trade.database import init_db as _init_db
+
 _db_path = _init_db()
 print(f"  Database: {_db_path}")
 
 # ── Inject session token before mounting routes ───────────────────────────
 from trade.api.deps import set_session_token
+
 set_session_token(_SESSION_TOKEN)
 
 # ── Mount Trade API ───────────────────────────────────────────────────────
 from trade.api import router as trade_router
+
 app.include_router(trade_router, prefix="/api/trade")
 
 # ── Serve Trade Chat SPA ──────────────────────────────────────────────────
@@ -210,6 +213,7 @@ async def status():
 # ── Hermes Gateway 子进程管理 ─────────────────────────────────────────────
 
 import subprocess as _sp
+
 
 def _is_gateway_running() -> bool:
     """检查是否有 Hermes Gateway 进程在运行（跨平台）。"""
@@ -244,7 +248,7 @@ def _is_gateway_running() -> bool:
 def _ensure_gateway_running() -> None:
     """如果 Gateway 未运行，启动它。Gateway 独立于 Trade 生命周期，Trade 退出后仍保持运行。"""
     if _is_gateway_running():
-        print(f"  Hermes Gateway → running (cron scheduler active)")
+        print("  Hermes Gateway → running (cron scheduler active)")
         return
 
     try:
@@ -266,7 +270,7 @@ def _ensure_gateway_running() -> None:
             env={**os.environ, "GATEWAY_ALLOW_ALL_USERS": "true"},
             **kwargs,
         )
-        print(f"  Hermes Gateway → started (cron scheduler active)")
+        print("  Hermes Gateway → started (cron scheduler active)")
     except Exception as e:
         print(f"  ⚠️  Hermes Gateway 启动失败: {e}")
 

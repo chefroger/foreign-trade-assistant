@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import re
 import socket
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 
 def domain_whois(domain: str) -> dict:
@@ -80,7 +79,7 @@ def domain_whois(domain: str) -> dict:
         if result["creation_date"]:
             try:
                 creation = datetime.fromisoformat(result["creation_date"].replace("Z", "+00:00"))
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 days_old = (now - creation).days
                 result["days_old"] = days_old
 
@@ -105,7 +104,7 @@ def domain_whois(domain: str) -> dict:
 # WHOIS 服务器路由表
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _get_whois_server_for_tld(tld: str) -> Optional[str]:
+def _get_whois_server_for_tld(tld: str) -> str | None:
     """根据顶级域名返回对应的 WHOIS 服务器地址。"""
     whois_servers: dict[str, str] = {
         "com": "whois.verisign.com",
@@ -145,13 +144,13 @@ def _query_whois_server(domain: str, server: str, port: int = 43, timeout: int =
         with socket.create_connection((server, port), timeout=timeout) as s:
             s.settimeout(timeout)
             # WHOIS 协议：发送域名 + \r\n
-            s.sendall(f"{domain}\r\n".encode("utf-8"))
+            s.sendall(f"{domain}\r\n".encode())
 
             chunks: list[bytes] = []
             while True:
                 try:
                     chunk = s.recv(4096)
-                except socket.timeout:
+                except TimeoutError:
                     # 超时后已读到的数据视为完整响应
                     break
                 if not chunk:
@@ -162,7 +161,7 @@ def _query_whois_server(domain: str, server: str, port: int = 43, timeout: int =
         response = b"".join(chunks).decode("utf-8", errors="replace")
         return response
 
-    except (socket.timeout, socket.error, OSError):
+    except (TimeoutError, OSError):
         # 如果主服务器超时，尝试 fallback WHOIS 服务器
         fallback_servers = ["whois.verisign.com", "whois.markmonitor.com"]
         for fb_server in fallback_servers:
@@ -271,7 +270,7 @@ def _parse_whois_response(raw: str) -> dict:
 # 日期标准化
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _normalize_date(date_str: str) -> Optional[str]:
+def _normalize_date(date_str: str) -> str | None:
     """将各种日期格式统一转换为 ISO 格式（YYYY-MM-DD）。"""
     if not date_str:
         return None

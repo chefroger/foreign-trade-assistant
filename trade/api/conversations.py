@@ -11,9 +11,7 @@ Trade AI Assistant — 对话记录 API 路由。
 
 from __future__ import annotations
 
-from typing import Optional
-
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from trade import chat_memory
 from trade import library as library_module
@@ -25,7 +23,7 @@ router = APIRouter(tags=["conversations"])
 
 @router.get("/conversations")
 def list_conversations(
-    library_id: Optional[int] = None,
+    library_id: int | None = None,
     limit: int = 50,
     x_company_id: int = Depends(require_company),
 ):

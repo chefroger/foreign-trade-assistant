@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, date
+from datetime import date, datetime
 from pathlib import Path
 
 from fastapi import APIRouter

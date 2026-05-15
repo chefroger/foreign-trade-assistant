@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 
 from trade.prompt import TRADE_SYSTEM_PROMPT as _CODE_FALLBACK
 

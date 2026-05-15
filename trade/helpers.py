@@ -219,9 +219,9 @@ def build_query(
     library_id optionally adds document-library context.
     customer_id optionally adds customer context (customer name, linked libraries).
     """
-    from trade import library as _lib
     from trade import company as _company
     from trade import customer as _cust
+    from trade import library as _lib
     from trade import skill_router
 
     # 0. Skill auto-detection — must happen before anything else so the LLM

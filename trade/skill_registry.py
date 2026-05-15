@@ -11,7 +11,6 @@ Trade AI Assistant — Skill 注册表（纯数据模块）。
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Skill Registry
@@ -614,7 +613,7 @@ def skill_names() -> list[str]:
     return [s["name"] for s in _SKILLS]
 
 
-def get_skill_by_name(name: str) -> Optional[dict]:
+def get_skill_by_name(name: str) -> dict | None:
     """按名称查找 skill（用于显式 skill= 参数调用）。"""
     for s in _SKILLS:
         if s["name"] == name:

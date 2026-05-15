@@ -7,9 +7,7 @@ Each library maps to a file-system directory that the agent can scan and read.
 All operations are scoped to a company_id for multi-tenancy isolation.
 """
 
-import json
 from pathlib import Path
-from typing import Optional
 
 from trade.database import get_connection
 
@@ -18,7 +16,7 @@ def create(
     name: str,
     root_path: str,
     description: str = "",
-    company_id: Optional[int] = None,
+    company_id: int | None = None,
 ) -> dict:
     """Create a document library scoped to a company. Returns the new row as a dict."""
     conn = get_connection()
@@ -34,7 +32,7 @@ def create(
         conn.close()
 
 
-def list_by_company(company_id: Optional[int] = None) -> list[dict]:
+def list_by_company(company_id: int | None = None) -> list[dict]:
     """Return all libraries for a company, newest first. company_id=None means unassigned."""
     conn = get_connection()
     try:
@@ -52,7 +50,7 @@ def list_by_company(company_id: Optional[int] = None) -> list[dict]:
         conn.close()
 
 
-def get(library_id: int, company_id: Optional[int] = None) -> Optional[dict]:
+def get(library_id: int, company_id: int | None = None) -> dict | None:
     """Get a single library by id, optionally scoped to a company."""
     conn = get_connection()
     try:
@@ -70,9 +68,9 @@ def get(library_id: int, company_id: Optional[int] = None) -> Optional[dict]:
 
 def update(
     library_id: int,
-    company_id: Optional[int] = None,
+    company_id: int | None = None,
     **kwargs,
-) -> Optional[dict]:
+) -> dict | None:
     """Update library fields (name, root_path, description)."""
     allowed = {"name", "root_path", "description"}
     updates = {k: v for k, v in kwargs.items() if k in allowed}
@@ -104,7 +102,7 @@ def update(
         conn.close()
 
 
-def delete(library_id: int, company_id: Optional[int] = None) -> bool:
+def delete(library_id: int, company_id: int | None = None) -> bool:
     """Delete a library scoped to a company. Returns True if a row was deleted."""
     conn = get_connection()
     try:
@@ -121,7 +119,7 @@ def delete(library_id: int, company_id: Optional[int] = None) -> bool:
         conn.close()
 
 
-def count_files(library_id: int, company_id: Optional[int] = None) -> int:
+def count_files(library_id: int, company_id: int | None = None) -> int:
     """Count files in the library's root_path directory (non-recursive).
 
     company_id is optional for backward compatibility but should always be

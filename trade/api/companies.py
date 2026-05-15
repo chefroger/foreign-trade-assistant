@@ -13,12 +13,14 @@ Trade AI Assistant — 公司管理 API 路由。
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from trade import company as company_module
 from trade.api.deps import require_company
 from trade.api.models import (
-    CompanyCreate, CompanyUpdate, AgentIdentityUpdate,
+    AgentIdentityUpdate,
+    CompanyCreate,
+    CompanyUpdate,
 )
 
 router = APIRouter(tags=["companies"])

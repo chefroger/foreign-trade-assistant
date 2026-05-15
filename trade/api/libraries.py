@@ -4,9 +4,7 @@ Trade AI Assistant — 文档库管理 API 路由。
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from trade import library as library_module
 from trade.api.deps import require_company

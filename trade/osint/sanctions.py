@@ -15,7 +15,6 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Optional
 
 from trade.osint.constants import http_get
 

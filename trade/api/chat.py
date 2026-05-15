@@ -13,14 +13,14 @@ import json as _json
 import logging
 import time
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from trade import chat_memory
 from trade import library as library_module
 from trade.api.deps import require_company
-from trade.helpers import create_agent, build_query
 from trade.api.models import ChatRequest
+from trade.helpers import build_query, create_agent
 
 _log = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ async def trade_chat(
             loop.run_in_executor(None, _call_agent),
             timeout=600,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         response = "⏰ Agent 执行时间过长（超过 10 分钟），已自动中止。请简化问题后重试。"
 
     lib_name = ""
@@ -162,7 +162,7 @@ async def trade_chat_stream(
                 try:
                     # 15s 心跳，防止反向代理/nginx 空闲断开
                     ev_type, ev_data = await asyncio.wait_for(event_queue.get(), timeout=15.0)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     if agent_task.done():
                         break
                     yield ": ping\n\n"

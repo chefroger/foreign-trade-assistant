@@ -7,14 +7,11 @@ Trade AI Assistant — API 依赖函数。
 
 from __future__ import annotations
 
-import os
 import secrets
-from typing import Optional
 
-from fastapi import Header, HTTPException, Request, Depends
+from fastapi import Header, HTTPException, Request
 
 from trade import company as company_module
-
 
 # ── Session token ────────────────────────────────────────────────────────────
 
@@ -48,7 +45,7 @@ def require_session(request: Request) -> None:
 # ── Company ID ────────────────────────────────────────────────────────────────
 
 def require_company(
-    x_company_id: Optional[str] = Header(None, alias="X-Company-ID"),
+    x_company_id: str | None = Header(None, alias="X-Company-ID"),
 ) -> int:
     """解析并验证 X-Company-ID header，返回 company_id。
 
@@ -81,8 +78,8 @@ def require_company(
 
 
 def opt_company(
-    x_company_id: Optional[str] = Header(None, alias="X-Company-ID"),
-) -> Optional[int]:
+    x_company_id: str | None = Header(None, alias="X-Company-ID"),
+) -> int | None:
     """解析 X-Company-ID header，返回 company_id 或 None。
 
     与 require_company 的区别：header 缺失时不抛异常。

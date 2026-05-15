@@ -10,9 +10,8 @@ Trade AI Assistant — 记忆与模型 API 路由。
 from __future__ import annotations
 
 import os
-from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header
 
 from trade import chat_memory
 from trade.api.deps import opt_company
@@ -23,7 +22,7 @@ router = APIRouter(tags=["memory"])
 # ── Hindsight 长期记忆 ────────────────────────────────────────────────────
 
 @router.get("/memory/status")
-def memory_status(x_company_id: Optional[str] = Header(None, alias="X-Company-ID")):
+def memory_status(x_company_id: str | None = Header(None, alias="X-Company-ID")):
     """检查 Hindsight 长期记忆是否可用。"""
     try:
         from trade.memory import is_available as hindsight_available
@@ -38,7 +37,7 @@ def memory_status(x_company_id: Optional[str] = Header(None, alias="X-Company-ID
 @router.get("/memory/recall")
 def memory_recall(
     query: str,
-    x_company_id: Optional[str] = Header(None, alias="X-Company-ID"),
+    x_company_id: str | None = Header(None, alias="X-Company-ID"),
 ):
     """搜索 Hindsight 长期记忆中的相关历史对话。"""
     result = chat_memory.recall_context(query)

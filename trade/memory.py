@@ -13,7 +13,7 @@ Otherwise, this module degrades gracefully to no-ops.
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -72,8 +72,8 @@ def _get_client():
         return _client
 
     try:
-        from hindsight_client import Hindsight
         from hermes_constants import get_hermes_home
+        from hindsight_client import Hindsight
 
         api_key = os.environ.get("HINDSIGHT_API_KEY", "")
         api_url = os.environ.get("HINDSIGHT_API_URL", "https://api.hindsight.vectorize.io")
@@ -111,8 +111,8 @@ def retain(
     context: str = "",
     *,
     bank_id: str = "trade",
-    document_id: Optional[str] = None,
-    tags: Optional[List[str]] = None,
+    document_id: str | None = None,
+    tags: list[str] | None = None,
 ) -> bool:
     """Store information to Hindsight long-term memory.
 
@@ -124,7 +124,7 @@ def retain(
 
     try:
         metadata = {"source": "trade-ai-assistant"}
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             "bank_id": bank_id,
             "content": content,
             "metadata": metadata,
@@ -151,7 +151,7 @@ def recall(
     bank_id: str = "trade",
     budget: str = "mid",
     max_tokens: int = 4096,
-) -> Optional[str]:
+) -> str | None:
     """Search Hindsight long-term memory.
 
     Returns formatted memory text, or None if unavailable.
@@ -181,7 +181,7 @@ def reflect(
     *,
     bank_id: str = "trade",
     budget: str = "mid",
-) -> Optional[str]:
+) -> str | None:
     """Synthesize an answer from Hindsight long-term memories.
 
     Returns synthesized text, or None if unavailable.

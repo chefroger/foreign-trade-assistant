@@ -11,6 +11,7 @@ import os
 import sqlite3
 from pathlib import Path
 
+
 # Database path: ~/.trade/data/trade.db (or %LOCALAPPDATA%\trade\data\trade.db on Windows)
 def _get_db_path() -> Path:
     """Resolve the trade.db path under the user's Trade data directory.

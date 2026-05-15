@@ -7,16 +7,13 @@ Trade AI Assistant — API 请求/响应模型（Pydantic）。
 
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel, Field
-
 
 # ── Company ────────────────────────────────────────────────────────────────────
 
 class CompanyCreate(BaseModel):
     name: str = Field(..., description="公司名称")
-    slug: Optional[str] = Field(None, description="URL 标识（省略时自动生成）")
+    slug: str | None = Field(None, description="URL 标识（省略时自动生成）")
     logo_url: str = Field("", description="Logo URL")
     website: str = Field("", description="公司网站")
     contact_name: str = Field("", description="联系人姓名")
@@ -26,13 +23,13 @@ class CompanyCreate(BaseModel):
 
 
 class CompanyUpdate(BaseModel):
-    name: Optional[str] = Field(None, description="公司名称")
-    logo_url: Optional[str] = Field(None, description="Logo URL")
-    website: Optional[str] = Field(None, description="公司网站")
-    contact_name: Optional[str] = Field(None, description="联系人姓名")
-    contact_email: Optional[str] = Field(None, description="联系人邮箱")
-    address: Optional[str] = Field(None, description="地址")
-    is_active: Optional[bool] = Field(None, description="是否激活")
+    name: str | None = Field(None, description="公司名称")
+    logo_url: str | None = Field(None, description="Logo URL")
+    website: str | None = Field(None, description="公司网站")
+    contact_name: str | None = Field(None, description="联系人姓名")
+    contact_email: str | None = Field(None, description="联系人邮箱")
+    address: str | None = Field(None, description="地址")
+    is_active: bool | None = Field(None, description="是否激活")
 
 
 class AgentIdentityUpdate(BaseModel):
@@ -43,7 +40,7 @@ class OnboardingFirstCompany(BaseModel):
     company_name: str = Field(..., description="公司名称")
     contact_name: str = Field("", description="联系人姓名")
     contact_email: str = Field("", description="联系人邮箱")
-    identity_data: Optional[dict] = Field(None, description="Agent 身份配置")
+    identity_data: dict | None = Field(None, description="Agent 身份配置")
     work_dir_name: str = Field("", description="桌面工作目录名称")
 
 
@@ -56,9 +53,9 @@ class LibraryCreate(BaseModel):
 
 
 class LibraryUpdate(BaseModel):
-    name: Optional[str] = Field(None, description="文档库名称")
-    root_path: Optional[str] = Field(None, description="本地目录绝对路径")
-    description: Optional[str] = Field(None, description="文档库描述")
+    name: str | None = Field(None, description="文档库名称")
+    root_path: str | None = Field(None, description="本地目录绝对路径")
+    description: str | None = Field(None, description="文档库描述")
 
 
 # ── Customer ───────────────────────────────────────────────────────────────────
@@ -71,7 +68,7 @@ class CustomerCreate(BaseModel):
     tier: str = Field("", description="客户等级 (A/B/C)")
     linkedin_url: str = Field("", description="LinkedIn URL")
     company_website: str = Field("", description="公司网站")
-    social_media: Optional[dict] = Field(None, description="社媒联系方式 {facebook, instagram, tiktok, youtube, twitter}")
+    social_media: dict | None = Field(None, description="社媒联系方式 {facebook, instagram, tiktok, youtube, twitter}")
     title: str = Field("", description="联系人职位 (CEO/Purchasing Manager 等)")
     email: str = Field("", description="邮箱")
     backup_email: str = Field("", description="备用邮箱")
@@ -82,26 +79,26 @@ class CustomerCreate(BaseModel):
 
 
 class CustomerUpdate(BaseModel):
-    name: Optional[str] = Field(None, description="客户名称")
-    contact: Optional[str] = Field(None, description="联系方式")
-    note: Optional[str] = Field(None, description="备注")
-    country: Optional[str] = Field(None, description="国家")
-    tier: Optional[str] = Field(None, description="客户等级 (A/B/C)")
-    linkedin_url: Optional[str] = Field(None, description="LinkedIn URL")
-    company_website: Optional[str] = Field(None, description="公司网站")
-    social_media: Optional[dict] = Field(None, description="社媒联系方式")
-    title: Optional[str] = Field(None, description="联系人职位")
-    email: Optional[str] = Field(None, description="邮箱")
-    backup_email: Optional[str] = Field(None, description="备用邮箱")
-    phone: Optional[str] = Field(None, description="电话")
-    whatsapp: Optional[str] = Field(None, description="WhatsApp")
-    wechat: Optional[str] = Field(None, description="微信")
+    name: str | None = Field(None, description="客户名称")
+    contact: str | None = Field(None, description="联系方式")
+    note: str | None = Field(None, description="备注")
+    country: str | None = Field(None, description="国家")
+    tier: str | None = Field(None, description="客户等级 (A/B/C)")
+    linkedin_url: str | None = Field(None, description="LinkedIn URL")
+    company_website: str | None = Field(None, description="公司网站")
+    social_media: dict | None = Field(None, description="社媒联系方式")
+    title: str | None = Field(None, description="联系人职位")
+    email: str | None = Field(None, description="邮箱")
+    backup_email: str | None = Field(None, description="备用邮箱")
+    phone: str | None = Field(None, description="电话")
+    whatsapp: str | None = Field(None, description="WhatsApp")
+    wechat: str | None = Field(None, description="微信")
 
 
 # ── Conversation ───────────────────────────────────────────────────────────────
 
 class ConversationSave(BaseModel):
-    library_id: Optional[int] = Field(None, description="关联的文档库 ID")
+    library_id: int | None = Field(None, description="关联的文档库 ID")
     query: str = Field(..., description="用户问题")
     response: str = Field("", description="Agent 回复")
     files_read: list[dict] = Field(default_factory=list, description="读取的文件列表")
@@ -116,5 +113,5 @@ class ConversationUpdate(BaseModel):
 
 class ChatRequest(BaseModel):
     query: str = Field(..., description="用户问题")
-    library_id: Optional[int] = Field(None, description="关联的文档库 ID")
-    customer_id: Optional[int] = Field(None, description="关联的客户 ID")
+    library_id: int | None = Field(None, description="关联的文档库 ID")
+    customer_id: int | None = Field(None, description="关联的客户 ID")

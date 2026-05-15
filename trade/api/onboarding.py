@@ -9,6 +9,7 @@ Trade AI Assistant — 首次运行引导 API。
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
+
 from trade import onboarding as onboarding_module
 from trade.api.models import OnboardingFirstCompany
 

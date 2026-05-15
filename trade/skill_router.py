@@ -13,22 +13,19 @@ from __future__ import annotations
 
 import os
 import re
+
+# ─────────────────────────────────────────────────────────────────────────────
+# mtime 缓存：OrderedDict LRU（上限 128，远大于 14 个 skill）
+# ─────────────────────────────────────────────────────────────────────────────
+from collections import OrderedDict
 from pathlib import Path
-from typing import Optional
 
 from trade.skill_registry import (
-    _SKILLS,
     _COMPILED,
     _EXPLICIT_RE,
     get_skill_by_name,
     skill_names,
 )
-
-# ─────────────────────────────────────────────────────────────────────────────
-# mtime 缓存：OrderedDict LRU（上限 128，远大于 14 个 skill）
-# ─────────────────────────────────────────────────────────────────────────────
-
-from collections import OrderedDict
 
 _INJECTION_CACHE_MAX = int(os.environ.get("TRADE_SKILL_CACHE_MAX", "128"))
 _INJECTION_CACHE: OrderedDict[str, tuple[float, str]] = OrderedDict()
@@ -159,7 +156,7 @@ def _norm(text: str) -> str:
 # 核心匹配
 # ─────────────────────────────────────────────────────────────────────────────
 
-def match_skill(query: str) -> Optional[dict]:
+def match_skill(query: str) -> dict | None:
     """返回第一个匹配的 skill 注册表条目，或 None。
 
     匹配策略（按优先级）：
@@ -211,8 +208,8 @@ SKILL_EXPLICIT_MARKER = "[SKILL EXPLICIT]"
 def augment_query(
     query: str,
     *,
-    skill_name: Optional[str] = None,
-    company_id: Optional[int] = None,
+    skill_name: str | None = None,
+    company_id: int | None = None,
 ) -> str:
     """将 skill injection prompt 注入用户 query。
 

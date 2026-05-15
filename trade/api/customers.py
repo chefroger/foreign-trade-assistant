@@ -14,9 +14,7 @@ Trade AI Assistant — 客户管理 API 路由。
 
 from __future__ import annotations
 
-from typing import Optional
-
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from trade import customer as customer_module
 from trade.api.deps import require_company

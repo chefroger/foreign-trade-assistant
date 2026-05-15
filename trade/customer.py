@@ -6,7 +6,6 @@ All operations are scoped to a company_id for multi-tenancy isolation.
 """
 
 import json
-from typing import Optional
 
 from trade.database import get_connection
 
@@ -15,13 +14,13 @@ def create(
     name: str,
     contact: str = "",
     note: str = "",
-    company_id: Optional[int] = None,
+    company_id: int | None = None,
     *,
     country: str = "",
     tier: str = "",
     linkedin_url: str = "",
     company_website: str = "",
-    social_media: Optional[dict] = None,
+    social_media: dict | None = None,
     title: str = "",
     email: str = "",
     backup_email: str = "",
@@ -77,7 +76,7 @@ def list_by_company(company_id: int) -> list[dict]:
         conn.close()
 
 
-def get(customer_id: int, company_id: Optional[int] = None) -> Optional[dict]:
+def get(customer_id: int, company_id: int | None = None) -> dict | None:
     """Get a single customer by id, optionally scoped to a company."""
     conn = get_connection()
     try:
@@ -97,9 +96,9 @@ def get(customer_id: int, company_id: Optional[int] = None) -> Optional[dict]:
 
 def update(
     customer_id: int,
-    company_id: Optional[int] = None,
+    company_id: int | None = None,
     **kwargs,
-) -> Optional[dict]:
+) -> dict | None:
     """Update customer fields（单事务，部分失败统一回滚）。
 
     基础字段: name, contact, note
@@ -172,7 +171,7 @@ def update(
         conn.close()
 
 
-def delete(customer_id: int, company_id: Optional[int] = None) -> bool:
+def delete(customer_id: int, company_id: int | None = None) -> bool:
     """Delete a customer scoped to a company. Returns True if a row was deleted."""
     conn = get_connection()
     try:

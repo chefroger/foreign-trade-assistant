@@ -153,7 +153,7 @@ def _query_mx_records(domain: str) -> tuple[list[str], bool]:
             mx_servers = _parse_dns_mx_response(data)
             return mx_servers, len(mx_servers) > 0
 
-        except (socket.timeout, socket.error, OSError) as e:
+        except (TimeoutError, OSError) as e:
             last_err = e
             continue
 

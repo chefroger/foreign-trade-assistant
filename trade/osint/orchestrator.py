@@ -11,12 +11,12 @@ import asyncio
 import re
 
 from trade import email_intel
-from trade.osint.whois import domain_whois
 from trade.osint.email_verify import verify_corporate_email
-from trade.osint.sanctions import check_sanctions
-from trade.osint.tech_stack import detect_tech_stack
 from trade.osint.linkedin_verify import linkedin_company_verify
+from trade.osint.sanctions import check_sanctions
 from trade.osint.scoring import compute_risk_score, generate_recommendations
+from trade.osint.tech_stack import detect_tech_stack
+from trade.osint.whois import domain_whois
 
 
 async def osint_full_check(

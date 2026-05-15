@@ -52,8 +52,7 @@ from __future__ import annotations
 import asyncio
 import re
 import typing
-from concurrent.futures import ThreadPoolExecutor
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 # ── holehe import (lazy, graceful degradation) ───────────────────────────────
 
@@ -277,7 +276,7 @@ async def _run_holehe_async(email: str) -> list[dict]:
     CLI argparse / print side-effects.
     """
     import httpx
-    from holehe.core import import_submodules, get_functions, launch_module
+    from holehe.core import get_functions, import_submodules, launch_module
     from holehe.instruments import TrioProgress
 
     modules = import_submodules("holehe.modules")
@@ -321,8 +320,10 @@ def email_background_check(email: str) -> dict:
         return _error_result(email, f"holehe not installed: {_holehe_import_error or 'unknown'}")
 
     try:
+        import contextlib
+        import io
+
         import trio
-        import io, contextlib
         # Suppress holehe's trio progress-bar prints (they go to stdout)
         f = io.StringIO()
         with contextlib.redirect_stdout(f):
@@ -408,7 +409,7 @@ class EmailBackgroundChecker:
                 _run_holehe_async(email),
                 timeout=self.timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             yield {"type": "error", "message": f"Timeout after {self.timeout}s"}
             return
         except Exception as exc:
