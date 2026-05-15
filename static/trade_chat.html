@@ -1373,64 +1373,214 @@ async function saveCustomer() {
 }
 
 // ═════════════════════ TASKS VIEW ═════════════════════
-function renderTasksViewInto(container) {
-    const tasks = [
-        {id:1,name:'早安简报',time:'08:00',cron:'0 8 * * 1-5',desc:'总结昨日互动 + 今日待跟进清单 + 客户时区提醒',runPrompt:'请生成今天的早安简报：汇总昨日客户互动、今日待跟进事项、各目标市场时区窗口提醒'},
-        {id:2,name:'LinkedIn 内容发布',time:'09:30',cron:'30 9 * * 1-5',desc:'生成本日 LinkedIn Post + Article 草稿',runPrompt:'请生成本日的 LinkedIn 帖子：行业洞察 + 产品价值 + 互动提问，带 5 个 hashtag，可直接复制粘贴发布'},
-        {id:3,name:'欧洲客户开发信',time:'10:00',cron:'0 10 * * 1-5',desc:'筛选欧洲客户 → 生成跟进邮件',runPrompt:'请筛选欧洲客户中需要跟进的，为每个客户生成个性化的开发信或跟进邮件'},
-        {id:4,name:'B2B 平台数据检查',time:'11:00',cron:'0 11 * * 1-5',desc:'检查平台询盘、产品排名、同行动态',runPrompt:'请检查 B2B 平台最新情况：新询盘数量、产品排名变化、同行动态，并给出今日优化建议'},
-        {id:5,name:'社媒内容发布',time:'14:00',cron:'0 14 * * 1-5',desc:'生成 FB / Ins / TikTok 帖子',runPrompt:'请生成本日社媒发布内容：包含 1 条 Facebook 帖子 + 1 个 Instagram 文案 + 1 个 TikTok 脚本，配图/视频建议和标签'},
-        {id:6,name:'北美客户开发信',time:'16:00',cron:'0 16 * * 1-5',desc:'筛选北美客户 → 生成跟进邮件',runPrompt:'请筛选北美/美国客户中需要跟进的，为每个客户生成个性化的开发信或跟进邮件，注意北美时区'},
-        {id:7,name:'每日工作总结',time:'17:30',cron:'30 17 * * 1-5',desc:'汇总今日数据 → 追加到工作日报（周五生成周报）',runPrompt:'请生成今日工作总结：今日完成事项（询盘/报价/跟进/订单/社媒）、明日待办优先级、今日 KPI 数据汇总。如果是周五，同时生成本周周报'},
-    ];
+// ═══ 定时任务模板（基于外贸业务员标准工作流程）═════
+const TASK_TEMPLATES = [
+    {id:'morning-brief',name:'🌅 早安简报',time:'09:00',required:true,
+     desc:'使用 web_search 获取实时汇率、大宗商品价格、目标市场新闻，结合昨日对话生成简报',
+     prompt:'按照 b2b-daily-automation 技能中的早安简报规范生成今日简报。必须使用 web_search 逐项搜索实时汇率（USD/EUR/GBP→CNY）、大宗商品价格（金/铜/铝/原油）、目标市场新闻。查询昨日对话记录和客户待跟进清单。所有数值必须来自搜索结果，不得编造或留空。'},
+    {id:'email-followup',name:'📧 邮件处理与跟进',time:'09:00-10:30',required:false,
+     desc:'回复所有未读消息，发送跟进邮件。新消息 2 小时内回复 100%',
+     prompt:'帮我整理今天待处理的邮件和跟进事项：列出昨日至今天收到的客户消息、需要跟进的客户（按 A/B/C 优先级）、明天需要发送的提醒邮件模板。'},
+    {id:'linkedin-add',name:'🔍 精准加人 (LinkedIn)',time:'10:00-11:30',required:false,
+     desc:'搜索关键词+职位，发送连接请求+Add Note，目标 30-50 人/天',
+     prompt:'生成本日 LinkedIn 精准加人计划：根据我公司的产品和目标市场，列出今天应该搜索的 5 个关键词组合，每个关键词推荐 3-5 个搜索过滤条件（行业/地区/职位），并生成 Add Note 模板。'},
+    {id:'linkedin-engage',name:'💬 评论互动与私信致谢',time:'11:30-12:00',required:false,
+     desc:'评论目标客户 10-15 条动态，新增连接发送感谢私信',
+     prompt:'帮我生成本日 LinkedIn 互动计划：列出需要评论的客户类型和评论模板（3 种场景），以及新增连接后的感谢私信模板。'},
+    {id:'linkedin-content',name:'📢 LinkedIn 内容发布',time:'15:30',required:false,
+     desc:'发布或转发 1 条内容（案例/痛点/工厂/证书），≥3 帖/周',
+     prompt:'请生成本日的 LinkedIn 帖子（5 维度轮换：视频/照片/文章/投票/Document）。内容围绕我公司产品和行业，带 5 个 hashtag，可直接复制粘贴发布。'},
+    {id:'platform-check',name:'🏪 B2B 平台检查',time:'15:30-17:00',required:false,
+     desc:'检查阿里国际站/Made-in-China 等平台询盘、排名、发布产品',
+     prompt:'生成今日 B2B 平台检查清单：新询盘数量、待回复询盘、产品排名变化、需要发布的产品数量。给出具体可执行的操作步骤。'},
+    {id:'customer-dev',name:'👥 客户开发',time:'13:30-15:30',required:false,
+     desc:'新客户搜索/加人/开发信发送，目标日均 20-30 个有效触达',
+     prompt:'生成本日客户开发计划：根据我公司的产品和目标市场，列出 5 个找客户渠道（LinkedIn/Facebook/Google Maps/B2B平台/海关数据），每个渠道给出具体搜索方法和开发信模板。'},
+    {id:'daily-summary',name:'📊 每日工作总结',time:'17:00',required:false,
+     desc:'更新客户表/CRM，复盘当日完成情况，规划次日优先级',
+     prompt:'请帮我生成今日工作总结模板，包含：今日完成事项清单、客户互动汇总、新增客户统计、待跟进事项、明日优先级安排。如果是周五，加上本周 KPI 对比和下周计划。'},
+    {id:'weekly-report',name:'📋 每周复盘报告',time:'周五 17:30',required:false,
+     desc:'周复盘：亮点/短板/KPI对比/下周行动清单',
+     prompt:'请生成本周复盘报告模板，包含：本周完成事项、KPI 完成情况（新增人脉/有效对话/需求线索/预约会议/内容发布）、亮点与短板分析、竞品洞察、下周行动清单。'},
+];
 
+function renderTasksViewInto(container) {
     const coName = currentCompanyId ? (companies.find(c => c.id === currentCompanyId)?.name || '') : '';
+
+    // 将编辑时间后的数字也传给模板
+    const selectedIds = new Set(
+        TASK_TEMPLATES.filter(t => t.required).map(t => t.id)
+    );
+
     container.innerHTML = `
+    <div class="panel-view" style="display:flex;flex-direction:column;height:100%;overflow-y:auto;">
         <div class="panel-topbar">
             <h2>⏰ 定时任务${coName ? `<span style="margin-left:10px;padding:3px 10px;background:rgba(59,130,246,0.08);color:var(--primary);border-radius:999px;font-size:12px;font-weight:500;">🏢 ${esc(coName)}</span>` : ''}</h2>
             <div class="panel-topbar-actions">
-                <button class="btn btn-primary" onclick="setupAllCronTasks()">⚡ 一键初始化全部定时任务</button>
+                <button class="btn btn-primary" onclick="batchCreateCronTasks()">⚡ 批量生成选中任务</button>
+                <button class="btn btn-danger" onclick="clearAllCronTasks()">🗑 清空全部任务</button>
             </div>
         </div>
-        <div class="panel-body">
-            <div class="task-grid" id="tasks-grid">
-                ${tasks.map(t => `
-                <div class="task-card">
+        <div class="panel-body" style="overflow-y:auto;padding:16px 20px;">
+            <!-- 模板库 -->
+            <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">📋 任务模板库（钩选 → 编辑时间 → 批量生成）</div>
+            <div class="task-grid" id="task-templates-grid">
+                ${TASK_TEMPLATES.map(t => `
+                <div class="task-card" style="position:relative;">
                     <div class="task-card-header">
-                        <span class="task-card-name">${t.name}</span>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                            <input type="checkbox" class="task-template-check" data-id="${t.id}" ${t.required ? 'checked disabled' : ''} onchange="onTemplateCheckChange()">
+                            <span class="task-card-name">${t.name}</span>
+                            ${t.required ? '<span style="font-size:10px;color:var(--accent);background:#FEF3C7;padding:1px 6px;border-radius:999px;">必选</span>' : ''}
+                        </label>
                     </div>
-                    <div class="task-card-schedule">🕐 每天 ${t.time}（工作日）</div>
-                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">${t.desc}</div>
+                    <div style="display:flex;align-items:center;gap:6px;margin:6px 0;">
+                        <span style="font-size:11px;color:var(--text-muted);">🕐</span>
+                        <input type="text" class="task-time-input" data-id="${t.id}" value="${t.time}" style="width:100px;padding:2px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:11px;font-family:monospace;" onchange="onTemplateTimeChange('${t.id}', this.value)">
+                    </div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">${t.desc}</div>
                     <div class="task-card-actions">
-                        <button onclick="runSingleTask('${esc(t.name)}', \`${t.runPrompt}\`)">▶ 手动执行</button>
+                        <button onclick="editTemplatePrompt('${t.id}')" style="font-size:11px;">✏️ 编辑 Prompt</button>
+                        <button onclick="runSingleTemplate('${t.id}')" style="font-size:11px;">▶ 单独生成</button>
                     </div>
                 </div>`).join('')}
             </div>
-        </div>`;
+
+            <!-- 分隔线 -->
+            <hr style="border:none;border-top:2px dashed var(--border);margin:20px 0;">
+
+            <!-- 已激活任务 -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <div style="font-size:13px;font-weight:600;color:var(--text-secondary);">📡 已激活的定时任务</div>
+                <button class="btn btn-xs" onclick="loadActiveCronJobs()">🔄 刷新</button>
+            </div>
+            <div class="task-grid" id="active-tasks-grid">
+                <div style="color:var(--text-muted);font-size:12px;padding:12px;">加载中...</div>
+            </div>
+        </div>
+    </div>`;
+    loadActiveCronJobs();
+}
+
+// ── 模板操作 ──
+
+// 全局编辑存储 { templateId: { time, prompt } }
+let templateEdits = {};
+
+function onTemplateCheckChange() {
+    // 仅用于视觉反馈，实际选中状态从 checkbox 读取
+}
+
+function onTemplateTimeChange(id, value) {
+    if (!templateEdits[id]) templateEdits[id] = {};
+    templateEdits[id].time = value;
+}
+
+function editTemplatePrompt(id) {
+    const t = TASK_TEMPLATES.find(x => x.id === id);
+    if (!t) return;
+    const currentPrompt = (templateEdits[id] && templateEdits[id].prompt) || t.prompt;
+    const newPrompt = prompt(`编辑 "${t.name}" 的 Prompt：`, currentPrompt);
+    if (newPrompt !== null) {
+        if (!templateEdits[id]) templateEdits[id] = {};
+        templateEdits[id].prompt = newPrompt;
+        toast(`"${t.name}" Prompt 已更新`);
+    }
+}
+
+function runSingleTemplate(id) {
+    const t = TASK_TEMPLATES.find(x => x.id === id);
+    if (!t) return;
+    const prompt = (templateEdits[id] && templateEdits[id].prompt) || t.prompt;
+    runSingleTask(t.name, prompt);
 }
 
 function runSingleTask(taskName, prompt) {
     if (!currentCompanyId) { toast('请先选择公司'); return; }
-    // 切换到聊天视图并自动发送 prompt
     navToView('chat', 'daily', taskName);
-    // 等视图渲染后填入 prompt 并发送
     setTimeout(() => {
-        const input = document.getElementById('msg-input');
+        const ct = currentChatContainer;
+        const input = ct ? ct.querySelector('#msg-input') : null;
         if (input) {
             input.value = prompt;
-            // 触发发送
             sendMsg();
         }
     }, 300);
 }
 
-function setupAllCronTasks() {
+function batchCreateCronTasks() {
     if (!currentCompanyId) { toast('请先选择公司'); return; }
-    navToView('chat', 'daily', '定时任务初始化');
+    const checks = document.querySelectorAll('.task-template-check:checked');
+    if (!checks.length) { toast('请至少选择一个任务模板'); return; }
+
+    const selected = [];
+    checks.forEach(cb => {
+        const id = cb.dataset.id;
+        const t = TASK_TEMPLATES.find(x => x.id === id);
+        if (!t) return;
+        const time = (templateEdits[id] && templateEdits[id].time) || t.time;
+        const prompt = (templateEdits[id] && templateEdits[id].prompt) || t.prompt;
+        selected.push(`- ${t.name} | 时间: ${time} | Prompt: ${prompt}`);
+    });
+
+    navToView('chat', 'daily', '定时任务批量创建');
     setTimeout(() => {
-        const input = document.getElementById('msg-input');
+        const ct = currentChatContainer;
+        const input = ct ? ct.querySelector('#msg-input') : null;
         if (input) {
-            input.value = '请使用 cronjob 工具为我创建 7 个工作日定时任务，根据我公司的行业和目标市场生成合适的 system prompt：\\n1. 08:00 早安简报\\n2. 09:30 LinkedIn 内容发布\\n3. 10:00 欧洲客户开发信\\n4. 11:00 B2B 平台数据检查\\n5. 14:00 社媒内容发布\\n6. 16:00 北美客户开发信\\n7. 17:30 每日工作总结（周五生成周报）\\n\\nschedule 格式使用标准 cron 表达式，如 "0 8 * * 1-5"。deliver 目标设为当前对话。';
+            input.value = `请使用 cronjob 工具为我批量创建以下定时任务，所有任务使用 --deliver local：\n${selected.join('\n')}\n\n请为每个任务创建 cron job 并返回创建结果。`;
+            sendMsg();
+        }
+    }, 300);
+}
+
+async function clearAllCronTasks() {
+    if (!confirm('确定删除所有已激活的定时任务？此操作不可恢复。')) return;
+    navToView('chat', 'daily', '清空定时任务');
+    setTimeout(() => {
+        const ct = currentChatContainer;
+        const input = ct ? ct.querySelector('#msg-input') : null;
+        if (input) {
+            input.value = '请使用 cronjob 工具列出并删除所有现有的 cron 定时任务。逐一删除，完成后告知结果。';
+            sendMsg();
+            // 刷新列表
+            setTimeout(loadActiveCronJobs, 5000);
+        }
+    }, 300);
+}
+
+async function loadActiveCronJobs() {
+    if (!currentCompanyId) return;
+    const data = await api('GET', '/api/trade/cron/jobs');
+    const grid = document.getElementById('active-tasks-grid');
+    if (!grid) return;
+    if (!data || !data.length) {
+        grid.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:12px;">暂无已激活的定时任务。请从上方模板库钩选后点击「批量生成」。</div>';
+        return;
+    }
+    grid.innerHTML = data.map(j => `
+        <div class="task-card">
+            <div class="task-card-header">
+                <span class="task-card-name">${esc(j.name)}</span>
+                <span style="font-size:10px;color:${j.enabled ? 'var(--accent-green)' : 'var(--text-muted)'};">${j.enabled ? '● 运行中' : '○ 已暂停'}</span>
+            </div>
+            <div class="task-card-schedule">🕐 ${esc(j.schedule)}</div>
+            ${j.next_run ? `<div style="font-size:11px;color:var(--accent-green);margin-bottom:6px;">▶ 下次执行：${esc(j.next_run)}</div>` : ''}
+            <div class="task-card-actions">
+                <button onclick="runActiveJob('${esc(j.id)}')">▶ 立即执行</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function runActiveJob(jobId) {
+    if (!currentCompanyId) return;
+    navToView('chat', 'daily', '立即执行任务');
+    setTimeout(() => {
+        const ct = currentChatContainer;
+        const input = ct ? ct.querySelector('#msg-input') : null;
+        if (input) {
+            input.value = `请使用 cronjob 工具手动触发一次任务 ID ${jobId}，将结果输出到当前对话。`;
             sendMsg();
         }
     }, 300);
