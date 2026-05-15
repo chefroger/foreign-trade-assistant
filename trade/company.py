@@ -46,10 +46,12 @@ def _db_get_one(sql: str, args: tuple = ()) -> tuple | None:
 def _slugify(name: str) -> str:
     """Convert a company name to a URL-safe slug."""
     slug = name.lower().strip()
+    if not slug:  # 空输入 → 返回固定后备值
+        return "company"
     slug = re.sub(r"[^\w\s-]", "", slug)
     slug = re.sub(r"[_\s]+", "-", slug)
     slug = re.sub(r"--+", "-", slug)
-    return slug.strip("-")
+    return slug.strip("-") or "company"
 
 
 def _ensure_data_dir(slug: str) -> Path:
@@ -268,6 +270,8 @@ def create(
             "libraries": [dict, ...],  # 自动创建的文档库列表
         }
     """
+    if not name or not name.strip():
+        raise ValueError("Company name cannot be empty")
     if not slug:
         slug = _slugify(name)
     # Ensure slug is unique

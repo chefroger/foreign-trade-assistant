@@ -142,6 +142,14 @@ class TestCompanyCRUD:
         assert customer.get(cust["id"]) is None
         assert chat_memory.get(company_id, conv["id"]) is None
 
+    def test_create_empty_name(self, test_db):
+        """空公司名应抛出 ValueError。"""
+        from trade import company
+        with pytest.raises(ValueError, match="empty"):
+            company.create(name="")
+        with pytest.raises(ValueError, match="empty"):
+            company.create(name="   ")
+
 
 class TestTradeCompany:
     """测试 trade_companies 配置表。"""
