@@ -50,6 +50,7 @@ Output format
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import typing
 from collections.abc import AsyncIterator
@@ -303,6 +304,38 @@ async def _run_holehe_async(email: str) -> list[dict]:
     return out
 
 
+# ── Worker script: runs holehe in a subprocess ───────────────────────────────
+# 在子进程中运行 holehe，彻底隔离 trio/asyncio event loop
+
+_HOLEHE_WORKER_SCRIPT = r"""
+import json, sys
+from holehe.core import get_functions, import_submodules, launch_module
+import httpx, trio
+
+email = sys.argv[1].strip()
+
+modules = import_submodules("holehe.modules")
+websites = get_functions(modules, args=None)
+
+out = []
+client = httpx.AsyncClient(timeout=10)
+
+async def _run():
+    try:
+        httpx._client._async.USE_CLIENT_TIMEOUT = False
+    except Exception:
+        pass
+    async with trio.open_nursery() as nursery:
+        for website in websites:
+            nursery.start_soon(launch_module, website, email, client, out)
+    await client.aclose()
+    out.sort(key=lambda i: i.get("name", ""))
+
+trio.run(_run)
+print(json.dumps(out, default=str))
+"""
+
+
 # ── Sync wrapper (runs async in thread pool) ─────────────────────────────────
 
 def email_background_check(email: str) -> dict:
@@ -320,14 +353,23 @@ def email_background_check(email: str) -> dict:
         return _error_result(email, f"holehe not installed: {_holehe_import_error or 'unknown'}")
 
     try:
-        import contextlib
-        import io
+        import subprocess
+        import sys
 
-        import trio
-        # Suppress holehe's trio progress-bar prints (they go to stdout)
-        f = io.StringIO()
-        with contextlib.redirect_stdout(f):
-            raw_results = trio.run(lambda: _run_holehe_async(email))
+        # 在子进程中运行 holehe，彻底隔离 trio/asyncio event loop
+        # holehe 使用 trio，与 asyncio 的 event loop 不兼容
+        try:
+            result = subprocess.run(
+                [sys.executable, "-c", _HOLEHE_WORKER_SCRIPT, email],
+                capture_output=True, text=True, timeout=120,
+            )
+            if result.returncode != 0:
+                return _error_result(email, f"holehe error: {result.stderr.strip() or 'unknown'}")
+            raw_results = json.loads(result.stdout)
+        except subprocess.TimeoutExpired:
+            return _error_result(email, "holehe timeout after 120s")
+        except json.JSONDecodeError as exc:
+            return _error_result(email, f"holehe parse error: {exc}")
     except Exception as exc:
         return _error_result(email, f"holehe error: {exc}")
 
