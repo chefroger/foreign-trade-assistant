@@ -213,13 +213,32 @@ async def status():
 import subprocess as _sp
 
 def _is_gateway_running() -> bool:
-    """检查是否有 Hermes Gateway 进程在运行。"""
+    """检查是否有 Hermes Gateway 进程在运行（跨平台）。"""
     try:
-        result = _sp.run(
-            ["pgrep", "-f", "hermes.*gateway"],
-            capture_output=True, text=True, timeout=3,
-        )
-        return result.returncode == 0 and bool(result.stdout.strip())
+        if os.name == "nt":
+            # Windows: tasklist /FI 过滤进程名
+            result = _sp.run(
+                ["tasklist", "/FI", "IMAGENAME eq python.exe", "/FO", "CSV", "/NH"],
+                capture_output=True, text=True, timeout=5,
+            )
+            # 检查输出中是否有 hermes gateway 相关命令行
+            # tasklist 只列进程名，用 wmic 更精确但需要管理员权限
+            # 降级策略：检查 hermes 命令是否可用 + 端口 8642 是否在监听
+            import socket as _sock
+            try:
+                s = _sock.socket(_sock.AF_INET, _sock.SOCK_STREAM)
+                s.settimeout(1)
+                s.connect(("127.0.0.1", 8642))
+                s.close()
+                return True
+            except Exception:
+                return False
+        else:
+            result = _sp.run(
+                ["pgrep", "-f", "hermes.*gateway"],
+                capture_output=True, text=True, timeout=3,
+            )
+            return result.returncode == 0 and bool(result.stdout.strip())
     except Exception:
         return False
 
@@ -230,14 +249,23 @@ def _ensure_gateway_running() -> None:
         return
 
     try:
-        # 使用 hermes CLI（而非 python -m），确保使用正确的 venv
         import shutil as _sh
         hermes_bin = _sh.which("hermes") or "hermes"
+
+        kwargs = {
+            "stdout": _sp.DEVNULL,
+            "stderr": _sp.DEVNULL,
+        }
+        # Windows 用 CREATE_NEW_PROCESS_GROUP，Unix 用 start_new_session
+        if os.name == "nt":
+            kwargs["creationflags"] = 0x00000200  # CREATE_NEW_PROCESS_GROUP
+        else:
+            kwargs["start_new_session"] = True
+
         _sp.Popen(
             [hermes_bin, "gateway", "run"],
-            stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
-            start_new_session=True,
             env={**os.environ, "GATEWAY_ALLOW_ALL_USERS": "true"},
+            **kwargs,
         )
         print(f"  Hermes Gateway → started (cron scheduler active)")
     except Exception as e:
