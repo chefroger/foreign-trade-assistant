@@ -21,7 +21,7 @@ dependencies = [
   # Hermes Agent — AI engine, tools, memory, skills.
   # MUST be installed from chefroger/hermes-agent fork (the only supported source).
   # Pin to exact git tag for deterministic installs.
-  "hermes-agent @ git+https://github.com/chefroger/hermes-agent.git@v0.12.0",
+  "hermes-agent @ git+https://github.com/chefroger/hermes-agent.git@v0.13.0",
   # Or for dev: "hermes-agent @ git+https://github.com/chefroger/hermes-agent.git@main",
   # Document extraction (used by read_file tool in Hermes)
   "pymupdf>=1.24.0",

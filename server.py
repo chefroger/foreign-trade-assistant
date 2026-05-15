@@ -75,21 +75,19 @@ load_hermes_dotenv(hermes_home=get_hermes_home())
 # Hermes 会检查此环境变量以跳过工具审批
 os.environ["HERMES_YOLO_MODE"] = "true"
 
-# 屏蔽 Hermes 可选工具缺失的 stderr 警告（如 fal_client 图片生成工具）
-# 这些工具在外贸场景中不需要，但 Hermes 启动时会打印警告干扰用户
-import io as _io
-_sys_stderr_filtered = _io.TextIOWrapper(
-    open(sys.stderr.fileno(), "wb", buffering=0, closefd=False),
-    encoding=sys.stderr.encoding, errors="replace",
-)
-_sys_stderr_filtered_write = _sys_stderr_filtered.write
-def _filtered_write(data):
-    # 静默屏蔽无害的工具缺失警告
-    if "Could not import tool module" in data or "No module named" in data:
-        return len(data)  # 假装写入成功
-    return _sys_stderr_filtered_write(data)
-_sys_stderr_filtered.write = _filtered_write
-sys.stderr = _sys_stderr_filtered
+# 屏蔽 Hermes 可选工具缺失的警告（logging Filter，不影响真实错误）
+import logging as _logging
+import warnings as _warnings
+
+class _ToolImportNoiseFilter(_logging.Filter):
+    """过滤 Hermes 启动时无关的可选工具缺失警告。"""
+    _NOISE = ("Could not import tool module", "No module named")
+    def filter(self, record: _logging.LogRecord) -> bool:
+        return not any(p in record.getMessage() for p in self._NOISE)
+
+_logging.getLogger().addFilter(_ToolImportNoiseFilter())
+_warnings.filterwarnings("ignore", message=r".*Could not import tool module.*")
+_warnings.filterwarnings("ignore", message=r".*No module named.*")
 
 # ── Server ────────────────────────────────────────────────────────────────
 import secrets
