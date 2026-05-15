@@ -1325,7 +1325,7 @@ function showCustomerEditModal(cid) {
         $('cust-name').value = c.name||'';
         $('cust-title').value = extra2['title']||'';
         $('cust-country').value = extra1['country']||'';
-        $('cust-email').value = extra2['email']||'';
+        $('cust-email').value = extra2['email']||c.contact||'';
         $('cust-phone').value = extra2['phone']||'';
         $('cust-whatsapp').value = extra2['whatsapp']||'';
         $('cust-wechat').value = extra2['wechat']||'';
@@ -1346,7 +1346,8 @@ async function saveCustomer() {
     const name = $('cust-name').value.trim();
     if (!name) { toast('请填写客户名称'); return; }
     const editId = $('cust-edit-id').value;
-    const contact = $('cust-contact').value.trim();
+    // contact 字段用 email 填充（Modal 已改为独立 email/phone 字段）
+    const contact = ($('cust-email')?.value?.trim() || $('cust-phone')?.value?.trim() || '');
     const note = $('cust-note').value.trim();
     const country = $('cust-country').value.trim();
     const tier = $('cust-tier').value;

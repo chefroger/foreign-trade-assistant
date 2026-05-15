@@ -162,9 +162,6 @@ def update(
     set_clause = ", ".join(f"{k} = ?" for k in basic_updates)
     values = list(basic_updates.values()) + [customer_id]
 
-    set_clause = ", ".join(f"{k} = ?" for k in updates)
-    values = list(updates.values()) + [customer_id]
-
     conn = get_connection()
     try:
         if company_id is not None:
