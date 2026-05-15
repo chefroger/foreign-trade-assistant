@@ -208,6 +208,35 @@ async def trade_chat_ui():
 async def status():
     return {"status": "ok", "app": "Foreign Trade Assistant"}
 
+# ── Hermes Gateway 子进程管理 ─────────────────────────────────────────────
+
+import subprocess as _sp
+
+_gateway_process: Optional[_sp.Popen] = None
+
+def _start_hermes_gateway(port: int = 8642) -> None:
+    """在后台启动 hermes gateway，确保定时任务 (cron) 可以运行。"""
+    global _gateway_process
+    try:
+        _gateway_process = _sp.Popen(
+            [sys.executable, "-m", "hermes_cli", "gateway", "--port", str(port)],
+            stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
+        )
+        print(f"  Hermes Gateway → http://127.0.0.1:{port} (cron tasks enabled)")
+    except Exception as e:
+        print(f"  ⚠️  Hermes Gateway 启动失败: {e}")
+
+def _stop_hermes_gateway() -> None:
+    """停止 Hermes Gateway 子进程。"""
+    global _gateway_process
+    if _gateway_process and _gateway_process.poll() is None:
+        _gateway_process.terminate()
+        try:
+            _gateway_process.wait(timeout=5)
+        except _sp.TimeoutExpired:
+            _gateway_process.kill()
+        _gateway_process = None
+
 # ── Entry point ───────────────────────────────────────────────────────────
 def main() -> None:
     """`trade` console script 入口 + `python server.py` 入口。"""
@@ -215,9 +244,13 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=9119)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument("--no-gateway", action="store_true", help="不启动 Hermes Gateway")
     args = parser.parse_args()
 
     _install_cors(args.port)
+
+    if not args.no_gateway:
+        _start_hermes_gateway()
 
     url = f"http://{args.host}:{args.port}/trade"
     print(f"\n  Foreign Trade Assistant → {url}")
@@ -228,7 +261,10 @@ def main() -> None:
         import threading
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
 
-    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    try:
+        uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    finally:
+        _stop_hermes_gateway()
 
 if __name__ == "__main__":
     main()
