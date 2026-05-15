@@ -212,30 +212,33 @@ async def status():
 
 import subprocess as _sp
 
-_gateway_process: Optional[_sp.Popen] = None
+_GATEWAY_PORT = 8642
 
-def _start_hermes_gateway(port: int = 8642) -> None:
-    """在后台启动 hermes gateway，确保定时任务 (cron) 可以运行。"""
-    global _gateway_process
+def _is_gateway_running() -> bool:
+    """检查 Hermes Gateway 是否已在运行。"""
+    import urllib.request as _ur
     try:
-        _gateway_process = _sp.Popen(
-            [sys.executable, "-m", "hermes_cli", "gateway", "--port", str(port)],
+        req = _ur.Request(f"http://127.0.0.1:{_GATEWAY_PORT}/health", method="GET")
+        with _ur.urlopen(req, timeout=2) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+def _ensure_gateway_running() -> None:
+    """如果 Gateway 未运行，启动它。Gateway 独立于 Trade 生命周期，Trade 退出后仍保持运行。"""
+    if _is_gateway_running():
+        print(f"  Hermes Gateway → http://127.0.0.1:{_GATEWAY_PORT} (already running)")
+        return
+
+    try:
+        _sp.Popen(
+            [sys.executable, "-m", "hermes_cli", "gateway", "--port", str(_GATEWAY_PORT)],
             stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
+            start_new_session=True,  # 独立进程组，Trade 退出不影响
         )
-        print(f"  Hermes Gateway → http://127.0.0.1:{port} (cron tasks enabled)")
+        print(f"  Hermes Gateway → http://127.0.0.1:{_GATEWAY_PORT} (started, cron tasks enabled)")
     except Exception as e:
         print(f"  ⚠️  Hermes Gateway 启动失败: {e}")
-
-def _stop_hermes_gateway() -> None:
-    """停止 Hermes Gateway 子进程。"""
-    global _gateway_process
-    if _gateway_process and _gateway_process.poll() is None:
-        _gateway_process.terminate()
-        try:
-            _gateway_process.wait(timeout=5)
-        except _sp.TimeoutExpired:
-            _gateway_process.kill()
-        _gateway_process = None
 
 # ── Entry point ───────────────────────────────────────────────────────────
 def main() -> None:
@@ -244,13 +247,13 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=9119)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--no-browser", action="store_true")
-    parser.add_argument("--no-gateway", action="store_true", help="不启动 Hermes Gateway")
+    parser.add_argument("--no-gateway", action="store_true", help="不检查/启动 Hermes Gateway")
     args = parser.parse_args()
 
     _install_cors(args.port)
 
     if not args.no_gateway:
-        _start_hermes_gateway()
+        _ensure_gateway_running()
 
     url = f"http://{args.host}:{args.port}/trade"
     print(f"\n  Foreign Trade Assistant → {url}")
@@ -261,10 +264,7 @@ def main() -> None:
         import threading
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
 
-    try:
-        uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
-    finally:
-        _stop_hermes_gateway()
+    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
 
 if __name__ == "__main__":
     main()
