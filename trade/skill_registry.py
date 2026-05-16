@@ -47,45 +47,126 @@ _SKILLS: list[dict] = [
             "综合风险评级（低/中/高）+ 5层验证详情（WHOIS/邮箱/制裁/技术栈/LinkedIn）"
             "+ 行动建议 + 红旗列表"
         ),
-        "augment_prompt": """你是 b2b-osint 技能。当用户需要进行客户背景调查、尽职调查、域名验证、企业邮箱核验或风险评估时，请执行以下步骤：
+        "augment_prompt": """你是 b2b-osint 智能背调技能。当用户需要进行客户背景调查、尽职调查、公司验证或风险评估时，按以下 3 个阶段逐步执行：
 
-1. 加载 skill: b2b-osint
-2. 调用 osint_full_check(目标, include_sanctions=True, include_tech_stack=True, include_linkedin=True)
-3. 解析返回的 report，按以下格式输出：
-   ## 综合风险评级
-   - 评级：[低/中/高风险]
-   - 分数：X/100
-   - 红旗：⚠️ 项列表
+════════════════════════════════════════
+Phase 1: 信息发现 (Discovery)
+════════════════════════════════════════
+用户可能只提供公司名，你需要自动挖掘所有关键信息。
 
-   ## 各层验证结果
-   ### 域名信息
-   - 域名：[domain]
-   - 注册时间：[age_days] 天（[age_category]）
-   - 注册商：[registrar]
-   - 红旗标记：如果 age_category == new，标记 ⚠️ 新注册域名
+1. 分析用户输入类型：
+   - 邮箱 (@) → 直接进入 Phase 3
+   - 域名 (含 .com/.cn 等) → 从 Phase 2 开始
+   - 公司名 → 执行完整 Phase 1 → 2 → 3
 
-   ### 企业邮箱验证
-   - 邮箱类型：[企业邮箱/个人邮箱]
-   - MX记录：[找到/未找到]
-   - 红旗标记：如果 is_personal == True，标记 ⚠️ 个人邮箱
+2. 使用 web_search 多角度搜索公司信息：
+   - "{公司名} official website" — 找官网
+   - "{公司名} LinkedIn company" — 找 LinkedIn 公司页
+   - "{公司名} contact email" — 找公开联系邮箱
+   - "{公司名} purchasing manager" — 找采购负责人
+   - "{公司名} CEO founder" — 找关键决策人
+   - "{公司名} scam legit review" — 找诈骗/合法性评价
+   - "site:linkedin.com {公司名}" — 站内精准搜 LinkedIn
 
-   ### 制裁名单
-   - 命中：[是/否]
-   - 风险等级：[none/low/medium/high]
+3. 从搜索结果中提取结构化信息：
+   - 公司官网 URL
+   - LinkedIn 公司页 URL
+   - 公开邮箱地址
+   - 关键人姓名和职位
+   - 公司所在国家和城市
 
-   ### 技术栈
-   - 平台：[platforms]
-   - 红旗标记：如果 is_free_platform == True，标记 ⚠️ 免费建站工具
+════════════════════════════════════════
+Phase 2: 信息提取与验证 (Extraction)
+════════════════════════════════════════
 
-   ### LinkedIn
-   - 公司页：[找到/未找到]
-   - 员工规模：[count]
-   - 域名匹配：[是/否]
+4. 使用 browser_navigate 访问官网关键页面：
+   a) 首页 — 确认公司真实存在、了解业务
+   b) Contact Us / 联系我们 — 提取邮箱、电话、地址
+   c) About Us / 关于我们 — 提取成立年份、团队规模
+   d) Team / Our Team — 提取关键人姓名和职位
+   对每个页面截图保存，将提取到的信息整理为结构化列表。
 
-   ## 行动建议
-   逐一列出 recommendations 中的每条建议
+5. 使用 browser_navigate 访问 LinkedIn 公司页：
+   a) 搜索 → 确认公司页存在
+   b) 查看 About 信息 — 员工规模、行业、成立年份、官网
+   c) 查看 Employees — 列出关键联系人（CEO/Purchasing Manager/Sales Director）
+   d) 交叉验证 LinkedIn 上的官网域名是否与 Phase 1 发现的域名一致
 
-如果用户没有提供具体目标（只说"帮我背调"），请先询问目标（邮箱/域名/公司名）。""",
+════════════════════════════════════════
+Phase 3: 深度背调 (Deep Verification)
+════════════════════════════════════════
+
+6. 对 Phase 1/2 中发现的每个邮箱地址：
+   a) 调用 email_background_check(邮箱) — 查 120+ 平台注册情况
+   b) 调用 verify_corporate_email(邮箱) — 判断企业邮箱 vs 个人邮箱
+   c) 输出每个邮箱的社交档案 URL 列表和真实性评分
+
+7. 对发现的域名：
+   a) 调用 domain_whois(域名) — 查注册时间、注册商、过期时间
+   b) 调用 detect_tech_stack(https://域名) — 查建站技术栈
+   c) 调用 check_sanctions(公司名) — 查 OFAC/UN 制裁名单
+   d) 调用 linkedin_company_verify(域名, 公司名) — 生成 LinkedIn 验证指令
+
+8. 所有信息汇总后，调用 compute_risk_score() 和 generate_recommendations() 生成最终评分。
+
+════════════════════════════════════════
+输出格式（完整情报报告）
+════════════════════════════════════════
+
+## 📋 公司概况
+| 项目 | 内容 |
+|------|------|
+| 公司名称 | [name] |
+| 官网 | [url] |
+| 所在国家 | [country] |
+| 成立时间 | [year]（来源：WHOIS / LinkedIn / 官网） |
+| 员工规模 | [count]（来源：LinkedIn） |
+| 行业 | [industry] |
+
+## 🔗 发现的联系方式
+| 姓名 | 职位 | 邮箱 | 电话 | 来源 |
+|------|------|------|------|------|
+| [name] | [title] | [email] | [phone] | [source] |
+
+## 🕵️ 邮箱背景调查
+对每个邮箱输出：
+- 邮箱 | 平台注册数 | 社交档案 | 真实性评分 | 风险标记
+
+## 🌐 域名与技术
+- 域名：[domain]
+- 注册时间：[days] 天（[age_category]）
+- 注册商：[registrar]
+- 技术栈：[technologies]
+- 建站平台：[platforms]（如为免费平台标记 ⚠️）
+
+## 🚫 制裁与合规
+- 命中制裁名单：[是/否]
+- 风险等级：[none/low/medium/high]
+- 命中详情：[如有命中列出名单名称和匹配字段]
+
+## 📊 LinkedIn 验证
+- 公司页：[找到/未找到]
+- 员工规模：[count]
+- 域名一致性：[匹配/不匹配]
+
+## 🎯 综合风险评级
+- 评级：[低/中/高风险]
+- 分数：X/100
+- 红旗列表：⚠️ [flag], ⚠️ [flag], ...
+
+## ✅ 行动建议
+[逐一列出 recommendation]
+
+════════════════════════════════════════
+IMPORTANT 规则
+════════════════════════════════════════
+- 每个 Phase 必须执行完才进入下一阶段
+- Phase 1 搜索到的信息要明确标注来源 URL
+- Phase 2 每访问一个页面都要截图
+- 如果 Phase 1 搜不到任何信息（新公司/空壳），在报告中明确标注
+- 提取到的邮箱务必用 verify_corporate_email 判断是企业邮箱还是个人邮箱
+- 个人邮箱是大红旗（⚠️），必须在报告中显著标注
+- 最终评分必须在 0-100 区间""",
     },
     {
         "name": "b2b-email-intel",
@@ -109,19 +190,33 @@ _SKILLS: list[dict] = [
             "用户名、头像、注册时间等公开信息 + "
             "社交档案URL列表 + 真实性评分（高/中/低）"
         ),
-        "augment_prompt": """你是 b2b-email-intel 技能。当用户需要调查某个邮箱的背景时（例如"查一下这个邮箱"、"背景调查"、"email intel"），请执行以下步骤：
+        "augment_prompt": """你是 b2b-email-intel 技能。当用户需要调查某个邮箱的背景时，请执行以下步骤：
 
-1. 从对话中提取邮箱地址（格式：xxx@domain.com）
-2. 加载 skill: b2b-email-intel
-3. 调用 email_background_check(邮箱地址)
-4. 返回结构化报告：
-   - 平台检测结果（checked_count / found_count）
-   - 每个平台：平台名 | 是否注册 | 用户名 | 档案URL | 注册时间
-   - 社交档案汇总（GitHub/LinkedIn/Twitter 等）
-   - 真实性评估：高/中/低 及依据
-   - 备注：哪些平台注册代表该客户可信度高
+情况 A — 用户提供了邮箱地址：
+  1. 调用 email_background_check(邮箱) 查 120+ 平台注册情况
+  2. 调用 verify_corporate_email(邮箱) 判断企业邮箱 vs 个人邮箱
+  3. 汇总输出：平台注册数 + 社交档案 + 真实性评分 + 风险标记
 
-如果用户只说了"背景调查"但没有提供邮箱，在回复中请用户补充邮箱地址。""",
+情况 B — 用户只提供了公司名/网站/人名，没有邮箱：
+  1. 先用 web_search 搜索 "{目标} email contact" 找公开邮箱
+  2. 用 browser_navigate 访问官网 Contact 页面提取邮箱
+  3. 找到邮箱后执行情况 A 的完整流程
+  4. 如果找不到任何邮箱，明确告知用户并要求补充
+
+输出格式：
+  ## 邮箱背景调查报告
+  - 邮箱：[email]
+  - 邮箱类型：[企业邮箱/个人邮箱] ⚠️ 个人邮箱标红
+  - 平台注册：checked_count 个平台中 found_count 个注册
+  - 社交档案：
+    · GitHub: [url]
+    · LinkedIn: [url]
+    · Twitter/X: [url]
+    · 其他: [url ...]
+  - 真实性评分：[高/中/低] + 依据
+  - 风险标记：[如有]
+
+多条邮箱时逐一列出。""",
     },
     {
         "name": "b2b-lead-generation",
