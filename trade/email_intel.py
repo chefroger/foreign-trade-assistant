@@ -66,8 +66,10 @@ def _check_holehe() -> bool:
     if _holehe_available is not None:
         return _holehe_available
     try:
-        import holehe.core
-        import holehe.modules
+        import importlib.util
+        # 验证 holehe 可导入（不实际 import 子模块，避免 F401）
+        if importlib.util.find_spec("holehe") is None:
+            raise ImportError("holehe not found")
         _holehe_available = True
     except ImportError as exc:
         _holehe_available = False
