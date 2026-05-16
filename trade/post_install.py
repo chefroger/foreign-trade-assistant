@@ -138,9 +138,13 @@ def install_skills() -> None:
         print("[post_install] Expected: <package-root>/skills/b2b-*/SKILL.md", file=sys.stderr)
         sys.exit(1)
 
-    # Find .trade-template in package root
-    self_dir = Path(__file__).parent.parent  # project root
-    template_dir = self_dir / ".trade-template"
+    # 查找 .trade-template — 与 skills 同级的模板目录
+    # 优先从 package_skills 的父目录查找（pip install . 场景）
+    # 其次从本脚本所在目录查找（pip install -e . 开发模式）
+    template_dir = package_skills.parent / ".trade-template"
+    if not template_dir.is_dir():
+        self_dir = Path(__file__).parent.parent  # project root (dev install fallback)
+        template_dir = self_dir / ".trade-template"
 
     # Copy skills to Hermes
     print(f"[post_install] Hermes home:   {hermes_home}")
