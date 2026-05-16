@@ -179,13 +179,18 @@ def match_skill(query: str) -> dict | None:
         matched_text = explicit_match.group(0)
         # 归一化：将空格和下划线转为连字符，以匹配 "用 b2b email intel" 这种写法
         normalized_match = matched_text.lower().replace(" ", "-").replace("_", "-")
-        skill_name_candidate = next(
-            (name for name in skill_names()
-             if name in normalized_match),
-            None,
-        )
-        if skill_name_candidate:
-            return get_skill_by_name(skill_name_candidate)
+        # 提取 normalized_match 中所有 "b2b-xxx" 形式的完整 token
+        # 精确匹配，避免 "用 b2b" 截断后误匹配到不完整的 skill 名
+        candidates = re.findall(r'b2b-[\w-]+', normalized_match)
+        if candidates:
+            skill_name_candidate = next(
+                (name for c in candidates
+                 for name in skill_names()
+                 if name == c),  # 精确匹配，而非子串
+                None,
+            )
+            if skill_name_candidate:
+                return get_skill_by_name(skill_name_candidate)
 
     # ── 策略 2：关键词/正则匹配 ──
     normed = _norm(query)
