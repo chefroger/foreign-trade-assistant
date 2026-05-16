@@ -124,7 +124,8 @@ else
 fi
 
 cd "$TRADE_DIR"
-"$PYTHON" -m pip install -e "." --quiet 2>&1 | tail -1
+# --no-deps 跳过依赖安装，因为 hermes-agent 已在 Step 2 通过 editable install 装好
+"$PYTHON" -m pip install -e "." --no-deps --quiet 2>&1 | tail -1
 cd - >/dev/null
 
 log_ok "Foreign Trade Assistant 安装完成"

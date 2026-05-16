@@ -120,7 +120,8 @@ if (Test-Path $TradeDir) {
 }
 
 Push-Location $TradeDir
-& $PythonCmd -m pip install -e "." --quiet 2>&1 | Select-Object -Last 1
+# --no-deps 跳过依赖安装，因为 hermes-agent 已在 Step 2 通过 editable install 装好
+& $PythonCmd -m pip install -e "." --no-deps --quiet 2>&1 | Select-Object -Last 1
 Pop-Location
 
 Write-Host "  ✓ Foreign Trade Assistant 安装完成" -ForegroundColor Green
