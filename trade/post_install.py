@@ -243,14 +243,181 @@ def update_skills() -> None:
         print("Hermes will pick up the updated skills on the next request.")
 
 
+def update_trade() -> None:
+    """一键更新 Foreign Trade Assistant 系统。
+
+    执行步骤：
+      1. git pull（拉取最新代码）
+      2. pip install -e . --no-deps（更新包注册）
+      3. update_skills()（同步最新 B2B skills）
+      4. 数据库迁移检查
+
+    用法：trade-update（或 trade update）
+    """
+    import subprocess
+
+    trade_dir = _get_trade_home() / "foreign-trade-assistant"
+    if not trade_dir.is_dir():
+        print("[update_trade] ERROR: Trade install directory not found.", file=sys.stderr)
+        print(f"  Expected: {trade_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    ok = True
+
+    # 1. git pull
+    print("→ Step 1/4: git pull ...")
+    result = subprocess.run(
+        ["git", "pull", "--ff-only", "origin", "main"],
+        cwd=str(trade_dir), capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        print(f"  ⚠ git pull failed: {result.stderr.strip()}")
+        print("  (继续后续步骤...)")
+        ok = False
+    else:
+        print(f"  ✓ {result.stdout.strip().split(chr(10))[-1] if result.stdout.strip() else 'Already up-to-date.'}")
+
+    # 2. pip install
+    print("→ Step 2/4: pip install ...")
+    pip_args = [sys.executable, "-m", "pip", "install", "-e", str(trade_dir), "--no-deps", "--quiet"]
+    result = subprocess.run(pip_args, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"  ⚠ pip install failed: {result.stderr.strip()}")
+        ok = False
+    else:
+        print("  ✓ Package updated")
+
+    # 3. skills
+    print("→ Step 3/4: skills update ...")
+    try:
+        update_skills()
+    except SystemExit:
+        ok = False
+
+    # 4. db migration (idempotent)
+    print("→ Step 4/4: database check ...")
+    try:
+        from trade.database import init_db
+        db_path = init_db()
+        print(f"  ✓ Database OK ({db_path})")
+    except Exception as e:
+        print(f"  ⚠ Database check failed: {e}")
+        ok = False
+
+    if ok:
+        print("\n✅ Trade update complete. Restart the server to apply changes.")
+    else:
+        print("\n⚠️  Trade update completed with warnings. Check the output above.")
+
+
+def backup_trade(output_dir: str | None = None) -> str:
+    """备份 Trade 系统数据为 tar.gz 压缩包。
+
+    包含：
+      - ~/.trade/data/trade.db（SQLite 数据库）
+      - ~/.trade/companies/{slug}/（公司数据）
+      - ~/.trade/prompts/（系统 prompts）
+      - ~/.hermes/memories/（Hermes 记忆）
+      - ~/.hermes/skills/b2b-*/（B2B skills）
+
+    Args:
+        output_dir: 输出目录（默认桌面）
+
+    Returns:
+        生成的 tar.gz 文件路径
+
+    用法：trade-backup [output_dir]（或 trade backup）
+    """
+    import datetime
+    import tarfile
+
+    if output_dir is None:
+        desktop = Path.home() / "Desktop"
+        if not desktop.is_dir():
+            desktop = Path.home() / "桌面"
+        if not desktop.is_dir():
+            desktop = Path.home()
+        output_dir = str(desktop)
+
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H%M")
+    filename = f"trade-backup-{timestamp}.tar.gz"
+    out_path = Path(output_dir) / filename
+
+    trade_home = _get_trade_home()
+    hermes_home = _get_hermes_home()
+
+    # 需要打包的路径列表
+    sources: list[tuple[Path, str]] = []  # (absolute_path, arcname_in_tar)
+
+    # SQLite database
+    db_path = trade_home / "data" / "trade.db"
+    if db_path.is_file():
+        sources.append((db_path, ".trade/data/trade.db"))
+
+    # 公司数据目录
+    companies_dir = trade_home / "companies"
+    if companies_dir.is_dir():
+        for company_dir in companies_dir.iterdir():
+            if company_dir.is_dir():
+                for f in company_dir.rglob("*"):
+                    if f.is_file():
+                        rel = str(f.relative_to(trade_home))
+                        sources.append((f, f".trade/{rel}"))
+
+    # prompts
+    prompts_dir = trade_home / "prompts"
+    if prompts_dir.is_dir():
+        for f in prompts_dir.rglob("*"):
+            if f.is_file():
+                sources.append((f, f".trade/{f.relative_to(trade_home)}"))
+
+    # Hermes memories
+    memories_dir = hermes_home / "memories"
+    if memories_dir.is_dir():
+        for f in memories_dir.rglob("*"):
+            if f.is_file() and f.suffix in (".md", ".json", ".txt"):
+                sources.append((f, f".hermes/memories/{f.relative_to(memories_dir)}"))
+
+    # B2B skills
+    skills_dir = hermes_home / "skills"
+    if skills_dir.is_dir():
+        for skill_dir in skills_dir.iterdir():
+            if skill_dir.is_dir() and skill_dir.name.startswith("b2b-"):
+                skill_md = skill_dir / "SKILL.md"
+                if skill_md.is_file():
+                    sources.append((skill_md, f".hermes/skills/{skill_dir.name}/SKILL.md"))
+
+    if not sources:
+        print("[backup] WARNING: No data found to backup.")
+        return ""
+
+    print(f"[backup] Packaging {len(sources)} files ...")
+    with tarfile.open(out_path, "w:gz") as tar:
+        for abs_path, arcname in sources:
+            tar.add(str(abs_path), arcname=arcname)
+
+    size_mb = out_path.stat().st_size / (1024 * 1024)
+    print(f"[backup] Done: {out_path} ({size_mb:.1f} MB)")
+    return str(out_path)
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Trade Skills Manager")
-    parser.add_argument("action", nargs="?", default="install",
-                        choices=["install", "update"],
-                        help="install: copy from local package (default), update: fetch from GitHub")
+    sub = parser.add_subparsers(dest="command")
+
+    sub.add_parser("install", help="Install skills from local package")
+    sub.add_parser("update", help="Update skills from GitHub")
+    p_up = sub.add_parser("update-trade", help="Update entire Trade system")
+    p_backup = sub.add_parser("backup", help="Backup Trade data")
+    p_backup.add_argument("--output", "-o", default=None, help="Output directory (default: Desktop)")
+
     args = parser.parse_args()
-    if args.action == "update":
+    if args.command == "update":
         update_skills()
+    elif args.command == "update-trade":
+        update_trade()
+    elif args.command == "backup":
+        backup_trade(args.output)
     else:
         install_skills()

@@ -99,23 +99,45 @@ def get_active_jobs():
     return jobs
 
 
-@router.post("/skills/update")
-def update_skills():
-    """从 GitHub 拉取最新 B2B skill 定义。"""
+def _capture_output(func, *args, **kwargs) -> dict:
+    """在内存中捕获函数的 print 输出，返回 {"ok": True, "output": str} 或 error。"""
     try:
-        from trade.post_install import update_skills as _do_update
         import io
         _buf = io.StringIO()
         _orig_stdout = sys.stdout
         sys.stdout = _buf
         try:
-            _do_update()
+            result = func(*args, **kwargs)
         finally:
             sys.stdout = _orig_stdout
         output = _buf.getvalue()
-        return {"ok": True, "output": output}
+        resp = {"ok": True, "output": output}
+        if isinstance(result, str) and result:
+            resp["file"] = result
+        return resp
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+@router.post("/skills/update")
+def api_update_skills():
+    """从 GitHub 拉取最新 B2B skill 定义。"""
+    from trade.post_install import update_skills as _do_update
+    return _capture_output(_do_update)
+
+
+@router.post("/system/update")
+def api_update_trade():
+    """一键更新 Trade 系统（git pull + pip install + skills + db）。"""
+    from trade.post_install import update_trade as _do_update
+    return _capture_output(_do_update)
+
+
+@router.post("/system/backup")
+def api_backup_trade():
+    """备份 Trade 系统数据为 tar.gz，返回文件路径。"""
+    from trade.post_install import backup_trade as _do_backup
+    return _capture_output(_do_backup)
 
 
 def _find_cron_output(task_name: str, today: str) -> str | None:

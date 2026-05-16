@@ -48,6 +48,10 @@ trade = "server:main"
 install-trade-skills = "trade.post_install:install_skills"
 # Update B2B skills from GitHub (fetches latest SKILL.md from main branch)
 trade-skills-update = "trade.post_install:update_skills"
+# Update entire Trade system (git pull + pip install + skills + db)
+trade-update = "trade.post_install:update_trade"
+# Backup Trade data to tar.gz
+trade-backup = "trade.post_install:backup_trade"
 
 [tool.setuptools.packages.find]
 include = ["trade", "trade.*"]
