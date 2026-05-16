@@ -59,16 +59,29 @@ Phase 1: 信息发现 (Discovery)
    - 域名 (含 .com/.cn 等) → 从 Phase 2 开始
    - 公司名 → 执行完整 Phase 1 → 2 → 3
 
-2. 使用 web_search 多角度搜索公司信息：
-   - "{公司名} official website" — 找官网
-   - "{公司名} LinkedIn company" — 找 LinkedIn 公司页
-   - "{公司名} contact email" — 找公开联系邮箱
-   - "{公司名} purchasing manager" — 找采购负责人
-   - "{公司名} CEO founder" — 找关键决策人
-   - "{公司名} scam legit review" — 找诈骗/合法性评价
-   - "site:linkedin.com {公司名}" — 站内精准搜 LinkedIn
+2. 使用 web_search 多角度搜索公司信息。MUST use English-only queries for
+   non-Chinese companies — 用英文搜索词才能命中国际结果：
+   - "{Company Name} official website" — 找官网
+   - "{Company Name} contact email phone" — 找联系方式
+   - "{Company Name} LinkedIn" — 找 LinkedIn 公司页
+   - "{Company Name} CEO founder director" — 找关键决策人
+   - "{Company Name} purchasing procurement manager" — 找采购负责人
+   - "{Company Name} company profile overview" — 找公司概况
+   - "{Company Name} review scam legit" — 找合法性评价
 
-3. 从搜索结果中提取结构化信息：
+   搜索技巧：
+   - 公司名加引号精确匹配 "{Company Name}"
+   - 公司名去掉 (PTY) LTD / Ltd / Inc / GmbH 等后缀重搜一遍
+   - 如果搜不到，尝试提取公司名核心词单独搜
+   - 国家名加在搜索词中缩小范围，如 "{Company Name} South Africa"
+
+3. 如果 web_search 无结果或结果很少，立即用 browser_navigate 直接访问
+   LinkedIn 搜索页：
+   - https://www.linkedin.com/search/results/companies/?keywords={URL编码的公司名}
+   - https://www.linkedin.com/search/results/people/?keywords={URL编码的公司名}
+   LinkedIn 是全球企业信息最全的来源，远比通用搜索引擎有效。
+
+4. 从搜索结果中提取结构化信息：
    - 公司官网 URL
    - LinkedIn 公司页 URL
    - 公开邮箱地址
@@ -198,10 +211,13 @@ IMPORTANT 规则
   3. 汇总输出：平台注册数 + 社交档案 + 真实性评分 + 风险标记
 
 情况 B — 用户只提供了公司名/网站/人名，没有邮箱：
-  1. 先用 web_search 搜索 "{目标} email contact" 找公开邮箱
-  2. 用 browser_navigate 访问官网 Contact 页面提取邮箱
-  3. 找到邮箱后执行情况 A 的完整流程
-  4. 如果找不到任何邮箱，明确告知用户并要求补充
+  1. MUST use English queries for non-Chinese targets:
+     - web_search "{Target} email address contact"
+     - web_search "{Target} @gmail.com OR @yahoo.com" (找公开邮件地址)
+  2. 用 browser_navigate 访问官网 Contact/About 页面，扫描页面文本中所有 @ 的邮箱
+  3. 用 browser_navigate 访问 LinkedIn 公司页 Employees 列表，提取可见的联系方式
+  4. 找到邮箱后执行情况 A 的完整流程
+  5. 如果找不到任何邮箱，明确告知用户并要求补充
 
 输出格式：
   ## 邮箱背景调查报告
