@@ -46,6 +46,8 @@ trade = "server:main"
 # Installs Trade skills into Hermes at package install time.
 # Copies skills/b2b-* to ~/.hermes/skills/b2b/ so Hermes can discover them.
 install-trade-skills = "trade.post_install:install_skills"
+# Update B2B skills from GitHub (fetches latest SKILL.md from main branch)
+trade-skills-update = "trade.post_install:update_skills"
 
 [tool.setuptools.packages.find]
 include = ["trade", "trade.*"]

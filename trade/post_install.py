@@ -170,5 +170,87 @@ def install_skills() -> None:
     print("[post_install] Done.")
 
 
+def update_skills() -> None:
+    """从 GitHub 拉取最新 B2B skill 定义并更新到本地 Hermes 目录。
+
+    和 install_skills 的区别：
+      - install_skills: 从本地 pip 安装包中复制 skills（安装时用）
+      - update_skills:  从 GitHub main 分支下载最新 SKILL.md（更新时用）
+
+    用法：trade-skills-update（或 python -m trade.post_install update）
+    """
+    import hashlib
+    import urllib.request
+
+    hermes_home = _get_hermes_home()
+    hermes_skills_dir = hermes_home / "skills"
+
+    # 本地包中的 skills 目录（用于列出需要更新哪些 skill）
+    package_skills = _get_package_skills_dir()
+    if package_skills is None:
+        print("[update_skills] ERROR: Cannot find local skills directory.", file=sys.stderr)
+        sys.exit(1)
+
+    # GitHub raw URL 前缀
+    RAW_BASE = "https://raw.githubusercontent.com/chefroger/foreign-trade-assistant/main/skills"
+
+    updated = 0
+    skipped = 0
+    failed = 0
+
+    for skill_dir in sorted(package_skills.iterdir()):
+        if not skill_dir.is_dir() or not skill_dir.name.startswith("b2b-"):
+            continue
+
+        skill_name = skill_dir.name
+        raw_url = f"{RAW_BASE}/{skill_name}/SKILL.md"
+        dest_dir = hermes_skills_dir / skill_name
+        dest_file = dest_dir / "SKILL.md"
+
+        try:
+            # 下载 GitHub 上的最新 SKILL.md
+            req = urllib.request.Request(
+                raw_url,
+                headers={"User-Agent": "Trade-Skills-Updater/1.0"},
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                remote_content = resp.read().decode("utf-8")
+
+            # 比较 hash，相同则跳过
+            remote_hash = hashlib.sha256(remote_content.encode()).hexdigest()
+            if dest_file.is_file():
+                local_hash = hashlib.sha256(dest_file.read_bytes()).hexdigest()
+                if local_hash == remote_hash:
+                    print(f"  ✓ {skill_name} (already up-to-date)")
+                    skipped += 1
+                    continue
+
+            # 写入新内容
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            dest_file.write_text(remote_content, encoding="utf-8")
+            print(f"  ↻ {skill_name} (updated)")
+            updated += 1
+
+        except urllib.error.HTTPError as e:
+            print(f"  ✗ {skill_name} (HTTP {e.code}: {raw_url})", file=sys.stderr)
+            failed += 1
+        except Exception as e:
+            print(f"  ✗ {skill_name} (error: {e})", file=sys.stderr)
+            failed += 1
+
+    print(f"\n[update_skills] Done. {updated} updated, {skipped} skipped, {failed} failed.")
+    if updated > 0:
+        print("Hermes will pick up the updated skills on the next request.")
+
+
 if __name__ == "__main__":
-    install_skills()
+    import argparse
+    parser = argparse.ArgumentParser(description="Trade Skills Manager")
+    parser.add_argument("action", nargs="?", default="install",
+                        choices=["install", "update"],
+                        help="install: copy from local package (default), update: fetch from GitHub")
+    args = parser.parse_args()
+    if args.action == "update":
+        update_skills()
+    else:
+        install_skills()
