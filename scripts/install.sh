@@ -120,10 +120,9 @@ else
 fi
 
 cd "$TRADE_DIR"
-# Step 2 已把 hermes-agent 装进 venv，这里装 trade 自身依赖即可
-# 先装非 hermes-agent 的依赖，再装 trade 本身（--no-deps 避免 git checkout 冲突）
-"$PIP" install packaging pyyaml fastapi "uvicorn[standard]" pymupdf openpyxl python-docx python-pptx xlrd beautifulsoup4 python-multipart pydantic --quiet 2>&1 | tail -1
-"$PIP" install -e "." --no-deps --quiet 2>&1 | tail -1
+# 装依赖（不含 hermes-agent，它在 Step 2 已装进 venv）+ trade 自身
+"$PIP" install -r requirements.txt --quiet
+"$PIP" install -e "." --no-deps --quiet
 cd - >/dev/null
 
 log_ok "Foreign Trade Assistant 安装完成"

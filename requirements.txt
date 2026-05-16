@@ -1,0 +1,18 @@
+# Foreign Trade Assistant — 非 git 依赖（不含 hermes-agent）
+# hermes-agent 需单独通过 install.sh Step 2 或手动 git clone + pip install -e . 安装
+
+# Core
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.9
+pyyaml>=6.0
+packaging>=23.0
+pydantic>=2.0
+
+# Document extraction (read_file tool)
+pymupdf>=1.24.0
+openpyxl>=3.1.0
+python-docx>=1.1.0
+python-pptx>=1.0.0
+xlrd>=2.0.0
+beautifulsoup4>=4.12.0
