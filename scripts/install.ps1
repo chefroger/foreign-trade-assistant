@@ -119,6 +119,8 @@ if (Test-Path $TradeDir) {
 }
 
 Push-Location $TradeDir
+# 先装依赖，再装 trade 自身（--no-deps 避免 hermes-agent git checkout 冲突）
+& $PipCmd install packaging pyyaml fastapi "uvicorn[standard]" pymupdf openpyxl python-docx python-pptx xlrd beautifulsoup4 python-multipart pydantic --quiet 2>&1 | Select-Object -Last 1
 & $PipCmd install -e "." --no-deps --quiet 2>&1 | Select-Object -Last 1
 Pop-Location
 

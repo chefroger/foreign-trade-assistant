@@ -120,7 +120,9 @@ else
 fi
 
 cd "$TRADE_DIR"
-# hermes-agent 已在 venv 中 editable install，这里用 --no-deps 避免重复解析 git 依赖
+# Step 2 已把 hermes-agent 装进 venv，这里装 trade 自身依赖即可
+# 先装非 hermes-agent 的依赖，再装 trade 本身（--no-deps 避免 git checkout 冲突）
+"$PIP" install packaging pyyaml fastapi "uvicorn[standard]" pymupdf openpyxl python-docx python-pptx xlrd beautifulsoup4 python-multipart pydantic --quiet 2>&1 | tail -1
 "$PIP" install -e "." --no-deps --quiet 2>&1 | tail -1
 cd - >/dev/null
 
