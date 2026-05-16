@@ -4,15 +4,7 @@
 # 使用方式:
 #   powershell -ExecutionPolicy Bypass -File install.ps1
 #
-# 或从 GitHub:
-#   powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/chefroger/foreign-trade-assistant/main/scripts/install.ps1' -OutFile install.ps1; .\install.ps1"
-#
-# 安装流程:
-#   1. 检查 Python >= 3.11
-#   2. 安装 hermes-agent (chefroger fork)
-#   3. 安装 foreign-trade-assistant
-#   4. 安装 B2B skills
-#   5. 初始化数据目录
+# 全程使用 venv，不碰系统 Python site-packages。
 # ==============================================================================
 
 $ErrorActionPreference = "Stop"
@@ -50,22 +42,31 @@ if (-not $PythonCmd) {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 2: 检查/安装 hermes-agent
+# 创建 venv
+# ─────────────────────────────────────────────────────────────────────────────
+$TradeHome = if ($env:TRADE_HOME) { $env:TRADE_HOME } else { "$env:LOCALAPPDATA\trade" }
+$VenvDir = "$TradeHome\venv"
+if (-not (Test-Path "$VenvDir\Scripts\python.exe")) {
+    Write-Host "  → 创建虚拟环境..."
+    & $PythonCmd -m venv $VenvDir
+}
+$PipCmd = "$VenvDir\Scripts\pip.exe"
+$PyCmd  = "$VenvDir\Scripts\python.exe"
+Write-Host "  ✓ 虚拟环境就绪 ($VenvDir)" -ForegroundColor Green
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 2: 安装 hermes-agent
 # ─────────────────────────────────────────────────────────────────────────────
 Write-Host ""
-Write-Host "Step 2/5: 检查 hermes-agent" -ForegroundColor White
+Write-Host "Step 2/5: 安装 hermes-agent" -ForegroundColor White
 
 $HermesHome = if ($env:HERMES_HOME) { $env:HERMES_HOME } else { "$env:LOCALAPPDATA\hermes" }
-$HermesOk = $false
 
 try {
-    & $PythonCmd -c "import hermes_cli" 2>$null
-    $hermesVer = & $PythonCmd -c "import hermes_cli; print(hermes_cli.__version__)" 2>$null
+    & $PyCmd -c "import hermes_cli" 2>$null
+    $hermesVer = & $PyCmd -c "import hermes_cli; print(hermes_cli.__version__)" 2>$null
     Write-Host "  ✓ hermes-agent 已安装 (v$hermesVer)" -ForegroundColor Green
-    $HermesOk = $true
-} catch {}
-
-if (-not $HermesOk) {
+} catch {
     Write-Host "  → 正在安装 hermes-agent (chefroger fork)..." -ForegroundColor Cyan
 
     $HermesRepo = "https://github.com/chefroger/hermes-agent.git"
@@ -79,17 +80,16 @@ if (-not $HermesOk) {
         git clone --branch main $HermesRepo $HermesDir 2>&1 | Out-Null
         if ($LASTEXITCODE -ne 0) {
             Write-Host "  ✗ 无法克隆 hermes-agent。请检查网络连接和 Git 是否安装。" -ForegroundColor Red
-            Write-Host "    手动安装: git clone $HermesRepo $HermesDir" -ForegroundColor Yellow
             exit 1
         }
     }
 
     Push-Location $HermesDir
-    & $PythonCmd -m pip install -e "." --quiet 2>&1 | Select-Object -Last 1
+    & $PipCmd install -e "." --quiet 2>&1 | Select-Object -Last 1
     Pop-Location
 
     try {
-        & $PythonCmd -c "import hermes_cli"
+        & $PyCmd -c "import hermes_cli"
         Write-Host "  ✓ hermes-agent 安装完成" -ForegroundColor Green
     } catch {
         Write-Host "  ✗ hermes-agent 安装失败" -ForegroundColor Red
@@ -103,7 +103,6 @@ if (-not $HermesOk) {
 Write-Host ""
 Write-Host "Step 3/5: 安装 Foreign Trade Assistant" -ForegroundColor White
 
-$TradeHome = if ($env:TRADE_HOME) { $env:TRADE_HOME } else { "$env:LOCALAPPDATA\trade" }
 $TradeRepo = "https://github.com/chefroger/foreign-trade-assistant.git"
 $TradeDir = "$TradeHome\foreign-trade-assistant"
 
@@ -120,8 +119,7 @@ if (Test-Path $TradeDir) {
 }
 
 Push-Location $TradeDir
-# --no-deps 跳过依赖安装，因为 hermes-agent 已在 Step 2 通过 editable install 装好
-& $PythonCmd -m pip install -e "." --no-deps --quiet 2>&1 | Select-Object -Last 1
+& $PipCmd install -e "." --no-deps --quiet 2>&1 | Select-Object -Last 1
 Pop-Location
 
 Write-Host "  ✓ Foreign Trade Assistant 安装完成" -ForegroundColor Green
@@ -133,7 +131,7 @@ Write-Host ""
 Write-Host "Step 4/5: 安装 B2B skills" -ForegroundColor White
 
 try {
-    & $PythonCmd -m trade.post_install 2>$null
+    & $PyCmd -m trade.post_install 2>$null
     Write-Host "  ✓ B2B skills 安装完成" -ForegroundColor Green
 } catch {
     Write-Host "  ⚠ B2B skills 安装可能不完整（首次启动时会自动同步）" -ForegroundColor Yellow
@@ -150,21 +148,30 @@ New-Item -ItemType Directory -Path $DataDir -Force | Out-Null
 New-Item -ItemType Directory -Path "$TradeHome\companies" -Force | Out-Null
 
 try {
-    & $PythonCmd -c "from trade.database import init_db; init_db()" 2>$null
+    & $PyCmd -c "from trade.database import init_db; init_db()" 2>$null
     Write-Host "  ✓ 数据库初始化完成 ($DataDir\trade.db)" -ForegroundColor Green
 } catch {
     Write-Host "  → 数据库将在首次启动时自动初始化" -ForegroundColor Cyan
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 完成
+# 导出 trade 命令
 # ─────────────────────────────────────────────────────────────────────────────
+$LocalBin = "$env:LOCALAPPDATA\local\bin"
+New-Item -ItemType Directory -Path $LocalBin -Force | Out-Null
+
+@"
+@echo off
+set HERMES_HOME=%HERMES_HOME%;$HermesHome
+"$PyCmd" "$TradeDir\server.py" %*
+"@ | Out-File -FilePath "$LocalBin\trade.cmd" -Encoding ASCII
+
 Write-Host ""
 Write-Host "══ 安装完成 ══" -ForegroundColor Green
 Write-Host ""
 Write-Host "  启动方式:"
-Write-Host "    cd $TradeDir"
-Write-Host "    python server.py"
+Write-Host "    新终端: trade"
+Write-Host "    或: $PyCmd $TradeDir\server.py"
 Write-Host ""
 Write-Host "  启动后打开: http://127.0.0.1:9119/trade"
 Write-Host ""
