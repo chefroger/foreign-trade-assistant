@@ -272,8 +272,13 @@ def _load_ofac_sanctions() -> None:
 def _load_un_sanctions() -> None:
     """加载联合国安理会制裁名单。
 
-    UN 制裁名单没有直接 CSV 端点，使用 HTML 表格解析。
-    当前使用内存备份数据作为 fallback。
+    UN 制裁名单目前没有提供机器可读的 CSV 端点（仅 HTML 表格页面），
+    因此使用本地维护的 fallback 数据。未来可通过以下方式改进：
+      1. 定期从 https://www.un.org/securitycouncil/content/un-sc-consolidated-list 抓取
+      2. 使用第三方维护的 sanctions 数据集
+
+    注意：OFAC SDN 已覆盖大部分国际贸易制裁实体，
+    UN / EU 制裁名单与 OFAC 高度重叠。
     """
     _sanctions_cache["UN"] = _get_fallback_un_entries()
 
