@@ -11,6 +11,9 @@ import os
 from datetime import date, datetime
 from pathlib import Path
 
+import subprocess
+import sys
+
 from fastapi import APIRouter
 
 router = APIRouter(tags=["cron"])
@@ -94,6 +97,25 @@ def get_active_jobs():
         })
 
     return jobs
+
+
+@router.post("/skills/update")
+def update_skills():
+    """从 GitHub 拉取最新 B2B skill 定义。"""
+    try:
+        from trade.post_install import update_skills as _do_update
+        import io
+        _buf = io.StringIO()
+        _orig_stdout = sys.stdout
+        sys.stdout = _buf
+        try:
+            _do_update()
+        finally:
+            sys.stdout = _orig_stdout
+        output = _buf.getvalue()
+        return {"ok": True, "output": output}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 
 def _find_cron_output(task_name: str, today: str) -> str | None:

@@ -444,6 +444,10 @@ body {
         </div>
     </nav>
 
+    <div class="sidebar-footer">
+        <button onclick="updateSkills()" title="从 GitHub 更新 B2B skills 到最新版本">🔄 Skills 更新</button>
+    </div>
+
 </aside>
 
 <!-- ═════════════════════ MAIN ═════════════════════ -->
@@ -589,6 +593,27 @@ async function api(method, path, body) {
         clearTimeout(tid);
         if (e.name === 'AbortError') { toast('请求超时'); return null; }
         throw e;
+    }
+}
+
+// ── Skills 更新 ──
+async function updateSkills() {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '⏳ 更新中...';
+    try {
+        const resp = await api('POST', '/api/trade/skills/update');
+        if (resp && resp.ok) {
+            toast('✅ Skills 更新完成！已同步最新版本');
+            console.log(resp.output);
+        } else {
+            toast('❌ 更新失败: ' + (resp?.error || '未知错误'));
+        }
+    } catch(e) {
+        toast('❌ 更新出错: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🔄 Skills 更新';
     }
 }
 
