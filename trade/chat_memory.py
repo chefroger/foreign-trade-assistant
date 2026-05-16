@@ -249,11 +249,12 @@ def search_history(
             start = None
 
         if start:
+            start_str = start.strftime("%Y-%m-%d %H:%M:%S")
             rows = conn.execute(
                 "SELECT id, company_id, library_id, query, response, files_read, created_at "
                 "FROM conversations WHERE company_id = ? AND created_at >= ? "
                 "ORDER BY id ASC LIMIT ?",
-                (company_id, start.isoformat(), limit),
+                (company_id, start_str, limit),
             ).fetchall()
         else:
             rows = conn.execute(
