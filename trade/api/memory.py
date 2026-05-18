@@ -46,6 +46,29 @@ def memory_recall(
     return {"results": [result], "query": query}
 
 
+# ── helpers ─────────────────────────────────────────────────────────────────
+
+def _parse_model_string(raw: str) -> dict:
+    """Parse v0.14 flat model string back to provider/model dict.
+
+    Supports formats:
+      - "provider:model"  (colon-separated)
+      - "provider/model"  (slash-separated, e.g. openrouter/anthropic/claude-sonnet-4)
+
+    Returns {"provider": str, "model": str}.
+    """
+    if "/" in raw:
+        parts = raw.split("/", 1)
+        provider = parts[0]
+        model = parts[1] if len(parts) > 1 else ""
+    elif ":" in raw:
+        provider, _, model = raw.partition(":")
+    else:
+        provider = ""
+        model = raw
+    return {"provider": provider or "", "model": model or raw}
+
+
 # ── LLM 提供商 ────────────────────────────────────────────────────────────
 
 @router.get("/models/providers")
@@ -63,9 +86,15 @@ def list_providers():
         model_cfg = cfg.get("model", {})
         active_provider = ""
         active_model = ""
+        # 兼容 v0.13 (dict) 和 v0.14+ (str) 两种 config.model 格式
         if isinstance(model_cfg, dict):
             active_provider = model_cfg.get("provider", "")
             active_model = model_cfg.get("default", "")
+        elif isinstance(model_cfg, str) and model_cfg.strip():
+            # v0.14 flat format: "provider:model" 或 "provider/model"
+            parsed = _parse_model_string(model_cfg)
+            active_provider = parsed["provider"]
+            active_model = parsed["model"]
 
         providers = []
         for pid, pconfig in PROVIDER_REGISTRY.items():
@@ -77,10 +106,10 @@ def list_providers():
                         has_key = True
                         break
 
-            # 获取该提供商的模型列表
+            # 获取该提供商的模型列表（v0.14 移除了 name_to_models，使用 _PROVIDER_MODELS）
             try:
-                from hermes_cli.models import name_to_models
-                models = name_to_models.get(pid, [])
+                from hermes_cli.models import _PROVIDER_MODELS
+                models = _PROVIDER_MODELS.get(pid, [])
             except Exception:
                 models = []
 

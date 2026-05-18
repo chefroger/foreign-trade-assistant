@@ -9,6 +9,32 @@ import os
 
 from trade import prompts as _prompts
 
+# ── Config.model compat ───────────────────────────────────────────────────────
+
+def _parse_model_config_str(raw: str) -> tuple[str, str, str]:
+    """Parse v0.14 flat model config string into (provider, model, base_url).
+
+    Supports:
+      - "provider:model"     (colon-separated, unambiguous)
+      - "provider/model/..." (slash-separated, e.g. openrouter/anthropic/claude-sonnet-4)
+
+    Returns (provider, model, base_url). base_url is always "" for flat format.
+    """
+    if not raw or not raw.strip():
+        return "", "", ""
+    raw = raw.strip()
+    # colon 优先，语义更精确
+    if ":" in raw:
+        provider, _, model = raw.partition(":")
+        return provider.strip(), model.strip(), ""
+    elif "/" in raw:
+        parts = raw.split("/", 1)
+        provider = parts[0].strip()
+        model = parts[1].strip() if len(parts) > 1 else ""
+        return provider, model, ""
+    else:
+        return "", raw, ""
+
 
 def check_provider() -> str | None:
     """Check if an LLM provider and API key are configured.
@@ -20,11 +46,13 @@ def check_provider() -> str | None:
 
     cfg = load_config()
     model_cfg = cfg.get("model", "")
+    # 兼容 v0.13 (dict) 和 v0.14+ (str) 两种 config.model 格式
     if isinstance(model_cfg, dict):
         if not model_cfg.get("default") and not model_cfg.get("provider"):
             return "未配置 AI 模型。请先运行 trade setup 选择模型。"
-    elif not model_cfg:
-        return "未配置 AI 模型。请先运行 trade setup 选择模型。"
+    elif isinstance(model_cfg, str):
+        if not model_cfg.strip():
+            return "未配置 AI 模型。请先运行 trade setup 选择模型。"
 
     has_key = any(
         os.getenv(k)
@@ -55,13 +83,16 @@ def get_agent_kwargs() -> dict:
     cfg = load_config()
     model_cfg = cfg.get("model", {})
 
-    if not isinstance(model_cfg, dict):
-        return {"provider": "", "model": str(model_cfg) if model_cfg else "",
-                "base_url": "", "api_key": ""}
-
-    provider = model_cfg.get("provider", "")
-    model = model_cfg.get("default", "")
-    base_url = model_cfg.get("base_url", "")
+    # 兼容 v0.13 (dict: {"provider":"...", "default":"...", "base_url":"..."})
+    #     和 v0.14+ (str: "provider:model" 或 "provider/model")
+    if isinstance(model_cfg, dict):
+        provider = model_cfg.get("provider", "")
+        model = model_cfg.get("default", "")
+        base_url = model_cfg.get("base_url", "")
+    elif isinstance(model_cfg, str) and model_cfg.strip():
+        provider, model, base_url = _parse_model_config_str(model_cfg)
+    else:
+        provider = model = base_url = ""
 
     # ── base_url: from PROVIDER_REGISTRY, env var overrides config.yaml ──
     env_url = ""

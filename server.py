@@ -52,8 +52,8 @@ if _HERMES_CHECKOUT and Path(_HERMES_CHECKOUT).is_dir():
         sys.path.append(_HERMES_CHECKOUT)  # append, not insert — our trade/ must come first
 
 # ── Hermes version check ────────────────────────────────────────────────
-_MIN_HERMES_VERSION = "0.12.0"
-_MAX_HERMES_VERSION = "0.14.0"  # exclusive upper bound: bumped 2026-05-11 for v0.13.0 compatibility
+_MIN_HERMES_VERSION = "0.13.0"
+_MAX_HERMES_VERSION = "0.15.0"  # exclusive upper bound: bumped 2026-05-18 for v0.14.0 compatibility
 
 def _check_hermes_version():
     """Verify the installed Hermes version is compatible with this Trade release.
