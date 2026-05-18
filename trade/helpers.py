@@ -78,7 +78,8 @@ def get_agent_kwargs() -> dict:
     if env_url:
         base_url = env_url
 
-    # ── api_key: per-provider via PROVIDER_REGISTRY → common fallbacks ────
+    # ── api_key: per-provider via PROVIDER_REGISTRY，严格不跨 provider 兜底 ──
+    # 仅在 provider 未注册或无对应 key 时，fallback 到通用 key
     api_key = ""
     if provider:
         try:
@@ -91,13 +92,9 @@ def get_agent_kwargs() -> dict:
                         break
         except Exception:
             pass
+    # 仅在 key 仍然为空时才尝试通用兜底（避免 provider=anthropic 时错拿 OPENAI_API_KEY）
     if not api_key:
-        api_key = (
-            os.getenv("OPENAI_API_KEY", "").strip()
-            or os.getenv("OPENROUTER_API_KEY", "").strip()
-            or os.getenv("ANTHROPIC_API_KEY", "").strip()
-            or ""
-        )
+        api_key = os.getenv("LLM_API_KEY", "").strip() or ""
 
     return {"provider": provider, "model": model,
             "base_url": base_url, "api_key": api_key}

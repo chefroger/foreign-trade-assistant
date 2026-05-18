@@ -123,40 +123,47 @@ def update(
         # 显式事务
         conn.execute("BEGIN")
 
-        # 读取当前 JSON 用于合并
-        row = conn.execute(
-            "SELECT extra1, extra2 FROM customers WHERE id = ?", (customer_id,)
-        ).fetchone()
+        # 读取当前 JSON 用于合并（必须加 company_id 校验，防止跨公司写 extra）
+        if company_id is not None:
+            row = conn.execute(
+                "SELECT extra1, extra2 FROM customers WHERE id = ? AND company_id = ?",
+                (customer_id, company_id),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT extra1, extra2 FROM customers WHERE id = ?", (customer_id,)
+            ).fetchone()
         if row is None:
             conn.rollback()
             return None
         current_extra1 = _json.loads(row["extra1"]) if row["extra1"] else {}
         current_extra2 = _json.loads(row["extra2"]) if row["extra2"] else {}
 
+        # 构造 WHERE 子句（company_id 贯穿所有写操作）
+        where_clause = "id = ? AND company_id = ?" if company_id is not None else "id = ?"
+        where_params = [customer_id] if company_id is None else [customer_id, company_id]
+
         # 合并 extra1
         if extra1_updates:
             current_extra1.update(extra1_updates)
             conn.execute(
-                "UPDATE customers SET extra1 = ?, updated_at = datetime('now','localtime') WHERE id = ?",
-                (_json.dumps(current_extra1, ensure_ascii=False), customer_id),
+                f"UPDATE customers SET extra1 = ?, updated_at = datetime('now','localtime') WHERE {where_clause}",
+                (_json.dumps(current_extra1, ensure_ascii=False), *where_params),
             )
 
         # 合并 extra2
         if extra2_updates:
             current_extra2.update(extra2_updates)
             conn.execute(
-                "UPDATE customers SET extra2 = ?, updated_at = datetime('now','localtime') WHERE id = ?",
-                (_json.dumps(current_extra2, ensure_ascii=False), customer_id),
+                f"UPDATE customers SET extra2 = ?, updated_at = datetime('now','localtime') WHERE {where_clause}",
+                (_json.dumps(current_extra2, ensure_ascii=False), *where_params),
             )
 
         # 基础字段
         if basic_updates:
             set_clause = ", ".join(f"{k} = ?" for k in basic_updates)
-            values = list(basic_updates.values()) + [customer_id]
-            sql = f"UPDATE customers SET {set_clause}, updated_at = datetime('now','localtime') WHERE id = ?"
-            if company_id is not None:
-                sql += " AND company_id = ?"
-                values.append(company_id)
+            values = list(basic_updates.values()) + where_params
+            sql = f"UPDATE customers SET {set_clause}, updated_at = datetime('now','localtime') WHERE {where_clause}"
             n = conn.execute(sql, values).rowcount
             if n == 0:
                 conn.rollback()
