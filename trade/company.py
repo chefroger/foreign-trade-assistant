@@ -180,12 +180,17 @@ def _setup_work_directory(company_name: str, slug: str, suggested_name: str = ""
     Returns:
         (work_dir_path, is_new) — 目录路径 + 是否为新创建（False = 目录已存在，用了后缀名）
     """
-    desktop = Path.home() / "Desktop"
-    # macOS 中文桌面
-    if not desktop.is_dir():
-        desktop = Path.home() / "桌面"
-    if not desktop.is_dir():
-        desktop = Path.home()
+    # 测试环境：工作目录写到临时目录，不污染桌面
+    trade_home = os.environ.get("TRADE_HOME", "")
+    if trade_home:
+        base = Path(trade_home) / "work"
+    else:
+        base = Path.home() / "Desktop"
+        # macOS 中文桌面
+        if not base.is_dir():
+            base = Path.home() / "桌面"
+        if not base.is_dir():
+            base = Path.home()
 
     # 确定目录名
     dir_name = suggested_name.strip() if suggested_name.strip() else company_name.strip()
@@ -193,7 +198,7 @@ def _setup_work_directory(company_name: str, slug: str, suggested_name: str = ""
     dir_name = re.sub(r'[<>:"/\\|?*]', '-', dir_name)
     dir_name = dir_name.strip()
 
-    work_dir = desktop / dir_name
+    work_dir = base / dir_name
     is_new = True
 
     # 如果目录已存在，尝试加后缀
@@ -201,14 +206,14 @@ def _setup_work_directory(company_name: str, slug: str, suggested_name: str = ""
         suffix = 2
         while True:
             alt_name = f"{dir_name}-{suffix}"
-            alt_dir = desktop / alt_name
+            alt_dir = base / alt_name
             if not alt_dir.exists():
                 work_dir = alt_dir
                 break
             suffix += 1
             if suffix > 99:
                 # 极端情况：使用 slug 作为后备
-                work_dir = desktop / slug
+                work_dir = base / slug
                 break
         is_new = False
 
