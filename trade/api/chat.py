@@ -49,9 +49,9 @@ async def trade_chat(
             return "⚠️ AI Agent 模块未加载。"
         except RuntimeError as e:
             return f"⚠️ {e}"
-        except Exception as e:
+        except Exception:
             _log.exception("Agent call failed")
-            return f"⚠️ Agent 调用失败：{e}"
+            return "⚠️ Agent 调用失败，请稍后重试。"
 
     loop = asyncio.get_running_loop()
     try:
@@ -97,8 +97,18 @@ async def trade_chat_stream(
     event_queue: asyncio.Queue = asyncio.Queue(maxsize=1000)
 
     def _emit_threadsafe(event_type: str, data: dict | None = None):
-        """工作线程通过 call_soon_threadsafe 投递到 asyncio queue。"""
-        loop.call_soon_threadsafe(event_queue.put_nowait, (event_type, data or {}))
+        """工作线程通过 call_soon_threadsafe 投递到 asyncio queue。
+
+        put_nowait 在队列满时抛出 QueueFull，用 call_soon_threadsafe 回调时不好捕获，
+        改为 queue.put_nowait 包装在一次非阻塞 try 中，满则静默丢弃（优先保持 SSE 连接稳定）。
+        """
+        def _safe_put(ev_type, ev_data):
+            try:
+                event_queue.put_nowait((ev_type, ev_data))
+            except asyncio.QueueFull:
+                _log.warning("SSE event queue full, dropping event: %s", ev_type)
+
+        loop.call_soon_threadsafe(_safe_put, event_type, data or {})
 
     def _tool_start(tc_id, name, args):
         _emit_threadsafe("tool_start", {"tool_call_id": tc_id, "name": name, "args": args})
@@ -148,9 +158,9 @@ async def trade_chat_stream(
             _emit_threadsafe("error", {"message": "AI Agent 模块未加载。"})
         except RuntimeError as e:
             _emit_threadsafe("error", {"message": str(e)})
-        except Exception as e:
+        except Exception:
             _log.exception("Agent stream failed")
-            _emit_threadsafe("error", {"message": f"Agent 调用失败：{e}"})
+            _emit_threadsafe("error", {"message": "Agent 调用失败，请稍后重试。"})
         return None
 
     async def _event_stream():
