@@ -108,6 +108,8 @@ def get_agent_kwargs() -> dict:
 def create_agent(
     tool_start_callback=None,
     tool_complete_callback=None,
+    *,
+    ephemeral_system_prompt: str | None = None,
 ):
     """创建 Hermes AIAgent 实例的统一入口。
 
@@ -117,6 +119,8 @@ def create_agent(
     Args:
         tool_start_callback: Hermes 工具开始回调（用于 SSE 流式进度）
         tool_complete_callback: Hermes 工具完成回调
+        ephemeral_system_prompt: 临时 system prompt（OSINT 等 skill 的指令，
+                                 通过 Hermes 原生 system 层传入，不混入 user message）
 
     Returns:
         AIAgent 实例，已配置好 quiet_mode / max_iterations / provider 等参数。
@@ -150,6 +154,7 @@ def create_agent(
         tool_start_callback=tool_start_callback,
         tool_complete_callback=tool_complete_callback,
         enabled_toolsets=enabled_toolsets,
+        ephemeral_system_prompt=ephemeral_system_prompt,
     )
 
 
@@ -207,13 +212,21 @@ def _get_history_block(company_id: int, total_prompt_chars: int) -> tuple[str, i
 
     return block, _estimate_tokens(block)
 
+# OSINT 类 skill 名称列表（使用精简 system prompt）
+_OSINT_SKILL_NAMES = frozenset({"b2b-osint", "b2b-email-intel"})
+
+
 def build_query(
     company_id: int,
     library_id: int | None,
     query: str,
     customer_id: int | None = None,
-) -> str:
+) -> tuple[str, str | None]:
     """Assemble the full prompt with company identity + doc context + skill injection.
+
+    返回 (user_message, skill_system_hint)，其中 skill_system_hint 是给 OSINT 等
+    场景的辅助系统指令（非 OSINT skill 时为 None），由 chat.py 通过
+    agent.run_conversation(system_message=...) 传入，与 user message 分层处理。
 
     company_id determines which company identity is injected into the system prompt.
     library_id optionally adds document-library context.
@@ -226,19 +239,25 @@ def build_query(
 
     # 0. Skill auto-detection — must happen before anything else so the LLM
     #    knows which tool/function to call even when the user's prompt is vague.
-    #    augment_query() returns query unchanged if no skill matches (fast dict
-    #    lookup, no latency added in that case).
+    matched_skill = skill_router.match_skill(query)
+    matched_name = matched_skill["name"] if matched_skill else None
+
     augmented_query = skill_router.augment_query(
         query, company_id=company_id
     )
 
-    # 1. Company identity — resolved from file (highest priority) + DB cache fallback
-    #    company_slug is derived from company_id; fall back to DB value if file doesn't exist
+    # 1. Company identity — OSINT 类 skill 用精简 prompt，减少无关内容占用上下文
     company_slug = _company.slug_from_id(company_id) if company_id else None
     db_identity = _company.get_agent_identity(company_id) if company_id else None
+    if matched_name in _OSINT_SKILL_NAMES:
+        from trade.prompt import TRADE_SYSTEM_PROMPT_OSINT
+        code_fallback = TRADE_SYSTEM_PROMPT_OSINT
+    else:
+        code_fallback = None
     system_prompt = _prompts.resolve_system_prompt(
         company_slug=company_slug,
         db_identity=db_identity,
+        code_fallback=code_fallback,
     )
 
     # 2. Customer context (injected before library context)
@@ -266,6 +285,21 @@ def build_query(
                 "中提问。必要时使用 read_file 读取目录中的文件。"
             )
 
+    # 4. Skill system hint — OSINT 类 skill 的注入指令作为 system 层独立传入
+    skill_system_hint: str | None = None
+    if matched_name in _OSINT_SKILL_NAMES and matched_skill:
+        from trade.skill_router import _load_injection_prompt
+        augment = _load_injection_prompt(matched_name)
+        if augment is None:
+            augment = matched_skill.get("augment_prompt", "")
+        if augment:
+            skill_system_hint = (
+                f"## 当前技能：{matched_name}\n\n{augment}"
+            )
+        # OSINT skill 的 system hint 已单独抽出，augmented_query 中无需
+        # 再拼 [SKILL AUGMENTATION] 块。用原始 query 替代。
+        augmented_query = query
+
     # 5. History block (injected before the query, sized by token budget)
     pre_history_chars = (
         len(system_prompt) + len(customer_context) + len(doc_context) +
@@ -273,9 +307,9 @@ def build_query(
     )
     history_block, _ = _get_history_block(company_id, pre_history_chars)
 
-    # 6. Assemble final prompt
+    # 6. Assemble final user message
     final_prompt = system_prompt + customer_context + doc_context
     if history_block:
         final_prompt = f"{final_prompt}\n\n{history_block}"
 
-    return f"{final_prompt}\n\n{augmented_query}"
+    return f"{final_prompt}\n\n{augmented_query}", skill_system_hint

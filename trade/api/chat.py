@@ -39,11 +39,11 @@ async def trade_chat(
     if not query:
         raise HTTPException(status_code=400, detail="query is required")
 
-    full_query = build_query(cid, payload.library_id, query, customer_id=payload.customer_id)
+    full_query, skill_hint = build_query(cid, payload.library_id, query, customer_id=payload.customer_id)
 
     def _call_agent():
         try:
-            agent = create_agent()
+            agent = create_agent(ephemeral_system_prompt=skill_hint)
             return agent.chat(full_query) or "Agent 返回了空响应。"
         except ImportError:
             return "⚠️ AI Agent 模块未加载。"
@@ -91,7 +91,7 @@ async def trade_chat_stream(
     if not query:
         raise HTTPException(status_code=400, detail="query is required")
 
-    full_query = build_query(cid, payload.library_id, query, customer_id=payload.customer_id)
+    full_query, skill_hint = build_query(cid, payload.library_id, query, customer_id=payload.customer_id)
 
     loop = asyncio.get_running_loop()
     event_queue: asyncio.Queue = asyncio.Queue(maxsize=1000)
@@ -119,6 +119,7 @@ async def trade_chat_stream(
             agent = create_agent(
                 tool_start_callback=_tool_start,
                 tool_complete_callback=_tool_complete,
+                ephemeral_system_prompt=skill_hint,
             )
             start = time.time()
             result = agent.chat(full_query)

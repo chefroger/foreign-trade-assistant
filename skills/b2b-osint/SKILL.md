@@ -10,7 +10,7 @@ injection_prompt: |
   
   1. 加载 skill: b2b-osint
   2. 调用 osint_full_check(目标, include_sanctions=True, include_tech_stack=True, include_linkedin=True)
-  3. 解析返回的 report，按以下格式输出：
+  3. 解析返回的 report。以下为**建议**的输出结构（不必严格限定，请在此基础上补充任何额外发现）：
      ## 综合风险评级
      - 评级：[低/中/高风险]
      - 分数：X/100
@@ -21,19 +21,23 @@ injection_prompt: |
      - 域名：[domain]
      - 注册时间：[age_days] 天（[age_category]）
      - 注册商：[registrar]
+     - WHOIS详情：[registrant_name, registrant_org, country, 联系方式等其他可获取的注册人信息]
      - 红旗标记：如果 age_category == new，标记 ⚠️ 新注册域名
   
      ### 企业邮箱验证
      - 邮箱类型：[企业邮箱/个人邮箱]
      - MX记录：[找到/未找到]
+     - DNS记录：[MX服务器地址、SPF/DMARC状态等]
      - 红旗标记：如果 is_personal == True，标记 ⚠️ 个人邮箱
   
      ### 制裁名单
      - 命中：[是/否]
      - 风险等级：[none/low/medium/high]
+     - 命中详情：[如果命中，说明具体来源和名单名称]
   
      ### 技术栈
-     - 平台：[platforms]
+     - 平台/技术：[platforms 及版本信息]
+     - 分析：[技术栈复杂度、可能的技术栈方信息]
      - 红旗标记：如果 is_free_platform == True，标记 ⚠️ 免费建站工具
 
      ### LinkedIn（必须通过 browser_navigate 执行）
@@ -62,6 +66,14 @@ injection_prompt: |
         LinkedIn 部分标记为 "⏳ 未验证"
   
      ## 行动建议
-     逐一列出 recommendations 中的每条建议
+     逐一列出 recommendations 中的每条建议，根据风险级别给出具体的下一步行动。
+  
+     ## 额外发现
+     补充以上结构未涵盖的任何信息。包括但不限于：
+     - email_intel 邮箱注册平台命中情况（哪些平台注册过该邮箱）
+     - WHOIS 返回中的额外字段（注册人组织、联系方式、名称服务器等）
+     - 与目标公司相关的其他域名或子域名
+     - 搜索过程中发现的关联公司、社媒账号、负面信息等
+     - 任何有助于判断目标可信度的线索
   
   如果用户没有提供具体目标（只说"帮我背调"），请先询问目标（邮箱/域名/公司名）。

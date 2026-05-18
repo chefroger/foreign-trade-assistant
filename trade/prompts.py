@@ -178,6 +178,8 @@ def write_system_prompt(content: str) -> None:
 def resolve_system_prompt(
     company_slug: str | None = None,
     db_identity: str | None = None,
+    *,
+    code_fallback: str | None = None,
 ) -> str:
     """完整的 system prompt 解析（文件优先，DB 兜底，代码托底）。
 
@@ -185,11 +187,13 @@ def resolve_system_prompt(
       1. 公司 identity 文件（~/.trade/companies/{slug}/agent_identity.md）
       2. DB agent_identity_md 字段（运行时缓存）
       3. 全局 system.md（~/.trade/prompts/system.md）
-      4. 代码 fallback (TRADE_SYSTEM_PROMPT)
+      4. code_fallback 参数（指定则优先，否则用默认 TRADE_SYSTEM_PROMPT）
 
     Args:
         company_slug: 公司 slug（用于定位 identity 文件）
         db_identity:  DB 中 agent_identity_md 字段值（缓存）
+        code_fallback: 代码层兜底 prompt（None 时用默认 TRADE_SYSTEM_PROMPT）。
+                       OSINT 类 skill 可传入 TRADE_SYSTEM_PROMPT_OSINT。
     """
     # 1. 公司 identity 文件
     if company_slug:
@@ -208,7 +212,7 @@ def resolve_system_prompt(
         return global_content
 
     # 4. 代码 fallback
-    return _CODE_FALLBACK
+    return code_fallback or _CODE_FALLBACK
 
 
 def invalidate_cache(path: Path | str | None = None) -> None:
