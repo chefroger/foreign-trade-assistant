@@ -8,11 +8,9 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from datetime import date, datetime
 from pathlib import Path
-
-import subprocess
-import sys
 
 from fastapi import APIRouter
 
