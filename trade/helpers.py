@@ -328,12 +328,14 @@ def build_query(
         # 再拼 [SKILL AUGMENTATION] 块。用原始 query 替代。
         augmented_query = query
 
-    # 5. History block (injected before the query, sized by token budget)
-    pre_history_chars = (
-        len(system_prompt) + len(customer_context) + len(doc_context) +
-        len(augmented_query) + 200
-    )
-    history_block, _ = _get_history_block(company_id, pre_history_chars)
+    # 5. History block — OSINT 类 skill 不注入历史，每次背调目标是独立的
+    history_block = ""
+    if matched_name not in _OSINT_SKILL_NAMES:
+        pre_history_chars = (
+            len(system_prompt) + len(customer_context) + len(doc_context) +
+            len(augmented_query) + 200
+        )
+        history_block, _ = _get_history_block(company_id, pre_history_chars)
 
     # 6. Assemble final user message
     final_prompt = system_prompt + customer_context + doc_context
