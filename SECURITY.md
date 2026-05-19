@@ -76,4 +76,4 @@ We do not currently run a bug bounty program.
 
 ## Reporting
 
-Email: <roger.lau@protonmail.com>
+Email: <lauroge@gmail.com>
