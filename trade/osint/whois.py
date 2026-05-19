@@ -41,6 +41,7 @@ def domain_whois(domain: str) -> dict:
     domain = domain.rstrip("/").split("/")[0]
 
     if not domain or "." not in domain:
+        # 域名格式无效（空字符串或缺少点号），直接返回错误
         return {"domain": domain or "", "registered": False, "error": "无效域名格式"}
 
     result: dict = {
@@ -67,6 +68,7 @@ def domain_whois(domain: str) -> dict:
         whois_response = _query_whois_server(domain, whois_server)
 
         if not whois_response:
+            # WHOIS 服务器未返回任何数据，标记为无响应
             result["error"] = "WHOIS 服务器无响应"
             return result
 
@@ -77,6 +79,7 @@ def domain_whois(domain: str) -> dict:
 
         # Step 3: 计算域名年龄
         if result["creation_date"]:
+            # 如果有创建日期，计算域名从注册到现在的天数
             try:
                 creation = datetime.fromisoformat(result["creation_date"].replace("Z", "+00:00"))
                 now = datetime.now(UTC)
@@ -84,17 +87,22 @@ def domain_whois(domain: str) -> dict:
                 result["days_old"] = days_old
 
                 if days_old < 365:
+                    # 域名年龄不足 1 年，标记为"新注册"
                     result["age_category"] = "new"
                 elif days_old < 1095:  # < 3年
+                    # 域名年龄 1-3 年，标记为"中等"
                     result["age_category"] = "medium"
                 else:
+                    # 域名年龄超过 3 年，标记为"老域名"
                     result["age_category"] = "old"
             except Exception:
+                # 日期格式解析失败，跳过年龄计算
                 pass
 
         result["registered"] = True
 
     except Exception as exc:
+        # WHOIS 查询整体异常，记录错误信息
         result["error"] = str(exc)
 
     return result
@@ -151,7 +159,7 @@ def _query_whois_server(domain: str, server: str, port: int = 43, timeout: int =
                 try:
                     chunk = s.recv(4096)
                 except TimeoutError:
-                    # 超时后已读到的数据视为完整响应
+                    # 超时后已读到的数据视为完整响应，退出读取循环
                     break
                 if not chunk:
                     # 对端关闭连接，唯一可靠的结束信号
@@ -166,11 +174,15 @@ def _query_whois_server(domain: str, server: str, port: int = 43, timeout: int =
         fallback_servers = ["whois.verisign.com", "whois.markmonitor.com"]
         for fb_server in fallback_servers:
             if fb_server == server:
+                # 跳过与主服务器相同的 fallback 地址
                 continue
             try:
+                # 使用更短的超时时间（5 秒）尝试 fallback
                 return _query_whois_server(domain, fb_server, port, timeout=5)
             except Exception:
+                # fallback 也失败，继续尝试下一个
                 continue
+        # 所有服务器均失败，抛出原始异常
         raise
 
 
@@ -224,6 +236,7 @@ def _parse_whois_response(raw: str) -> dict:
         line = lines[i]
         # 跳过注释行和空行
         if line.startswith("#") or line.startswith("%") or line.startswith("-"):
+            # 注释行或分隔行，跳过不处理
             i += 1
             continue
 
@@ -241,18 +254,20 @@ def _parse_whois_response(raw: str) -> dict:
                     break
 
             if matched_key == "dns":
+                # DNS 服务器可能有多个，去重追加
                 if value and value not in info["dns_servers"]:
                     info["dns_servers"].append(value)
             elif matched_key:
                 if info.get(matched_key) is None:  # 只取第一个值
                     if matched_key in ("creation_date", "expiry_date"):
+                        # 日期字段需要标准化格式
                         info[matched_key] = _normalize_date(value)
                     else:
                         info[matched_key] = value
 
         i += 1
 
-    # 如果没有找到 DNS 服务器，再尝试从原始行中搜索
+    # 如果没有找到 DNS 服务器，再尝试从原始行中搜索（兼容不同格式）
     if not info["dns_servers"]:
         for line in lines:
             ll = line.lower()
@@ -273,6 +288,7 @@ def _parse_whois_response(raw: str) -> dict:
 def _normalize_date(date_str: str) -> str | None:
     """将各种日期格式统一转换为 ISO 格式（YYYY-MM-DD）。"""
     if not date_str:
+        # 空字符串直接返回 None
         return None
 
     date_str = date_str.strip()
@@ -292,8 +308,11 @@ def _normalize_date(date_str: str) -> str | None:
     for fmt in formats:
         try:
             dt = datetime.strptime(date_str, fmt)
+            # 解析成功，返回标准化 ISO 格式
             return dt.strftime("%Y-%m-%d")
         except ValueError:
+            # 当前格式不匹配，尝试下一种
             continue
 
-    return date_str  # 无法解析时返回原文
+    # 所有格式均无法解析时返回原文，避免数据丢失
+    return date_str

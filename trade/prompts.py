@@ -33,20 +33,22 @@ _FILE_CACHE: dict[str, tuple[float, str]] = {}
 # 内部 helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _get_trade_home() -> Path:
     """返回用户 Trade 数据目录。
 
-    Priority: TRADE_HOME env var → platform default.
+    优先级：TRADE_HOME 环境变量 → 平台默认路径。
     macOS/Linux: ~/.trade/, Windows: %LOCALAPPDATA%\trade\
     """
     val = os.environ.get("TRADE_HOME", "").strip()
+    # 如果环境变量有值，优先使用环境变量指定的路径
     if val:
         return Path(val)
-    # Windows: %LOCALAPPDATA%\trade\
+    # Windows 平台：使用 %LOCALAPPDATA%\trade\ 作为数据目录
     if os.name == "nt":
         local_appdata = os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))
         return Path(local_appdata) / "trade"
-    # macOS / Linux: ~/.trade/
+    # macOS / Linux 平台：使用 ~/.trade/ 作为默认数据目录
     return Path.home() / ".trade"
 
 
@@ -57,23 +59,27 @@ def _load_file(path: Path, fallback: str = "") -> str:
     - mtime 未变   → 返回缓存内容
     - mtime 已变   → 重新读磁盘，更新缓存
     """
+    # 文件不存在时直接返回 fallback，不进行缓存操作
     if not path.is_file():
         return fallback
 
     try:
         mtime = path.stat().st_mtime
     except OSError:
+        # 读取文件状态失败（如权限不足），安全返回 fallback
         return fallback
 
     cache_key = str(path.resolve())
     cached = _FILE_CACHE.get(cache_key)
 
+    # mtime 未变化时直接返回缓存内容，避免重复磁盘 I/O
     if cached is not None and cached[0] == mtime:
         return cached[1]
 
     try:
         content = path.read_text(encoding="utf-8").strip()
     except OSError:
+        # 读取文件内容失败（如文件被删除或权限变更），返回 fallback
         return fallback
 
     _FILE_CACHE[cache_key] = (mtime, content)
@@ -81,18 +87,19 @@ def _load_file(path: Path, fallback: str = "") -> str:
 
 
 def _company_identity_path(slug: str) -> Path:
-    """公司级 identity 文件路径。"""
+    """返回公司级 identity 文件的绝对路径。"""
     return _get_trade_home() / "companies" / slug / "agent_identity.md"
 
 
 def _system_prompt_path() -> Path:
-    """全局 system prompt 文件路径。"""
+    """返回全局 system prompt 文件的绝对路径。"""
     return _get_trade_home() / "prompts" / "system.md"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Public API
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def get_system_prompt(company_slug: str | None = None) -> str:
     """返回 system prompt（纵向覆盖，取最高优先级）。
@@ -104,20 +111,22 @@ def get_system_prompt(company_slug: str | None = None) -> str:
 
     用户 vim 直接改文件 → mtime 变化 → 下次请求自动读到新内容。
     """
-    # 最高优先：公司级 identity
+    # 最高优先：公司级 identity — 如果传入了 company_slug，先尝试读取公司级文件
     if company_slug:
         company_path = _company_identity_path(company_slug)
         content = _load_file(company_path)
+        # 公司级文件存在且非空，以公司级 identity 为准
         if content:
             return content
 
-    # 全局自定义
+    # 全局自定义 — 公司级没有命中，尝试读取全局 system.md
     global_path = _system_prompt_path()
     content = _load_file(global_path)
+    # 全局文件存在且非空，以全局 prompt 为准
     if content:
         return content
 
-    # 最终 fallback：代码里的默认值
+    # 最终 fallback：代码里的默认值，没有任何用户自定义文件时使用
     return _CODE_FALLBACK
 
 
@@ -133,7 +142,7 @@ def get_agent_identity(company_id: int) -> str:
           DB 缓存逻辑由调用方（helpers.py 或 company.py）处理。
     """
     # company_id → slug 的转换需要查 DB，这里仅处理文件路径逻辑
-    # 实际 company_slug 由调用方传入
+    # 实际 company_slug 由调用方传入，此处直接返回空字符串让调用方决策
     return ""
 
 
@@ -158,7 +167,7 @@ def write_agent_identity(company_slug: str, content: str) -> None:
     path = _company_identity_path(company_slug)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
-    # 失效缓存
+    # 失效缓存 — 确保下次读取时重新从磁盘加载最新内容
     cache_key = str(path.resolve())
     _FILE_CACHE.pop(cache_key, None)
 
@@ -195,23 +204,25 @@ def resolve_system_prompt(
         code_fallback: 代码层兜底 prompt（None 时用默认 TRADE_SYSTEM_PROMPT）。
                        OSINT 类 skill 可传入 TRADE_SYSTEM_PROMPT_OSINT。
     """
-    # 1. 公司 identity 文件
+    # 1. 公司 identity 文件 — 文件优先级最高，有则直接返回
     if company_slug:
         file_content = get_agent_identity_by_slug(company_slug)
+        # 公司级文件存在且非空，以此为最终结果
         if file_content:
             return file_content
 
-    # 2. DB 缓存（过渡期保留）
+    # 2. DB 缓存（过渡期保留）— 文件不存在时使用数据库中保存的 identity
     if db_identity:
         return db_identity
 
-    # 3. 全局 system.md
+    # 3. 全局 system.md — 前两者都没有时，尝试读取全局自定义文件
     global_path = _system_prompt_path()
     global_content = _load_file(global_path)
+    # 全局文件存在且非空，以此为最终结果
     if global_content:
         return global_content
 
-    # 4. 代码 fallback
+    # 4. 代码 fallback — 没有任何用户自定义内容时，返回代码内置的默认值
     return code_fallback or _CODE_FALLBACK
 
 
@@ -221,6 +232,7 @@ def invalidate_cache(path: Path | str | None = None) -> None:
     Args:
         path: 失效特定文件，或 None（全部失效）
     """
+    # 不传 path 时清空整个缓存，适用于全局重载
     if path is None:
         _FILE_CACHE.clear()
         return

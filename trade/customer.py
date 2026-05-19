@@ -1,8 +1,8 @@
 """
-Trade AI Assistant — Customer management.
+Trade AI Assistant — 客户管理模块。
 
-CRUD for B2B customers with optional document library associations.
-All operations are scoped to a company_id for multi-tenancy isolation.
+B2B 客户 CRUD，支持可选的文档库关联。
+所有操作均受 company_id 作用域限制，实现多租户隔离。
 """
 
 import json
@@ -29,7 +29,7 @@ def create(
     wechat: str = "",
     source: str = "",
 ) -> dict:
-    """Create a customer scoped to a company. Returns the new row as a dict."""
+    """创建一条归属于指定公司的客户记录。返回新行的字典表示。"""
     import json as _json
     extra1 = _json.dumps({
         "country": country,
@@ -64,7 +64,7 @@ def create(
 
 
 def list_by_company(company_id: int) -> list[dict]:
-    """Return all customers for a company, newest first."""
+    """返回指定公司的所有客户，按最新创建排在前面。"""
     conn = get_connection()
     try:
         rows = conn.execute(
@@ -77,15 +77,17 @@ def list_by_company(company_id: int) -> list[dict]:
 
 
 def get(customer_id: int, company_id: int | None = None) -> dict | None:
-    """Get a single customer by id, optionally scoped to a company."""
+    """根据 ID 获取单个客户，可选地按公司作用域限制。"""
     conn = get_connection()
     try:
         if company_id is not None:
+            # 如果传入了公司ID，则同时校验客户ID和公司ID，防止跨公司读取
             row = conn.execute(
                 "SELECT * FROM customers WHERE id = ? AND company_id = ?",
                 (customer_id, company_id),
             ).fetchone()
         else:
+            # 未传入公司ID时，仅按客户ID查询（用于不要求多租户隔离的场景）
             row = conn.execute(
                 "SELECT * FROM customers WHERE id = ?", (customer_id,)
             ).fetchone()
@@ -99,7 +101,7 @@ def update(
     company_id: int | None = None,
     **kwargs,
 ) -> dict | None:
-    """Update customer fields（单事务，部分失败统一回滚）。
+    """更新客户字段（单事务，部分失败统一回滚）。
 
     基础字段: name, contact, note
     extra1 字段: country, tier, linkedin_url, company_website, social_media
@@ -116,6 +118,7 @@ def update(
     basic_updates = {k: v for k, v in kwargs.items() if k in basic_allowed and v is not None}
 
     if not (extra1_updates or extra2_updates or basic_updates):
+        # 没有需要更新的字段，直接返回当前客户数据
         return get(customer_id, company_id)
 
     conn = get_connection()
@@ -134,6 +137,7 @@ def update(
                 "SELECT extra1, extra2 FROM customers WHERE id = ?", (customer_id,)
             ).fetchone()
         if row is None:
+            # 客户不存在，回滚事务并返回 None
             conn.rollback()
             return None
         current_extra1 = _json.loads(row["extra1"]) if row["extra1"] else {}
@@ -145,6 +149,7 @@ def update(
 
         # 合并 extra1
         if extra1_updates:
+            # 将新字段合并到现有的 extra1 JSON 中，避免覆盖未涉及的字段
             current_extra1.update(extra1_updates)
             conn.execute(
                 f"UPDATE customers SET extra1 = ?, updated_at = datetime('now','localtime') WHERE {where_clause}",
@@ -153,6 +158,7 @@ def update(
 
         # 合并 extra2
         if extra2_updates:
+            # 将新字段合并到现有的 extra2 JSON 中，避免覆盖未涉及的字段
             current_extra2.update(extra2_updates)
             conn.execute(
                 f"UPDATE customers SET extra2 = ?, updated_at = datetime('now','localtime') WHERE {where_clause}",
@@ -161,17 +167,20 @@ def update(
 
         # 基础字段
         if basic_updates:
+            # 动态构造 SET 子句，只更新非空的基础字段
             set_clause = ", ".join(f"{k} = ?" for k in basic_updates)
             values = list(basic_updates.values()) + where_params
             sql = f"UPDATE customers SET {set_clause}, updated_at = datetime('now','localtime') WHERE {where_clause}"
             n = conn.execute(sql, values).rowcount
             if n == 0:
+                # 更新影响行数为0，说明记录不存在或已被删除，回滚事务
                 conn.rollback()
                 return None
 
         conn.commit()
         return get(customer_id, company_id)
     except Exception:
+        # 任何异常均回滚，保证事务原子性
         conn.rollback()
         raise
     finally:
@@ -179,15 +188,17 @@ def update(
 
 
 def delete(customer_id: int, company_id: int | None = None) -> bool:
-    """Delete a customer scoped to a company. Returns True if a row was deleted."""
+    """按公司作用域删除客户。如果删除了行则返回 True。"""
     conn = get_connection()
     try:
         if company_id is not None:
+            # 带公司ID校验的删除，防止跨公司误删
             cur = conn.execute(
                 "DELETE FROM customers WHERE id = ? AND company_id = ?",
                 (customer_id, company_id),
             )
         else:
+            # 无公司ID限制的删除（用于不要求多租户隔离的场景）
             cur = conn.execute("DELETE FROM customers WHERE id = ?", (customer_id,))
         conn.commit()
         return cur.rowcount > 0
@@ -205,20 +216,21 @@ def link_library(
     library_id: int,
     company_id: int,
 ) -> bool:
-    """Associate a library with a customer (both must belong to the same company).
+    """将文档库关联到客户（两者必须属于同一公司）。
 
-    Returns True on success; raises ValueError if the customer or library
-    does not exist under the given company_id.
+    成功返回 True；如果客户或文档库在给定公司下不存在，则抛出 ValueError。
     """
     # Verify both belong to the company
     cust = get(customer_id, company_id)
     if not cust:
+        # 客户在指定公司下不存在，拒绝关联以防止跨公司操作
         raise ValueError(f"Customer {customer_id} not found under company {company_id}")
 
     from trade.library import get as get_library
 
     lib = get_library(library_id, company_id)
     if not lib:
+        # 文档库在指定公司下不存在，拒绝关联
         raise ValueError(f"Library {library_id} not found under company {company_id}")
 
     conn = get_connection()
@@ -238,12 +250,13 @@ def unlink_library(
     library_id: int,
     company_id: int,
 ) -> bool:
-    """Remove a library association scoped to a company."""
+    """按公司作用域移除客户与文档库的关联关系。"""
     conn = get_connection()
     try:
         # Verify ownership before unlinking
         cust = get(customer_id, company_id)
         if not cust:
+            # 客户在指定公司下不存在，视为操作不存在，返回 False
             return False
         cur = conn.execute(
             "DELETE FROM customer_libraries WHERE customer_id = ? AND library_id = ?",
@@ -256,10 +269,11 @@ def unlink_library(
 
 
 def get_libraries(customer_id: int, company_id: int) -> list[dict]:
-    """Return all libraries linked to a customer, scoped to a company."""
+    """返回与客户关联的所有文档库，按公司作用域限制。"""
     # Verify customer belongs to company
     cust = get(customer_id, company_id)
     if not cust:
+        # 客户不属于该公司，返回空列表而非报错，保证调用方流程不受阻
         return []
 
     conn = get_connection()
@@ -333,10 +347,12 @@ def bulk_save(
     for cust in customers:
         name = (cust.get("name") or "").strip()
         if not name:
+            # 客户名称为空，跳过此条记录
             skipped += 1
             continue
 
         if name.lower() in existing_names:
+            # 同名客户已存在，跳过以避免重复
             skipped += 1
             continue
 
@@ -364,6 +380,7 @@ def bulk_save(
             try:
                 link_library(result["id"], library_id, company_id)
             except ValueError:
+                # 关联失败（如文档库不存在）时静默跳过，不影响其他客户的导入
                 pass
 
         existing_names.add(name.lower())

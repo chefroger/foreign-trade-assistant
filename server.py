@@ -41,6 +41,7 @@ _warnings.filterwarnings("ignore", message=r".*No module named.*")
 # can be removed — just `pip install hermes-agent` and import normally.
 _TRADE_ROOT = str(Path(__file__).resolve().parent)
 if _TRADE_ROOT not in sys.path:
+    # 如果项目根路径不在 sys.path 中，插入到最前面以优先于 Hermes 的同名包
     sys.path.insert(0, _TRADE_ROOT)
 
 _HERMES_CHECKOUT = os.environ.get(
@@ -48,8 +49,10 @@ _HERMES_CHECKOUT = os.environ.get(
     str(Path(__file__).resolve().parent.parent / "trade_ai_assistant"),
 )
 if _HERMES_CHECKOUT and Path(_HERMES_CHECKOUT).is_dir():
+    # 如果 Hermes 的本地开发目录存在，将其加入 sys.path
     if _HERMES_CHECKOUT not in sys.path:
-        sys.path.append(_HERMES_CHECKOUT)  # append, not insert — our trade/ must come first
+        # 使用 append 而非 insert，确保我们的 trade/ 包优先级高于 Hermes 的 trade/ 包
+        sys.path.append(_HERMES_CHECKOUT)
 
 # ── Hermes version check ────────────────────────────────────────────────
 _MIN_HERMES_VERSION = "0.13.0"
@@ -66,6 +69,7 @@ def _check_hermes_version():
     try:
         from hermes_cli import __version__ as _hv
     except ImportError:
+        # Hermes 包未安装，输出错误提示并退出进程
         print("  ✗ Cannot import Hermes. Is hermes-agent installed?")
         print("    Install: pip install hermes-agent")
         sys.exit(1)
@@ -75,6 +79,7 @@ def _check_hermes_version():
     _max_v = Version(_MAX_HERMES_VERSION)
 
     if not (_min_v <= _current < _max_v):
+        # 当前 Hermes 版本不在兼容范围内，打印版本不匹配信息并退出
         print(f"  ✗ Hermes version {_hv} is not compatible with this release.")
         print(f"    Foreign Trade Assistant requires hermes-agent >={_MIN_HERMES_VERSION},<{_MAX_HERMES_VERSION}.")
         print(f"    Installed: {_hv}")
@@ -138,6 +143,7 @@ def _sync_b2b_skills():
 
         _project_skills = Path(__file__).parent / "skills"
         if not _project_skills.is_dir():
+            # 项目 skills 目录不存在，无法进行本地同步
             return
 
         _hermes_skills = get_hermes_home() / "skills"
@@ -146,16 +152,20 @@ def _sync_b2b_skills():
         _synced = 0
         for _skill_dir in sorted(_project_skills.iterdir()):
             if not _skill_dir.is_dir() or not _skill_dir.name.startswith("b2b-"):
+                # 跳过非目录项以及非 b2b 前缀的技能目录
                 continue
             _src = _skill_dir / "SKILL.md"
             if not _src.is_file():
+                # 该技能目录中没有 SKILL.md 文件，跳过
                 continue
             _dst_dir = _hermes_skills / _skill_dir.name
             _dst = _dst_dir / "SKILL.md"
             _src_hash = hashlib.sha256(_src.read_bytes()).hexdigest()
             if _dst.is_file():
+                # 目标文件已存在，比对 hash 是否相同以决定是否需要更新
                 _dst_hash = hashlib.sha256(_dst.read_bytes()).hexdigest()
                 if _src_hash == _dst_hash:
+                    # hash 一致，该技能无需更新
                     continue
             _dst_dir.mkdir(parents=True, exist_ok=True)
             shutil.copy2(_src, _dst)
@@ -163,8 +173,10 @@ def _sync_b2b_skills():
             print(f"  ↻ Updated skill: {_skill_dir.name}")
 
         if _synced > 0:
+            # 有技能被更新，输出更新数量
             print(f"  Skills synced: {_synced} updated")
         else:
+            # 所有技能已是最新，无需更新
             print("  Skills: up-to-date")
 
 _sync_b2b_skills()
@@ -195,6 +207,7 @@ _TRADE_CHAT_HTML = Path(__file__).parent / "static" / "trade_chat.html"
 async def trade_chat_ui():
     """Serve the B2B chat interface with session token injected."""
     if not _TRADE_CHAT_HTML.exists():
+        # HTML 文件缺失时，返回 404 页面而非抛出异常
         return HTMLResponse(
             content='<html><body style="font-family:sans-serif;padding:2rem;"><h1>Trade chat UI not found</h1><p>The frontend file <code>static/trade_chat.html</code> is missing.</p></body></html>',
             status_code=404,
@@ -230,20 +243,24 @@ def _is_gateway_running() -> bool:
                 # 端口不可达 → gateway 未运行
                 return False
             finally:
+                # 确保 socket 资源被释放，即使 try 或 except 中已经 close
                 _s.close()
         else:
-            # Unix: pgrep -f 匹配 hermes gateway 进程
+            # Unix: pgrep -f 匹配 hermes gateway 进程名及命令行参数
             result = _sp.run(
                 ["pgrep", "-f", "hermes.*gateway"],
                 capture_output=True, text=True, timeout=3,
             )
+            # pgrep 返回码为 0 表示找到匹配进程，stdout 非空说明有进程 ID
             return result.returncode == 0 and bool(result.stdout.strip())
     except Exception:
+        # 任何异常（如超时、pgrep 不存在等）都视为 Gateway 未运行
         return False
 
 def _ensure_gateway_running() -> None:
     """如果 Gateway 未运行，启动它。Gateway 独立于 Trade 生命周期，Trade 退出后仍保持运行。"""
     if _is_gateway_running():
+        # Gateway 已经在运行，无需重复启动
         print("  Hermes Gateway → running (cron scheduler active)")
         return
 
@@ -255,6 +272,7 @@ def _ensure_gateway_running() -> None:
             "stderr": _sp.DEVNULL,
         }
         # Windows 用 CREATE_NEW_PROCESS_GROUP，Unix 用 start_new_session
+        # 确保 Gateway 子进程独立于 Trade 生命周期，Trade 退出后 Gateway 仍保持运行
         if os.name == "nt":
             kwargs["creationflags"] = 0x00000200  # CREATE_NEW_PROCESS_GROUP
         else:
@@ -267,6 +285,7 @@ def _ensure_gateway_running() -> None:
         )
         print("  Hermes Gateway → started (cron scheduler active)")
     except Exception as e:
+        # Gateway 启动异常不影响 Trade 主进程运行，仅打印警告
         print(f"  ⚠️  Hermes Gateway 启动失败: {e}")
 
 # ── Entry point ───────────────────────────────────────────────────────────
@@ -282,6 +301,7 @@ def main() -> None:
     _install_cors(args.port)
 
     if not args.no_gateway:
+        # 用户未禁用 Gateway，检查并启动 Hermes Gateway（用于 cron 调度）
         _ensure_gateway_running()
 
     url = f"http://{args.host}:{args.port}/trade"
@@ -290,6 +310,7 @@ def main() -> None:
     print()
 
     if not args.no_browser:
+        # 用户未禁用浏览器打开，延迟 1 秒后自动在默认浏览器中打开聊天界面
         import threading
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
 

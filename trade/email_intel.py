@@ -1,25 +1,24 @@
 """
-Trade AI Assistant — Email Intelligence (OSINT Background Check).
+Trade AI Assistant — 邮件情报（OSINT 背景调查）。
 
-Uses holehe to check if an email is registered on 120+ websites and
-retrieves publicly-available profile information from those accounts.
+使用 holehe 检查邮箱是否在 120+ 网站注册，并检索这些账户的公开资料信息。
 
-This module is self-contained: it imports holehe internally and degrades
-gracefully if holehe is not installed (returns an error dict instead of raising).
+本模块是自包含的：内部导入 holehe，如果 holehe 未安装则优雅降级
+（返回错误 dict 而非抛出异常）。
 
-Public API
-──────────
+公开 API
+────────
 email_background_check(email: str) -> dict
-    Synchronous wrapper. Runs holehe in a thread pool, returns a structured report.
+    同步封装。在线程池中运行 holehe，返回结构化报告。
 
-Async API (recommended for streaming endpoints)
-──────────────────────────────────────────────
+流式 API（推荐用于流式端点）
+────────────────────────────────
 EmailBackgroundChecker.check(email: str) -> AsyncIterator[dict]
-    Yields per-site results as they arrive (site → exists → details).
-    Final yield is the summary dict.
+    逐站结果到达时逐一 yield（site → exists → details）。
+    最后一个 yield 是汇总 dict。
 
-Output format
-─────────────
+输出格式
+────────
 {
     "email": "user@example.com",
     "checked_count": 121,
@@ -43,7 +42,7 @@ Output format
         "linkedin": "https://linkedin.com/in/username",
         ...
     },
-    "error": None   # None if OK, string if holehe not installed
+    "error": None   # 正常则 None，holehe 未安装则返回错误字符串
 }
 """
 
@@ -56,14 +55,16 @@ import sys
 import typing
 from collections.abc import AsyncIterator
 
-# ── holehe import (lazy, graceful degradation) ───────────────────────────────
+# ── holehe 导入（懒加载，优雅降级）───────────────────────────────────────────────
 
 _holehe_available: bool | None = None
 _holehe_import_error: str | None = None
 
 
 def _check_holehe() -> bool:
+    """检查 holehe 库是否已安装。使用缓存避免重复检测。"""
     global _holehe_available, _holehe_import_error
+    # 已缓存结果，直接返回
     if _holehe_available is not None:
         return _holehe_available
     try:
@@ -73,21 +74,23 @@ def _check_holehe() -> bool:
             raise ImportError("holehe not found")
         _holehe_available = True
     except ImportError as exc:
+        # holehe 未安装，标记为不可用并记录错误信息
         _holehe_available = False
         _holehe_import_error = str(exc)
     return _holehe_available
 
 
-# ── Validation ───────────────────────────────────────────────────────────────
+# ── 校验 ────────────────────────────────────────────────────────────────────────
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def _is_valid_email(email: str) -> bool:
+    """验证邮箱地址是否符合基本格式。"""
     return bool(_EMAIL_RE.match(email.strip()))
 
 
-# ── Site metadata ────────────────────────────────────────────────────────────
+# ── 站点元数据 ──────────────────────────────────────────────────────────────────
 
 _SITE_DISPLAY_NAME: dict[str, str] = {
     "twitter.com": "Twitter / X",
@@ -176,7 +179,7 @@ _SITE_SOCIAL: set[str] = {
     "codepen.io", "bitbucket.org", "gitlab.com",
 }
 
-# Profile URL templates — username is extracted from holehe "others" field
+# 个人资料 URL 模板 — 用户名从 holehe 的 "others" 字段提取
 _PROFILE_URL_TEMPLATE: dict[str, str] = {
     "twitter.com": "https://twitter.com/{username}",
     "instagram.com": "https://www.instagram.com/{username}",
@@ -215,26 +218,30 @@ _PROFILE_URL_TEMPLATE: dict[str, str] = {
 
 
 def _display_name(domain: str) -> str:
-    """Human-readable name for a site domain."""
+    """返回站点域名的可读中文或英文名称。"""
     return _SITE_DISPLAY_NAME.get(domain, domain.split(".")[0].capitalize())
 
 
 def _extract_username(domain: str, others: typing.Any) -> str | None:
-    """Pull a username/handle out of holehe's 'others' dict."""
+    """从 holehe 返回的 'others' 字典中提取用户名/账号。"""
+    # 如果 others 为空或不是字典类型，无法提取用户信息
     if not others or not isinstance(others, dict):
         return None
     for key in ("username", "user", "login", "handle", "name", "profile"):
+        # 找到匹配的键且值不为空
         if key in others and others[key]:
             val = str(others[key]).strip()
+            # 排除字符串 "none" 或 "null" 等无效值
             if val and val.lower() not in ("none", "null", ""):
                 return val
+    # 所有键都未匹配到有效用户名
     return None
 
 
-# ── Result formatter ─────────────────────────────────────────────────────────
+# ── 结果格式化 ──────────────────────────────────────────────────────────────────
 
 def _format_result(raw: dict) -> dict:
-    """Convert raw holehe dict → our standard format."""
+    """将 holehe 原生 dict 转换为我们统一的标准格式。"""
     name = raw.get("name", "")
     domain = raw.get("domain", name)
     exists = bool(raw.get("exists"))
@@ -245,11 +252,13 @@ def _format_result(raw: dict) -> dict:
 
     username = _extract_username(domain, others)
     profile_url = None
+    # 如果提取到用户名且该域名有 URL 模板，则生成完整个人资料链接
     if username and domain in _PROFILE_URL_TEMPLATE:
         template = _PROFILE_URL_TEMPLATE[domain]
         profile_url = template.replace("{username}", username)
 
     created_date = None
+    # 从 others 中查找账户创建/注册日期
     if isinstance(others, dict):
         for k in ("date", "created", "creation_date", "registered", "date_joined"):
             if others.get(k):
@@ -269,14 +278,13 @@ def _format_result(raw: dict) -> dict:
     }
 
 
-# ── Low-level holehe caller (async core) ─────────────────────────────────────
+# ── 底层 holehe 调用器（异步核心）───────────────────────────────────────────────
 
 async def _run_holehe_async(email: str) -> list[dict]:
-    """Run the holehe module pipeline and return raw result dicts.
+    """运行 holehe 模块管道并返回原始结果字典列表。
 
-    holehe is async-native (trio + httpx).  We call its internal
-    maincore() directly with a shared output list, avoiding all the
-    CLI argparse / print side-effects.
+    holehe 是原生异步的（trio + httpx）。我们直接调用其内部 maincore()，
+    使用共享输出列表，避免 CLI argparse / print 的副作用。
     """
     import httpx
     from holehe.core import get_functions, import_submodules, launch_module
@@ -291,8 +299,10 @@ async def _run_holehe_async(email: str) -> list[dict]:
     async def _run() -> None:
         instrument = TrioProgress(len(websites))
         try:
+            # 禁用 httpx 客户端超时，避免与 trio 调度冲突
             httpx._client._async.USE_CLIENT_TIMEOUT = False  # type: ignore[attr-defined]
         except Exception:
+            # 如果禁用超时失败（如版本不兼容），静默忽略以保持向后兼容
             pass
         import trio
         trio.lowlevel.add_instrument(instrument)
@@ -306,7 +316,7 @@ async def _run_holehe_async(email: str) -> list[dict]:
     return out
 
 
-# ── Worker script: runs holehe in a subprocess ───────────────────────────────
+# ── Worker 脚本：在子进程中运行 holehe ───────────────────────────────────────────
 # 在子进程中运行 holehe，彻底隔离 trio/asyncio event loop
 
 _HOLEHE_WORKER_SCRIPT = r"""
@@ -338,19 +348,22 @@ print(json.dumps(out, default=str))
 """
 
 
-# ── Sync wrapper (runs async in thread pool) ─────────────────────────────────
+# ── 同步封装（在线程池中运行）─────────────────────────────────────────────────────
 
 def email_background_check(email: str) -> dict:
-    """Synchronous OSINT background check for a single email.
+    """对单个邮箱进行同步 OSINT 背景调查。
 
-    Degrades gracefully if holehe is not installed.
+    如果 holehe 未安装则优雅降级。
     """
+    # 邮箱为空或非字符串，直接返回无效邮箱错误
     if not email or not isinstance(email, str):
         return _error_result(str(email) if email else "", "Invalid email address")
     email = email.strip()
+    # 邮箱格式校验不通过，返回格式错误
     if not _is_valid_email(email):
         return _error_result(email, "Invalid email format")
 
+    # holehe 未安装，返回安装缺失错误
     if not _check_holehe():
         return _error_result(email, f"holehe not installed: {_holehe_import_error or 'unknown'}")
 
@@ -364,14 +377,18 @@ def email_background_check(email: str) -> dict:
                 [sys.executable, "-c", _HOLEHE_WORKER_SCRIPT, email],
                 capture_output=True, text=True, timeout=120,
             )
+            # 子进程返回码非零，说明 holehe 执行出错
             if result.returncode != 0:
                 return _error_result(email, f"holehe error: {result.stderr.strip() or 'unknown'}")
             raw_results = json.loads(result.stdout)
         except subprocess.TimeoutExpired:
+            # 子进程超时，120 秒未返回
             return _error_result(email, "holehe timeout after 120s")
         except json.JSONDecodeError as exc:
+            # holehe 输出无法解析为 JSON
             return _error_result(email, f"holehe parse error: {exc}")
     except Exception as exc:
+        # 其他未知异常（如子进程启动失败）
         return _error_result(email, f"holehe error: {exc}")
 
     results = [_format_result(r) for r in raw_results if isinstance(r, dict)]
@@ -390,6 +407,7 @@ def email_background_check(email: str) -> dict:
 
 
 def _error_result(email: str, error: str) -> dict:
+    """返回统一的错误结果格式。"""
     return {
         "email": email,
         "checked_count": 0,
@@ -403,23 +421,25 @@ def _error_result(email: str, error: str) -> dict:
 
 
 def _build_social_summary(found_results: list[dict]) -> dict:
-    """Collapse found results into a {platform: url} social profile map."""
+    """将已发现的结果压缩为 {平台: URL} 格式的社交资料摘要。"""
     social: dict[str, str | None] = {}
     for r in found_results:
         domain = r["site"]
+        # 只收录社交类平台（如 Twitter、LinkedIn 等）的发现结果
         if domain in _SITE_SOCIAL:
             key = _display_name(domain).lower().replace(" ", "_").replace("/", "_")
+            # 避免同名平台重复覆盖（取第一个发现的 URL）
             if key not in social:
                 social[key] = r.get("profile_url")
     return social
 
 
-# ── Async streaming API ───────────────────────────────────────────────────────
+# ── 异步流式 API ────────────────────────────────────────────────────────────────
 
 class EmailBackgroundChecker:
-    """Streaming async checker — yields per-site results as they complete.
+    """流式异步检查器 — 逐站结果到达时逐一 yield。
 
-    Usage::
+    用法::
 
         checker = EmailBackgroundChecker()
         async for ev in checker.check("user@example.com"):
@@ -435,14 +455,17 @@ class EmailBackgroundChecker:
         self.timeout = timeout
 
     async def check(self, email: str) -> AsyncIterator[dict]:
+        # 邮箱为空或非字符串，直接返回错误
         if not email or not isinstance(email, str):
             yield {"type": "error", "message": "Invalid email address"}
             return
         email = email.strip()
+        # 邮箱格式校验不通过
         if not _is_valid_email(email):
             yield {"type": "error", "message": "Invalid email format"}
             return
 
+        # holehe 未安装，无法执行检查
         if not _check_holehe():
             yield {"type": "error", "message": f"holehe not installed: {_holehe_import_error or 'unknown'}"}
             return
@@ -458,19 +481,23 @@ class EmailBackgroundChecker:
                     proc.communicate(), timeout=self.timeout,
                 )
             except TimeoutError:
+                # 子进程超时，杀掉进程后返回超时错误
                 proc.kill()
                 await proc.wait()
                 yield {"type": "error", "message": f"Timeout after {self.timeout}s"}
                 return
+            # 子进程返回码非零，说明 holehe 执行失败
             if proc.returncode != 0:
                 err_text = stderr.decode().strip() if stderr else "unknown"
                 yield {"type": "error", "message": f"holehe error: {err_text}"}
                 return
             raw_results = json.loads(stdout)
         except json.JSONDecodeError as exc:
+            # holehe 输出 JSON 解析失败
             yield {"type": "error", "message": f"holehe parse error: {exc}"}
             return
         except Exception as exc:
+            # 其他未知异常（子进程创建失败等）
             yield {"type": "error", "message": f"holehe error: {exc}"}
             return
 

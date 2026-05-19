@@ -36,6 +36,7 @@ def detect_tech_stack(url: str) -> dict:
     """
     # 自动补全协议
     if not url.startswith(("http://", "https://")):
+        # 用户未输入协议前缀，默认添加 HTTPS
         url = "https://" + url
 
     result: dict = {
@@ -59,6 +60,7 @@ def detect_tech_stack(url: str) -> dict:
             # 从响应头提取服务器信息
             server_header = resp.headers.get("Server", "")
             if server_header:
+                # HTTP 响应头中包含 Server 字段，记录服务器类型
                 result["server"] = server_header
 
             html_content = resp.read().decode("utf-8", errors="replace")
@@ -85,11 +87,13 @@ def detect_tech_stack(url: str) -> dict:
             "Stripe", "PayPal", "HubSpot", "Salesforce", "Marketo",
             "Zendesk", "Cloudflare", "Akamai",
         ]
+        # 检测到企业级服务（Stripe/PayPal/HubSpot/Salesforce 等），标注为企业级客户
         result["is_enterprise"] = any(t in technologies for t in enterprise_indicators)
 
         result["technologies"] = technologies[:30]  # 最多 30 个
 
     except Exception as exc:
+        # HTTP 请求失败（超时、DNS 解析错误、SSL 问题等），记录错误信息
         result["error"] = str(exc)
 
     return result
@@ -154,6 +158,7 @@ def _detect_technologies(html_content: str) -> list[str]:
 
     for pattern, tech_name in _TECH_PATTERNS:
         if re.search(pattern, html_lower, re.IGNORECASE):
+            # 正则匹配到技术特征，且尚未添加到列表时，追加技术名
             if tech_name not in technologies:
                 technologies.append(tech_name)
 

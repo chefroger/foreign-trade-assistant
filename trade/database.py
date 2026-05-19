@@ -1,10 +1,10 @@
 """
-Trade AI Assistant — SQLite database layer.
+Trade AI Assistant — SQLite 数据库层。
 
-Provides an independent database (data/trade.db) for B2B business tables:
-libraries, customers, customer_libraries, conversations.
+提供独立的数据库 (data/trade.db) 用于 B2B 业务表：
+libraries、customers、customer_libraries、conversations。
 
-Does NOT interfere with Hermes Agent's session database.
+不干预 Hermes Agent 的会话数据库。
 """
 
 import os
@@ -12,13 +12,14 @@ import sqlite3
 from pathlib import Path
 
 
-# Database path: ~/.trade/data/trade.db (or %LOCALAPPDATA%\trade\data\trade.db on Windows)
+# 数据库路径: ~/.trade/data/trade.db（macOS/Linux）或 %LOCALAPPDATA%\trade\data\trade.db（Windows）
 def _get_db_path() -> Path:
-    """Resolve the trade.db path under the user's Trade data directory.
+    """解析用户 Trade 数据目录下的 trade.db 路径。
 
-    Priority: TRADE_HOME env var → ~/.trade/ (macOS/Linux) or %LOCALAPPDATA%\\trade\\ (Windows).
+    优先级: TRADE_HOME 环境变量 → ~/.trade/（macOS/Linux）或 %LOCALAPPDATA%\\trade\\（Windows）。
     """
     trade_home = os.environ.get("TRADE_HOME", "").strip()
+    # 如果 TRADE_HOME 环境变量未设置，则使用系统默认路径
     if not trade_home:
         # Windows: %LOCALAPPDATA%\trade, macOS/Linux: ~/.trade
         if os.name == "nt":
@@ -26,12 +27,13 @@ def _get_db_path() -> Path:
         else:
             trade_home = str(Path.home() / ".trade")
     data_dir = Path(trade_home) / "data"
+    # 确保 data 目录存在，不存在则创建
     data_dir.mkdir(parents=True, exist_ok=True)
     return data_dir / "trade.db"
 
 
 def get_connection() -> sqlite3.Connection:
-    """Return a connection to trade.db with WAL mode, foreign keys, and Row factory.
+    """返回 trade.db 的连接，启用 WAL 模式、外键约束和 Row 工厂。
 
     sqlite3.Row 使查询结果支持按列名访问（row["id"] 而非 row[0]），
     避免 schema 顺序变更导致的位置索引 bug。
@@ -138,7 +140,7 @@ CREATE INDEX IF NOT EXISTS idx_conversations_created  ON conversations(created_a
 # Migration from v0 (single-company) schema — handled in Python, not SQL
 
 def _add_spare_columns(conn: sqlite3.Connection) -> None:
-    """Add spare TEXT columns (extra1/extra2/extra3) to all tables if missing.
+    """向所有表中添加备用 TEXT 列（extra1/extra2/extra3）（如果缺少的话）。
 
     幂等操作 — 先查询已存在列再决定是否添加，避免 ALTER TABLE ADD COLUMN 重复报错。
     安全跳过尚未存在的表（如 v0→v1 迁移过程中）。
@@ -163,27 +165,29 @@ def _add_spare_columns(conn: sqlite3.Connection) -> None:
             continue
         existing_cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
         for col in extras:
+            # 仅当列不存在时才添加，避免 ALTER TABLE 重复报错
             if col not in existing_cols:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT DEFAULT '{{}}'")
 
 
 def _migrate_from_v0(conn: sqlite3.Connection) -> bool:
-    """Migrate v0 (single-company) schema to v1 (multi-company).
+    """将 v0（单公司）schema 迁移到 v1（多公司）。
 
-    Checks if the old tables lack company_id columns.
-    If they do, adds company_id columns and creates a default company
-    with slug='default', owned by the Trade system.
-    Returns True if migration was performed, False if already on v1.
+    检查旧表是否缺少 company_id 列。
+    如果缺少，则添加 company_id 列并创建一个 slug='default' 的默认公司，
+    由 Trade 系统拥有。
+    如果已执行迁移则返回 True，如果已是 v1 则返回 False。
     """
-    # Detect old schema by checking if libraries lacks company_id column
+    # 通过检查 libraries 表是否缺少 company_id 列来检测旧 schema
     cur = conn.execute("PRAGMA table_info(libraries)")
     cols = {row[1] for row in cur.fetchall()}
+    # 如果已有 company_id 列，说明已是 v1 schema，无需迁移
     if "company_id" in cols:
-        return False  # Already v1
+        return False  # 已是 v1
 
-    print("  Detected v0 schema — migrating to multi-company v1 …")
+    print("  检测到 v0 schema — 正在迁移到多公司 v1 …")
 
-    # Create companies + trade_companies tables first
+    # 先创建 companies + trade_companies 表
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS companies (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -220,42 +224,46 @@ def _migrate_from_v0(conn: sqlite3.Connection) -> bool:
         VALUES (1, '', 1);
     """)
 
-    # Add company_id column to existing v0 tables
+    # 向现有 v0 表添加 company_id 列
     conn.execute("ALTER TABLE libraries ADD COLUMN company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE")
+    # 将所有现有记录关联到默认公司 (id=1)
     conn.execute("UPDATE libraries SET company_id = 1")
 
     conn.execute("ALTER TABLE customers ADD COLUMN company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE")
+    # 将所有现有客户关联到默认公司 (id=1)
     conn.execute("UPDATE customers SET company_id = 1")
 
     conn.execute("ALTER TABLE conversations ADD COLUMN company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE")
+    # 将所有现有会话关联到默认公司 (id=1)
     conn.execute("UPDATE conversations SET company_id = 1")
 
-    # Add new indexes
+    # 添加新索引
     conn.executescript("""
         CREATE INDEX IF NOT EXISTS idx_libraries_company    ON libraries(company_id);
         CREATE INDEX IF NOT EXISTS idx_customers_company     ON customers(company_id);
         CREATE INDEX IF NOT EXISTS idx_conversations_company ON conversations(company_id);
     """)
 
-    # Add spare columns to ALL existing tables (v1 DB upgraded in-place, or fresh v1 install).
-    # Uses ALTER TABLE ADD COLUMN which is idempotent — safe to call even if column exists.
+    # 向所有现有表添加备用列（v1 DB 原地升级，或全新 v1 安装）。
+    # 使用 ALTER TABLE ADD COLUMN 是幂等的 — 即使列已存在也可以安全调用。
     _add_spare_columns(conn)
 
     conn.commit()
-    print("  Migration complete. Default company '我的公司' (slug=default) created.")
+    print("  迁移完成。已创建默认公司 '我的公司' (slug=default)。")
     return True
 
 
 def init_db() -> Path:
-    """Create tables if they don't exist. Handles v0→v1 migration.
-    Also adds spare columns to any existing tables regardless of version.
-    Returns the database path."""
+    """如果表不存在则创建它们。处理 v0→v1 迁移。
+    同时向所有现有表添加备用列，无论版本如何。
+    返回数据库路径。"""
     conn = get_connection()
     try:
         conn.executescript(SCHEMA_SQL)
         migrated = _migrate_from_v0(conn)
+        # 如果未发生迁移（已是 v1 或全新安装），仍然确保备用列存在
         if not migrated:
-            # Already on v1 (or fresh install) — still ensure spare columns exist
+            # 已是 v1（或全新安装）— 仍然确保备用列存在
             _add_spare_columns(conn)
             conn.commit()
     finally:
@@ -267,15 +275,15 @@ def init_db() -> Path:
 
 if __name__ == "__main__":
     path = init_db()
-    print(f"Database initialized: {path}")
+    print(f"数据库已初始化: {path}")
 
-    # Print table list
+    # 打印表列表
     conn = get_connection()
     try:
         tables = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
         ).fetchall()
-        print(f"Tables ({len(tables)}):")
+        print(f"表 ({len(tables)}):")
         for (name,) in tables:
             print(f"  • {name}")
     finally:

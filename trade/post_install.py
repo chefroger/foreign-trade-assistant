@@ -1,18 +1,18 @@
 """
-post_install: Install Trade B2B skills into Hermes skills directory.
+post_install: 将 Trade B2B skills 安装到 Hermes skills 目录。
 
-Called via:
-  - `pip install -e .` or `pip install .` (setuptools post-installation)
-  - Or manually: `install-trade-skills` (declared as project console script)
+调用方式：
+  - `pip install -e .` 或 `pip install .`（setuptools 安装后自动执行）
+  - 手动执行：`install-trade-skills`（声明为项目 console script）
 
-This module runs OUTSIDE the package import graph — it uses only stdlib
-to avoid version/import conflicts between the package and hermes-agent.
+本模块在包导入图之外运行——只使用标准库，
+避免包与 hermes-agent 之间的版本/导入冲突。
 
-It copies skills from:
+它从以下位置复制 skills：
   {package_location}/skills/b2b-*/
   → ~/.hermes/skills/b2b-*/
 
-Hermes discovers skills from ~/.hermes/skills/ (via get_all_skills_dirs()).
+Hermes 从 ~/.hermes/skills/ 发现 skills（通过 get_all_skills_dirs()）。
 """
 
 from __future__ import annotations
@@ -24,9 +24,10 @@ from pathlib import Path
 
 
 def _get_hermes_home() -> Path:
-    """Mirror hermes_constants.get_hermes_home(), no import dependency."""
+    """镜像 hermes_constants.get_hermes_home()，无导入依赖。"""
     val = os.environ.get("HERMES_HOME", "").strip()
     if val:
+        # 如果设置了 HERMES_HOME 环境变量，优先使用
         return Path(val)
     return Path.home() / ".hermes"
 
@@ -39,24 +40,28 @@ def _get_trade_home() -> Path:
     """
     val = os.environ.get("TRADE_HOME", "").strip()
     if val:
+        # 如果设置了 TRADE_HOME 环境变量，优先使用
         return Path(val)
     if os.name == "nt":
+        # Windows 系统下使用 %LOCALAPPDATA%\trade\
         local_appdata = os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))
         return Path(local_appdata) / "trade"
+    # macOS/Linux 默认路径
     return Path.home() / ".trade"
 
 
 def _get_package_skills_dir() -> Path | None:
-    """Find the installed package's skills directory.
+    """查找已安装包的 skills 目录。
 
-    When installed via `pip install -e .` or `pip install .` from the repo,
-    the package root is discoverable via __main__ or the trade package __file__.
-    Falls back to searching sys.path.
+    通过 `pip install -e .` 或 `pip install .` 从仓库安装时，
+    包根目录可以通过 __main__ 或 trade 包的 __file__ 发现。
+    如果找不到则回退到搜索 sys.path。
     """
-    # Try to find trade package __file__ (e.g. .../site-packages/trade/__init__.py)
+    # 尝试通过 trade 包的 __file__ 定位（例如 .../site-packages/trade/__init__.py）
     for prefix in list(sys.path):
         p = Path(prefix)
         if not p.is_dir():
+            # 跳过非目录路径
             continue
         candidate = p / "trade" / "__init__.py"
         if candidate.exists():
@@ -64,8 +69,8 @@ def _get_package_skills_dir() -> Path | None:
             if skills_dir.is_dir():
                 return skills_dir
 
-    # Fallback: look for skills next to this script (development install)
-    self_dir = Path(__file__).parent.parent  # project root
+    # 回退：在本脚本所在目录的父级查找 skills 目录（开发模式安装）
+    self_dir = Path(__file__).parent.parent  # 项目根目录
     dev_skills = self_dir / "skills"
     if dev_skills.is_dir():
         return dev_skills
@@ -74,19 +79,22 @@ def _get_package_skills_dir() -> Path | None:
 
 
 def _copy_skills(src: Path, dst_base: Path) -> list[str]:
-    """Copy b2b-* skill directories from src to dst_base.
+    """将 b2b-* skill 目录从 src 复制到 dst_base。
 
-    Creates dst_base/b2b-{skill-name}/SKILL.md for each skill found.
-    Returns list of installed skill names.
+    为每个找到的 skill 创建 dst_base/b2b-{skill-name}/SKILL.md。
+    返回已安装的 skill 名称列表。
     """
     installed = []
     for skill_dir in sorted(src.iterdir()):
         if not skill_dir.is_dir():
+            # 跳过非目录条目
             continue
         if not skill_dir.name.startswith("b2b-"):
+            # 只处理 b2b 前缀的 skill 目录
             continue
         skill_file = skill_dir / "SKILL.md"
         if not skill_file.is_file():
+            # 跳过没有 SKILL.md 的目录
             continue
 
         dest = dst_base / skill_dir.name / "SKILL.md"
@@ -98,42 +106,44 @@ def _copy_skills(src: Path, dst_base: Path) -> list[str]:
 
 
 def _copy_trade_template(src: Path, dst: Path) -> None:
-    """Copy .trade-template/ directory to Trade runtime directory.
+    """将 .trade-template/ 目录复制到 Trade 运行时目录。
 
-    Copies only the skeleton (empty template files), not runtime data.
-    Creates dst/.trade-template/ as the runtime copy.
+    只复制骨架（空模板文件），不复制运行时数据。
+    创建 dst/.trade-template/ 作为运行时副本。
 
-    Also seeds the actual prompts directory so the user has editable files
-    from day one (prompts/system.md).
+    同时植入 prompts 目录，让用户从第一天起就有可编辑的文件（prompts/system.md）。
     """
     if src.is_dir():
         dest = dst / ".trade-template"
         if not dest.exists():
+            # 只在目标不存在时才复制，避免覆盖用户数据
             shutil.copytree(src, dest, dirs_exist_ok=False)
             for f in dest.rglob("*"):
                 if f.is_file():
                     f.chmod(0o644)
 
-    # Seed ~/.trade/prompts/system.md from template (only if not already present)
+    # 从模板植入 ~/.trade/prompts/system.md（仅当尚未存在时）
     prompts_src = src / "prompts" / "system.md"
     prompts_dir = dst / "prompts"
     prompts_dst = prompts_dir / "system.md"
     if prompts_src.is_file() and not prompts_dst.is_file():
+        # 如果用户已有 prompts 文件则跳过，避免覆盖用户自定义内容
         prompts_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(prompts_src, prompts_dst)
         prompts_dst.chmod(0o644)
 
 
 def install_skills() -> None:
-    """Main entry point: install Trade skills into Hermes and set up Trade data dir."""
+    """主入口：将 Trade skills 安装到 Hermes 并设置 Trade 数据目录。"""
     hermes_home = _get_hermes_home()
     trade_home = _get_trade_home()
 
     hermes_skills_dir = hermes_home / "skills"
 
-    # Find package skills
+    # 查找包中的 skills 目录
     package_skills = _get_package_skills_dir()
     if package_skills is None:
+        # 找不到 skills 目录时报告错误并退出
         print("[post_install] ERROR: Could not find skills directory.", file=sys.stderr)
         print("[post_install] Expected: <package-root>/skills/b2b-*/SKILL.md", file=sys.stderr)
         sys.exit(1)
@@ -143,10 +153,11 @@ def install_skills() -> None:
     # 其次从本脚本所在目录查找（pip install -e . 开发模式）
     template_dir = package_skills.parent / ".trade-template"
     if not template_dir.is_dir():
-        self_dir = Path(__file__).parent.parent  # project root (dev install fallback)
+        # 在 package_skills 旁边找不到，回退到项目根目录
+        self_dir = Path(__file__).parent.parent  # 项目根目录（开发模式回退）
         template_dir = self_dir / ".trade-template"
 
-    # Copy skills to Hermes
+    # 将 skills 复制到 Hermes 目录
     print(f"[post_install] Hermes home:   {hermes_home}")
     print(f"[post_install] Package skills: {package_skills}")
     print(f"[post_install] Hermes skills: {hermes_skills_dir}")
@@ -154,14 +165,17 @@ def install_skills() -> None:
     installed = _copy_skills(package_skills, hermes_skills_dir)
 
     if installed:
+        # 打印成功安装的 skill 列表
         print(f"[post_install] Installed {len(installed)} skills to Hermes:")
         for name in installed:
             print(f"  ✓ {name}")
     else:
+        # 没有找到任何 b2b-* skill 时发出警告
         print("[post_install] WARNING: No b2b-* skills found to install.", file=sys.stderr)
 
-    # Set up .trade-template in Trade runtime dir
+    # 在 Trade 运行时目录中设置 .trade-template
     if template_dir.is_dir():
+        # 只有模板目录存在时才执行复制
         print(f"[post_install] Trade home:    {trade_home}")
         trade_home.mkdir(parents=True, exist_ok=True)
         _copy_trade_template(template_dir, trade_home)
@@ -201,6 +215,7 @@ def update_skills() -> None:
 
     for skill_dir in sorted(package_skills.iterdir()):
         if not skill_dir.is_dir() or not skill_dir.name.startswith("b2b-"):
+            # 只处理 b2b 前缀的目录，跳过非 skill 条目
             continue
 
         skill_name = skill_dir.name
@@ -220,27 +235,32 @@ def update_skills() -> None:
             # 比较 hash，相同则跳过
             remote_hash = hashlib.sha256(remote_content.encode()).hexdigest()
             if dest_file.is_file():
+                # 如果本地文件存在，比较 hash 判断是否有更新
                 local_hash = hashlib.sha256(dest_file.read_bytes()).hexdigest()
                 if local_hash == remote_hash:
+                    # hash 相同，无需更新
                     print(f"  ✓ {skill_name} (already up-to-date)")
                     skipped += 1
                     continue
 
-            # 写入新内容
+            # hash 不同或本地文件不存在，写入新内容
             dest_dir.mkdir(parents=True, exist_ok=True)
             dest_file.write_text(remote_content, encoding="utf-8")
             print(f"  ↻ {skill_name} (updated)")
             updated += 1
 
         except urllib.error.HTTPError as e:
+            # HTTP 错误（如 404 表示 GitHub 上不存在该 skill）
             print(f"  ✗ {skill_name} (HTTP {e.code}: {raw_url})", file=sys.stderr)
             failed += 1
         except Exception as e:
+            # 其他网络或 IO 错误
             print(f"  ✗ {skill_name} (error: {e})", file=sys.stderr)
             failed += 1
 
     print(f"\n[update_skills] Done. {updated} updated, {skipped} skipped, {failed} failed.")
     if updated > 0:
+        # 有更新时提示需要重启
         print("Hermes will pick up the updated skills on the next request.")
 
 
@@ -259,55 +279,62 @@ def update_trade() -> None:
 
     trade_dir = _get_trade_home() / "foreign-trade-assistant"
     if not trade_dir.is_dir():
+        # 找不到 Trade 安装目录时报告错误并退出
         print("[update_trade] ERROR: Trade install directory not found.", file=sys.stderr)
         print(f"  Expected: {trade_dir}", file=sys.stderr)
         sys.exit(1)
 
     ok = True
 
-    # 1. git pull
+    # 1. git pull — 拉取最新代码
     print("→ Step 1/4: git pull ...")
     result = subprocess.run(
         ["git", "pull", "--ff-only", "origin", "main"],
         cwd=str(trade_dir), capture_output=True, text=True,
     )
     if result.returncode != 0:
+        # git pull 失败（如网络问题或冲突），继续后续步骤
         print(f"  ⚠ git pull failed: {result.stderr.strip()}")
         print("  (继续后续步骤...)")
         ok = False
     else:
         print(f"  ✓ {result.stdout.strip().split(chr(10))[-1] if result.stdout.strip() else 'Already up-to-date.'}")
 
-    # 2. pip install
+    # 2. pip install — 更新包注册
     print("→ Step 2/4: pip install ...")
     pip_args = [sys.executable, "-m", "pip", "install", "-e", str(trade_dir), "--no-deps", "--quiet"]
     result = subprocess.run(pip_args, capture_output=True, text=True)
     if result.returncode != 0:
+        # pip 安装失败时标记错误但不退出
         print(f"  ⚠ pip install failed: {result.stderr.strip()}")
         ok = False
     else:
         print("  ✓ Package updated")
 
-    # 3. skills
+    # 3. skills — 同步最新 B2B skills
     print("→ Step 3/4: skills update ...")
     try:
         update_skills()
     except SystemExit:
+        # update_skills 内部可能调用 sys.exit(1)，捕获以继续执行
         ok = False
 
-    # 4. db migration (idempotent)
+    # 4. db migration (幂等操作)
     print("→ Step 4/4: database check ...")
     try:
         from trade.database import init_db
         db_path = init_db()
         print(f"  ✓ Database OK ({db_path})")
     except Exception as e:
+        # 数据库检查失败不影响后续步骤
         print(f"  ⚠ Database check failed: {e}")
         ok = False
 
     if ok:
+        # 所有步骤成功完成
         print("\n✅ Trade update complete. Restart the server to apply changes.")
     else:
+        # 部分步骤失败，提示用户检查输出
         print("\n⚠️  Trade update completed with warnings. Check the output above.")
 
 
@@ -333,10 +360,13 @@ def backup_trade(output_dir: str | None = None) -> str:
     import tarfile
 
     if output_dir is None:
+        # 未指定输出目录时默认使用桌面
         desktop = Path.home() / "Desktop"
         if not desktop.is_dir():
+            # 英文桌面路径不存在时尝试中文桌面路径
             desktop = Path.home() / "桌面"
         if not desktop.is_dir():
+            # 两个桌面路径都不存在时回退到家目录
             desktop = Path.home()
         output_dir = str(desktop)
 
@@ -350,14 +380,15 @@ def backup_trade(output_dir: str | None = None) -> str:
     # 需要打包的路径列表
     sources: list[tuple[Path, str]] = []  # (absolute_path, arcname_in_tar)
 
-    # SQLite database
+    # SQLite 数据库文件
     db_path = trade_home / "data" / "trade.db"
     if db_path.is_file():
         sources.append((db_path, ".trade/data/trade.db"))
 
-    # 公司数据目录
+    # 公司数据目录（每个公司一个子目录）
     companies_dir = trade_home / "companies"
     if companies_dir.is_dir():
+        # 遍历所有公司目录，递归添加所有文件
         for company_dir in companies_dir.iterdir():
             if company_dir.is_dir():
                 for f in company_dir.rglob("*"):
@@ -365,30 +396,33 @@ def backup_trade(output_dir: str | None = None) -> str:
                         rel = str(f.relative_to(trade_home))
                         sources.append((f, f".trade/{rel}"))
 
-    # prompts
+    # prompts 目录（系统提示词文件）
     prompts_dir = trade_home / "prompts"
     if prompts_dir.is_dir():
         for f in prompts_dir.rglob("*"):
             if f.is_file():
                 sources.append((f, f".trade/{f.relative_to(trade_home)}"))
 
-    # Hermes memories
+    # Hermes 记忆文件
     memories_dir = hermes_home / "memories"
     if memories_dir.is_dir():
         for f in memories_dir.rglob("*"):
+            # 只备份 markdown、json、txt 格式的记忆文件
             if f.is_file() and f.suffix in (".md", ".json", ".txt"):
                 sources.append((f, f".hermes/memories/{f.relative_to(memories_dir)}"))
 
-    # B2B skills
+    # B2B skills 定义
     skills_dir = hermes_home / "skills"
     if skills_dir.is_dir():
         for skill_dir in skills_dir.iterdir():
+            # 只备份 b2b 前缀的 skill 的 SKILL.md 文件
             if skill_dir.is_dir() and skill_dir.name.startswith("b2b-"):
                 skill_md = skill_dir / "SKILL.md"
                 if skill_md.is_file():
                     sources.append((skill_md, f".hermes/skills/{skill_dir.name}/SKILL.md"))
 
     if not sources:
+        # 没有找到任何可备份的数据
         print("[backup] WARNING: No data found to backup.")
         return ""
 
@@ -415,10 +449,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     if args.command == "update":
+        # 从 GitHub 更新 skills
         update_skills()
     elif args.command == "update-trade":
+        # 一键更新整个 Trade 系统
         update_trade()
     elif args.command == "backup":
+        # 备份 Trade 数据到 tar.gz
         backup_trade(args.output)
     else:
+        # 默认：从本地包安装 skills
         install_skills()

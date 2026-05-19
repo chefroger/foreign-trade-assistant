@@ -41,6 +41,7 @@ def verify_corporate_email(email: str, website: str | None = None) -> dict:
     email = email.strip().lower()
     # 邮箱格式校验
     if not re.match(r"^[^@]+@[^@]+\.[^@]+$", email):
+        # 邮箱格式不合法，返回无效状态
         return {
             "email": email, "domain": "", "is_personal": False,
             "is_corporate": False, "risk_flag": False,
@@ -67,27 +68,36 @@ def verify_corporate_email(email: str, website: str | None = None) -> dict:
     # 域名一致性验证（如果提供了 website）
     domain_match: bool | None = None
     if website:
+        # 提取 website 的域名并与邮箱域名比较
         website_domain = _extract_domain(website)
         if website_domain:
+            # 邮箱域名与网站域名一致则为 True，否则为 False
             domain_match = email_domain == website_domain
 
     # 综合判断红旗
     risk_flags: list[str] = []
     if is_personal:
+        # 个人邮箱域名，红旗标记
         risk_flags.append("使用个人邮箱域名")
     if not mx_found and is_corporate:
+        # 企业域名但无 MX 记录，可能为假域名
         risk_flags.append("域名未检测到 MX 记录（可能是假域名）")
     if domain_match is False:
+        # 邮箱域名与网站域名不一致，红旗标记
         risk_flags.append("邮箱域名与网站域名不一致")
 
     # 行动建议（分场景）
     if is_personal:
+        # 个人邮箱场景：建议要求企业邮箱
         suggestion = "要求对方提供企业邮箱后再深入谈判。个人邮箱无法确认公司真实性。"
     elif domain_match is False:
+        # 域名不匹配场景：建议交叉验证
         suggestion = "邮箱域名与网站域名不匹配，建议交叉验证对方公司身份。"
     elif not mx_found:
+        # 无 MX 记录场景：建议谨慎
         suggestion = "域名未找到 MX 邮件服务器，建议谨慎跟进，要求更多公司证明文件。"
     else:
+        # 所有验证通过场景
         suggestion = "企业邮箱验证通过，域名匹配且 MX 记录正常。"
 
     return {
@@ -110,7 +120,10 @@ def _extract_domain(url_or_domain: str) -> str | None:
     val = re.sub(r"^https?://", "", val)
     val = val.rstrip("/").split("/")[0]
     val = re.sub(r"^www\.", "", val)
-    return val if "." in val else None
+    if val and "." in val:
+        return val
+    # 没有点号分隔，不是合法域名
+    return None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -147,16 +160,20 @@ def _query_mx_records(domain: str) -> tuple[list[str], bool]:
 
             # 校验响应 transaction_id 必须与请求一致
             if len(data) < 12 or data[:2] != txid:
+                # transaction_id 不匹配，可能为 DNS 欺骗或乱序响应，跳过该服务器
                 logger.debug("DNS txid mismatch: %s", dns_server)
                 continue
 
             mx_servers = _parse_dns_mx_response(data)
+            # 解析到至少一条 MX 记录即为成功
             return mx_servers, len(mx_servers) > 0
 
         except (TimeoutError, OSError) as e:
+            # 当前 DNS 服务器超时或网络错误，尝试下一台服务器
             last_err = e
             continue
 
+    # 所有 DNS 服务器均失败，返回空结果
     logger.debug("MX 查询全部失败 [%s]: %s", domain, last_err)
     return [], False
 
@@ -189,6 +206,7 @@ def _parse_dns_mx_response(data: bytes) -> list[str]:
     mx_servers: list[str] = []
     try:
         if len(data) < 12:
+            # 数据过短，不包含合法 DNS 头部
             return []
 
         # DNS 头部 = 12 字节，从 body 开始解析
@@ -207,18 +225,21 @@ def _parse_dns_mx_response(data: bytes) -> list[str]:
         while pos < len(data):
             # 解析资源记录名称（可能是压缩指针）
             if data[pos] >= 0xC0:
-                pos += 2  # 压缩指针，跳过 2 字节
+                # 压缩指针格式，跳过 2 字节
+                pos += 2
             else:
-                # 逐标签跳过域名
+                # 逐标签跳过域名（普通标签格式）
                 while pos < len(data) and data[pos] != 0:
                     label_len = data[pos]
                     if label_len >= 0xC0:
+                        # 遇到压缩指针，跳转
                         pos += 2
                         break
                     pos += label_len + 1
                 pos += 1  # 结束标签 \x00
 
             if pos + 10 > len(data):
+                # 剩余数据不足以解析记录头部，退出
                 break
 
             rtype = struct.unpack("!H", data[pos:pos + 2])[0]
@@ -232,9 +253,11 @@ def _parse_dns_mx_response(data: bytes) -> list[str]:
                 mx_servers.append(mx_name)
                 pos += rdlength
             else:
+                # 非 MX 记录，跳过即可
                 pos += rdlength
 
     except Exception as e:
+        # 解析异常时记录日志，返回已解析到的部分结果
         logger.debug("MX 解析失败: %s", e)
 
     return mx_servers
@@ -254,6 +277,7 @@ def _parse_dns_name(data: bytes, offset: int) -> tuple[str, int]:
 
     while jumps < max_jumps:
         if pos >= len(data):
+            # 超出数据边界，终止解析
             break
 
         length = data[pos]
@@ -261,12 +285,15 @@ def _parse_dns_name(data: bytes, offset: int) -> tuple[str, int]:
         if length == 0:
             # 标签序列结束
             if not jumped:
+                # 未跳转过，返回当前位置之后的偏移量
                 return (".".join(labels), pos + 1)
+            # 已跳转过，返回第一次跳转前的偏移量
             return (".".join(labels), offset)
 
         if length >= 0xC0:
             # 压缩指针：跳转到指针位置继续解析
             if not jumped:
+                # 第一次遇到压缩指针，记录返回位置
                 offset = pos + 2
             new_pos = ((length & 0x3F) << 8) | data[pos + 1]
             pos = new_pos
@@ -278,4 +305,5 @@ def _parse_dns_name(data: bytes, offset: int) -> tuple[str, int]:
         labels.append(data[pos + 1:pos + 1 + length].decode("ascii", errors="replace"))
         pos += length + 1
 
+    # 超过最大跳转次数，返回当前已解析结果
     return (".".join(labels), offset)
