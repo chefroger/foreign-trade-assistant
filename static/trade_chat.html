@@ -503,9 +503,10 @@ body {
     <div class="modal">
         <h3 id="customer-modal-title">添加客户</h3>
         <input type="hidden" id="cust-edit-id">
-        <div class="form-group"><label>客户名称 *</label><input type="text" id="cust-name" placeholder="公司名称"></div>
+        <div class="form-group"><label>公司名称 *</label><input type="text" id="cust-name" placeholder="客户公司名称"></div>
         <div class="form-row">
-            <div class="form-group"><label>联系人职位</label><input type="text" id="cust-title" placeholder="CEO / Purchasing Manager"></div>
+            <div class="form-group"><label>联系人</label><input type="text" id="cust-contact" placeholder="联系人姓名"></div>
+            <div class="form-group"><label>职位</label><input type="text" id="cust-title" placeholder="CEO / Purchasing Manager"></div>
             <div class="form-group"><label>国家</label><input type="text" id="cust-country" placeholder="如 Italy"></div>
         </div>
         <div class="form-row">
@@ -524,7 +525,7 @@ body {
             <div class="form-group"><label>客户等级</label><select id="cust-tier"><option value="">未分级</option><option value="A">A 级</option><option value="B">B 级</option><option value="C">C 级</option></select></div>
             <div class="form-group"><label>备用邮箱</label><input type="text" id="cust-backup-email" placeholder="backup@company.com"></div>
         </div>
-        <div class="form-group"><label>备注</label><textarea id="cust-note" placeholder="客户需求、注意事项等" style="min-height:80px;"></textarea></div>
+        <div class="form-group"><label>备注 / 跟进项目</label><textarea id="cust-note" placeholder="该联系人负责的项目、需求、注意事项等" style="min-height:80px;"></textarea></div>
         <div class="form-actions">
             <button class="btn" onclick="hideModal('customer-modal')">取消</button>
             <button class="btn btn-primary" onclick="saveCustomer()">保存</button>

@@ -5,9 +5,21 @@ Trade AI Assistant — 共享辅助函数。
 两个端点各自重复约 90 行代码。
 """
 
+import json
 import os
 
 from trade import prompts as _prompts
+
+
+def _json_loads(raw):
+    """安全解析 JSON 字符串，失败时返回空字典。"""
+    if not raw or not isinstance(raw, str):
+        return {} if not isinstance(raw, dict) else raw
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
 
 # ── Config.model compat ───────────────────────────────────────────────────────
 
@@ -339,17 +351,30 @@ def build_query(
         # 有客户 ID 时查询客户信息并注入 prompt，让 AI 知道当前对话的客户身份
         cust = _cust.get(customer_id, company_id=company_id)
         if cust:
-            # 客户存在则构造上下文描述，包含客户名称和联系方式
-            customer_context = (
-                f"\n[上下文] 用户正在与客户「{cust['name']}」"
-                f"（联系方式：{cust.get('contact', '未填写')}）对话。"
-            )
-            # 顺便注入该客户关联的文档库信息
+            # 构造客户上下文：公司名 + 联系人 + 职位 + 跟进项目 + 联系方式
+            parts = [f"\n[上下文] 用户正在与客户「{cust['name']}」"]
+            # 解析 extra2 JSON 字段获取扩展信息
+            extra2 = _json_loads(cust.get("extra2", "{}"))
+            title = extra2.get("title", "") or cust.get("title", "")
+            contact_name = cust.get("contact", "")
+            email = extra2.get("email", "")
+            phone = extra2.get("phone", "") or extra2.get("whatsapp", "")
+            note = cust.get("note", "")
+            if contact_name:
+                parts.append(f"联系人：{contact_name}")
+            if title:
+                parts.append(f"职位：{title}")
+            if note:
+                parts.append(f"跟进内容：{note}")
+            contacts = [x for x in [email, phone] if x]
+            if contacts:
+                parts.append(f"联系方式：{' / '.join(contacts)}")
+            customer_context = "，".join(parts) + "。"
+            # 注入该客户关联的文档库信息
             linked_libs = _cust.get_libraries(customer_id, company_id=company_id)
             if linked_libs:
-                # 有关联文档库时列出名称，方便 AI 后续引用
                 lib_names = "、".join(l["name"] for l in linked_libs)
-                customer_context += f"该客户关联的文档库：{lib_names}。"
+                customer_context += f"关联文档库：{lib_names}。"
 
     # 3. Library document context — 文档库信息放在客户上下文之后
     doc_context = ""
