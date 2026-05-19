@@ -242,3 +242,9 @@ python -m trade.database          # 初始化/检查数据库
 - [外贸业务方法总结](外贸业务方法总结.md)
 - [Trade 数据目录结构设计](Trade数据目录结构设计.md)
 - [COMPATIBILITY.md](COMPATIBILITY.md) — Hermes 版本兼容性记录
+
+## 联系作者
+
+<img src="docs/wechat-contact.jpeg" alt="WeChat Contact" width="200">
+
+扫码添加微信，备注「Trade」即可。商务合作或技术支持请发邮件至 lauroge@gmail.com。
