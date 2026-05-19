@@ -89,17 +89,33 @@ def get_active_jobs():
         return []
 
     jobs = []
-    for job_id, job in data.items():
-        if not isinstance(job, dict):
-            continue
-        jobs.append({
-            "id": job_id,
-            "name": job.get("task_name", job.get("name", job_id)),
-            "schedule": job.get("schedule", ""),
-            "next_run": job.get("next_run_at", ""),
-            "enabled": job.get("enabled", True),
-            "deliver": job.get("deliver", "local"),
-        })
+    # Hermes cron jobs.json 格式: {"jobs": [...], "updated_at": "..."}
+    job_list = data.get("jobs", [])
+    if isinstance(job_list, list):
+        for job in job_list:
+            if not isinstance(job, dict):
+                continue
+            jobs.append({
+                "id": job.get("id", ""),
+                "name": job.get("name", job.get("task_name", "")),
+                "schedule": job.get("schedule", {}).get("display", job.get("schedule_display", "")),
+                "next_run": job.get("next_run_at", ""),
+                "enabled": job.get("enabled", True),
+                "deliver": job.get("deliver", "local"),
+            })
+    else:
+        # 兼容旧格式: {job_id: job_dict, ...}
+        for job_id, job in job_list.items() if isinstance(job_list, dict) else []:
+            if not isinstance(job, dict):
+                continue
+            jobs.append({
+                "id": job_id,
+                "name": job.get("task_name", job.get("name", job_id)),
+                "schedule": job.get("schedule", {}).get("display", "") if isinstance(job.get("schedule"), dict) else job.get("schedule", ""),
+                "next_run": job.get("next_run_at", ""),
+                "enabled": job.get("enabled", True),
+                "deliver": job.get("deliver", "local"),
+            })
 
     return jobs
 
