@@ -124,49 +124,48 @@ def _install_cors(port: int) -> None:
 
 
 def _sync_b2b_skills():
-    """Ensure Hermes has the latest B2B skills from the project.
+    """启动时从 GitHub 拉取最新 B2B skills 到 Hermes。
 
-    Compares each b2b-* skill in the project's skills/ directory with the
-    installed copy in ~/.hermes/skills/.  Missing or outdated skills are
-    copied over.  New skills are installed; removed skills are NOT deleted
-    (the user may have added their own).
+    每次启动都会检查并更新，确保 skills 始终与 GitHub main 分支同步。
+    如果 GitHub 不可达（离线/网络故障），降级为本地 hash 比对同步。
     """
-    _project_skills = Path(__file__).parent / "skills"
-    if not _project_skills.is_dir():
-        return
+    from trade.post_install import update_skills
+    try:
+        update_skills()
+    except Exception as _e:
+        # GitHub 不可达时降级为本地同步
+        print(f"  GitHub skills update failed ({_e}), falling back to local sync")
 
-    _hermes_skills = get_hermes_home() / "skills"
-    _hermes_skills.mkdir(parents=True, exist_ok=True)
+        _project_skills = Path(__file__).parent / "skills"
+        if not _project_skills.is_dir():
+            return
 
-    _synced = 0
-    for _skill_dir in sorted(_project_skills.iterdir()):
-        if not _skill_dir.is_dir() or not _skill_dir.name.startswith("b2b-"):
-            continue
+        _hermes_skills = get_hermes_home() / "skills"
+        _hermes_skills.mkdir(parents=True, exist_ok=True)
 
-        _src = _skill_dir / "SKILL.md"
-        if not _src.is_file():
-            continue
-
-        _dst_dir = _hermes_skills / _skill_dir.name
-        _dst = _dst_dir / "SKILL.md"
-
-        # Compare content hash
-        _need_copy = True
-        if _dst.is_file():
+        _synced = 0
+        for _skill_dir in sorted(_project_skills.iterdir()):
+            if not _skill_dir.is_dir() or not _skill_dir.name.startswith("b2b-"):
+                continue
+            _src = _skill_dir / "SKILL.md"
+            if not _src.is_file():
+                continue
+            _dst_dir = _hermes_skills / _skill_dir.name
+            _dst = _dst_dir / "SKILL.md"
             _src_hash = hashlib.sha256(_src.read_bytes()).hexdigest()
-            _dst_hash = hashlib.sha256(_dst.read_bytes()).hexdigest()
-            _need_copy = _src_hash != _dst_hash
-
-        if _need_copy:
+            if _dst.is_file():
+                _dst_hash = hashlib.sha256(_dst.read_bytes()).hexdigest()
+                if _src_hash == _dst_hash:
+                    continue
             _dst_dir.mkdir(parents=True, exist_ok=True)
             shutil.copy2(_src, _dst)
             _synced += 1
             print(f"  ↻ Updated skill: {_skill_dir.name}")
 
-    if _synced > 0:
-        print(f"  Skills synced: {_synced} updated (Hermes will pick up changes on next request)")
-    else:
-        print("  Skills: up-to-date")
+        if _synced > 0:
+            print(f"  Skills synced: {_synced} updated")
+        else:
+            print("  Skills: up-to-date")
 
 _sync_b2b_skills()
 
