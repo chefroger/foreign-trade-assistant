@@ -18,3 +18,8 @@ build/
 # Misc local files
 *.md.tmp
 文件类型处理方法整理.md
+# 分析/临时文档 — 不入库
+Trade-Hermes耦合评估.md
+Trade-Hermes解耦可行性.md
+代码复用评估.md
+test_write.txt

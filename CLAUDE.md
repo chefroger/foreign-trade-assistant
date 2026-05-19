@@ -164,6 +164,8 @@ Sync happens at three points:
 
 ## Runtime Data Layout
 
+详见 [Trade数据目录结构设计.md](Trade数据目录结构设计.md)。
+
 ```
 ~/.hermes/skills/               Skills installed by install-trade-skills
   ├── b2b-document/
