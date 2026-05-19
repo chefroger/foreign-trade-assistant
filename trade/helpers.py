@@ -117,7 +117,6 @@ def get_agent_kwargs() -> dict:
         base_url = env_url
 
     # ── api_key: per-provider via PROVIDER_REGISTRY，严格不跨 provider 兜底 ──
-    # 仅在 provider 未注册或无对应 key 时，fallback 到通用 key
     api_key = ""
     if provider:
         # 从 PROVIDER_REGISTRY 查找该 provider 对应的 API Key 环境变量
@@ -133,9 +132,9 @@ def get_agent_kwargs() -> dict:
         except Exception:
             # PROVIDER_REGISTRY 可能不存在或导入失败，忽略异常
             pass
-    # 仅在 key 仍然为空时才尝试通用兜底（避免 provider=anthropic 时错拿 OPENAI_API_KEY）
-    if not api_key:
-        # 所有 provider 专属 key 都未找到，回退到通用的 LLM_API_KEY
+        # provider 已知时绝不回退到 LLM_API_KEY，避免错配
+    else:
+        # 仅在 provider 完全未配置时才用通用 LLM_API_KEY 兜底
         api_key = os.getenv("LLM_API_KEY", "").strip() or ""
 
     return {"provider": provider, "model": model,

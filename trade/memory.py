@@ -89,7 +89,12 @@ def _get_client():
         config_path = get_hermes_home() / "hindsight" / "config.json"
         # 如果配置文件存在，用其中的值覆盖环境变量（环境变量优先）
         if config_path.exists():
-            cfg = json.loads(config_path.read_text())
+            try:
+                cfg = json.loads(config_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as exc:
+                # 配置文件损坏或不可读时降级为空配置，避免阻断客户端初始化
+                logger.warning("Hindsight config 解析失败: %s", exc)
+                cfg = {}
             api_key = api_key or cfg.get("apiKey", "") or cfg.get("api_key", "")
             api_url = cfg.get("api_url", api_url)
             timeout = int(cfg.get("timeout", timeout))
@@ -180,10 +185,11 @@ def recall(
             budget=budget,
             max_tokens=max_tokens,
         )
-        # 如果搜索结果为空，返回 None
-        if not resp.results:
+        # 防御：resp 可能为 None 或缺少 results 属性
+        results = getattr(resp, "results", None) if resp is not None else None
+        if not results:
             return None
-        lines = [f"- {r.text}" for r in resp.results if r.text]
+        lines = [f"- {r.text}" for r in results if getattr(r, "text", "")]
         return "\n".join(lines) if lines else None
     except Exception as exc:
         logger.warning("Hindsight 召回失败: %s", exc)

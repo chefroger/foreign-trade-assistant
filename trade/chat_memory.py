@@ -36,20 +36,20 @@ def save(
                 json.dumps(files_read or [], ensure_ascii=False),
             ),
         )
-        # 同一事务内 SELECT，避免并发删除导致 row 为 None
+        new_id = cur.lastrowid
+        conn.commit()  # 先确保数据落库，再 SELECT
         row = conn.execute(
-            "SELECT * FROM conversations WHERE id = ?", (cur.lastrowid,)
+            "SELECT * FROM conversations WHERE id = ?", (new_id,)
         ).fetchone()
-        conn.commit()
-        if row is None:
-            # 极端兜底：返回最小可用字典
-            return {
-                "id": cur.lastrowid, "company_id": company_id,
-                "library_id": library_id, "query": query, "response": response,
-                "files_read": files_read or [], "created_at": "",
-                "extra1": "{}", "extra2": "{}", "extra3": "{}",
-            }
-        return _row_to_dict(row)
+        if row is not None:
+            return _row_to_dict(row)
+        # 极端兜底：返回最小可用字典（字段类型与 _row_to_dict 输出一致）
+        return {
+            "id": new_id, "company_id": company_id,
+            "library_id": library_id, "query": query, "response": response,
+            "files_read": files_read or [], "created_at": None,
+            "extra1": {}, "extra2": {}, "extra3": {},
+        }
     finally:
         conn.close()
 
