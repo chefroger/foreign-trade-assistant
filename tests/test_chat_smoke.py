@@ -19,10 +19,9 @@ class TestRequireCompanyInjection:
         直接 AttributeError。
         """
         # Simulate what FastAPI Depends does: require_company returns an int
-        from trade.api.deps import require_company
-
         # Mock the company lookup
         import trade.company as co
+        from trade.api.deps import require_company
         monkeypatch.setattr(co, "get_trade_company", lambda cid: {"company_id": cid, "is_active": 1})
 
         # A valid header string should parse to int 1
@@ -105,8 +104,9 @@ class TestSmokeChatModule:
                 base_url_env_var = ""
             auth.PROVIDER_REGISTRY = {"openai": _PC()}
 
-            from trade.helpers import create_agent
             import os
+
+            from trade.helpers import create_agent
             os.environ.pop("HERMES_YOLO_MODE", None)
 
             # Mock AIAgent to avoid real LLM call
@@ -180,6 +180,7 @@ class TestChatEndpointHTTP:
 
         # 构建独立 app
         from fastapi import FastAPI
+
         from trade.api import router as trade_router
         app = FastAPI()
         app.include_router(trade_router, prefix="/api/trade")

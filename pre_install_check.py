@@ -18,10 +18,9 @@ Usage (run BEFORE pip install trade):
 
 from __future__ import annotations
 
+import json as _json
 import sys
 import urllib.request
-import json as _json
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Version compatibility matrix
@@ -89,7 +88,8 @@ def get_installed_hermes_version() -> str | None:
 
     Returns None if hermes-agent is not installed at all.
     """
-    import subprocess, shutil
+    import shutil
+    import subprocess
 
     # Try CLI first
     hermes_bin = shutil.which("hermes")
@@ -121,7 +121,7 @@ def get_installed_hermes_version() -> str | None:
 
 def _find_version_in_path() -> str | None:
     """Scan sys.path for hermes-agent package and read its version file."""
-    import os, pathlib
+    import pathlib
 
     for prefix in sys.path:
         p = pathlib.Path(prefix)
@@ -162,7 +162,7 @@ def is_hermes_from_chefroger() -> bool:
 
     Returns True if confirmed from fork or if not installed at all (no fork needed).
     """
-    import os, pathlib
+    import pathlib
 
     for prefix in sys.path:
         p = pathlib.Path(prefix)
@@ -284,7 +284,7 @@ def run_check() -> int:
         print_warn(f"Trade requires version >= {MIN_COMPATIBLE_VERSION} from chefroger fork.")
         print()
         print_info("Please upgrade:")
-        print_info(f"  pip install --upgrade hermes-agent")
+        print_info("  pip install --upgrade hermes-agent")
         print_info("  # or: cd ~/.hermes/hermes-agent && uv pip install -e . --upgrade")
         print()
         _print_install_instructions_compat()

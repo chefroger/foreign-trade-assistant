@@ -7,22 +7,41 @@ version: 1.0.0
 author: 
 injection_prompt: |
   你是 b2b-linkedin-marketing 技能。当用户需要 LinkedIn 营销策略、Profile 优化、内容发布或开发信时，请执行以下步骤：
-  
+
+  ## 核心原则：客户价值导向（最重要规则！）
+
+  外贸 B2B 买家每天被无数供应商推销产品参数和价格，对直白广告已完全免疫。
+  **所有内容必须围绕「我能为客户解决什么难题」而非「我有什么产品」。**
+
+  写任何内容前，先回答这三个问题：
+  1. 目标客户每天最头疼的是什么？（交期不稳定？质量一致性差？跨语言沟通困难？认证不全？）
+  2. 我凭什么比同行更能解决这个问题？（我有特殊检测设备？工厂可 48 小时打样？有当地语的售后团队？）
+  3. 客户选择我后能多赚多少钱/省多少时间/规避多少风险？
+
+  **差异化服务清单**（从用户公司资料中提取，未提供的请主动询问）：
+  - 哪些服务是同行做不到或不愿意做的？（如免费验厂视频、定金保险、定制包装设计）
+  - 交期/打样/售后有什么独到之处？（如 7 天打样 vs 行业 20 天）
+  - 有没有特殊资质？（ISO/CE/UL/FDA 等认证、特定市场准入经验）
+  - 客户成功案例中，解决了什么特别棘手的问题？
+
+  **内容铁律**：每篇帖子至少 70%篇幅讲客户痛点+解决方案+独到服务，最多 30%提及产品。产品参数永远放在最后一句或评论区，不要放在开头。
+
   1. 加载 skill: b2b-linkedin-marketing
   2. 确认目标：
      - 个人品牌：先优化 Profile（Headline/Summary/Experience）
      - 公司主页：完善公司介绍 + 员工推文策略
-     - 开发客户：5大支柱内容策略 + 个性化 InMail 模板
+     - 开发客户：差异化内容策略 + 个性化 InMail 模板
   3. 内容发布（每周计划）：
-     - 行业洞察（30%）：分享产品/行业趋势
-     - 个人故事（20%）：工作中的真实案例
-     - 产品价值（20%）：应用场景、成功案例
-     - 互动提问（20%）：引导评论，增加曝光
-     - 客户背书（10%）：推荐信、好评截图
+     - 客户痛点洞察（30%）：目标行业普遍遇到的难题 + 你的独到见解
+     - 成功案例故事（25%）：帮客户解决的具体问题 + 为客户创造的价值
+     - 差异化服务展示（25%）：普通供应商做不到的，你做到了什么
+     - 互动提问（15%）：引导评论，了解客户真实需求
+     - 客户背书（5%）：推荐信、好评截图
+     **禁止**：产品广告式内容（如纯参数罗列、促销信息、"质量好价格低"等空洞话术）
   4. Profile 优化：
-     - Headline：职务 + 公司 + 核心价值主张（220字符内）
-     - Summary：用第一人称，讲清楚"我能帮谁解决什么问题"
-     - Experience：每个条目讲成就而非职责（用数据）
+     - Headline：不写职务，写「帮 [谁] 解决 [什么难题]」
+     - Summary：用客户案例开头，讲清楚"我能帮谁解决什么问题，怎么解决的，结果如何"
+     - Experience：每个条目讲为客户创造的价值，而非职责（用客户视角的数据）
   5. 返回：完整内容日历（周计划）+ 5条立即可发的帖子
 ---
 
@@ -154,39 +173,44 @@ Q4 (Oct-Dec): Year-end review & planning
 
 ### Connection Request (≤300 characters)
 
-**Formula**: `[Compliment/Common Ground] + [Your Value] + [CTA]`
+**Formula**: `[提及对方的痛点或共同点] + [你能帮TA解决什么问题] + [CTA]`
+
+核心原则：不推销产品，而是让对方意识到「这个人可能帮我省时间/省钱/降低风险」。
 
 **Examples**:
-- `Hi [Name], impressive work on [their post/project]. I help B2B companies source [product] reliably from China. Would you be open to connecting?`
-- `Hi [Name], noticed your company is expanding into [market]. I specialize in helping [industry] businesses find quality [product] suppliers. Let's connect!`
+- `Hi [Name], saw your post about supplier quality issues. I help [industry] buyers eliminate inconsistent product quality with a 3-step process. Open to connecting?`
+- `Hi [Name], many purchasing managers in [industry] tell me their lead times are killing their margins. We built a system that cuts it by 30%. Worth a coffee chat?`
+- `Hi [Name], I noticed your company is expanding in [market]. Getting CE/FDA certification right from the start saves months of rework — happy to share what we've learned.`
 
 ### Follow-Up After Connection (Day 3-5)
 
 ```
 Hi [Name],
 
-Great connecting with you on LinkedIn!
+Enjoyed connecting with you!
 
-I help companies like yours source [product] from verified Chinese manufacturers. We've helped [X]+ businesses reduce sourcing time by [X]% while maintaining quality.
+I know that for [product] buyers in [industry], keeping quality consistent across multiple containers is a constant headache. One of our clients in [similar company/region] was seeing 8% defect rates from their previous supplier, which ate up their margins on every order.
 
-Would you be open to a quick 15-minute call to discuss your sourcing needs?
+We built [specific process/capability] that brought it down to under 2% and saved them about $[X] on their last three shipments.
 
-Best regards,
+Would you be open to a 15-minute call? I'd love to understand what frustrates you most about your current sourcing setup.
+
+Best,
 [Your Name]
 ```
 
 ### InMail for Prospects
 
 ```
-Subject: Quick question about [their company/product]
+Subject: [Their company] + supply chain idea
 
 Hi [Name],
 
-I came across [company name] and noticed you're in the [industry] space. We specialize in helping businesses like yours source [product] at competitive prices with consistent quality.
+I know that for [industry] companies expanding in [region], finding a supplier who actually understands [local certification/regulation requirements] can make or break a product launch.
 
-Quick question: Are you currently working with Chinese suppliers, or is this a new sourcing initiative?
+We recently worked with [a company similar to prospect] who were stuck because their existing suppliers couldn't meet [specific requirement]. We stepped in with [specific solution] and got their product to market [X weeks/months faster].
 
-Happy to share some insights from our experience working with [similar companies].
+Is supply chain reliability something you're focused on right now? Happy to share what we've learned — no pitch, just insight.
 
 Best,
 [Your Name]
@@ -197,20 +221,21 @@ Best,
 ### Video/Photo Post Template
 
 ```
-[Visual: Product/factory/team]
+[Visual: 客户使用场景 / 定制化服务过程 / 检测实验室 / 客户反馈截图]
 
-[Short hook — 1 sentence]
-Here's why [product type] matters more than ever for [target industry]...
+[用客户痛点开头 — 1-2句]
+Most [industry] buyers don't realize that [a hidden problem] costs them [X]% on every order...
 
-[2-3 key points]
-✅ [Benefit 1]
-✅ [Benefit 2]
-✅ [Benefit 3]
+[你的独到解决方案 — 3-4句]
+At [company], we [specific thing you do differently], which means:
+→ [Benefit for customer — money/time/risk]
+→ [Benefit for customer — money/time/risk]
+→ [Benefit for customer — money/time/risk]
 
-[CTA]
-Comment "MORE" below if you want me to share more details!
+[CTA — 让读者参与]
+Is [problem] something your team faces? Comment below or DM me.
 
-#industry #sourcing #B2B #foreigntrade #[product]
+#industry #sourcing #supplychain #qualitycontrol
 ```
 
 ### Article Template
@@ -254,15 +279,15 @@ Comment "GUIDE" below and I'll send you the link!
 ### Text Post Template
 
 ```
-[Strong opening line — opinion, tip, or question]
+[用客户的视角切入 — 痛点、误区、踩坑经历]
 
-[Supporting content — 3-5 sentences]
+[你遇到过的真实案例或行业现象]
 
-[Engagement question at the end]
+[你或你的团队是如何解决这个问题的 — 重点讲流程、工具、服务,不讲产品参数]
 
-What's your experience with this? 👇
+[以一个问题结尾，邀请讨论]
 
-#industry #B2B #sourcing #[product]
+#industry #supplychain #foreigntrade #[topic-not-product]
 ```
 
 ## Quality Standards
@@ -273,15 +298,18 @@ What's your experience with this? 👇
 4. **Visual requirement**: Every post should have an image/video or clear visual description
 5. **Character limits**: Respect LinkedIn limits — headline 220 chars, connection note 300 chars, article title 100 chars
 6. **Hashtag strategy**: Use 3-5 relevant hashtags per post, mix broad (#B2B #Sourcing) with specific (#Machinery #Electronics)
+7. **客户价值优先**: 每篇内容先想「读这篇文章的人最关心什么」——不是你的产品有多好，而是你能让TA的工作更容易、更挣钱、更少风险。产品参数是支撑证据，不是主角。
 
 ## Common Pitfalls
 
 1. **Generic content**: Don't create one-size-fits-all posts. Always adapt to user's specific industry and products
-2. **Over-promoting**: The 80/20 rule — 80% value-add content, 20% promotion. Nobody follows accounts that only post ads
-3. **Ignoring engagement**: Respond to comments within 24 hours. Engagement drives algorithmic reach
-4. **Inconsistent posting**: Better to post 3x/week consistently than 10x one week and none the next
-5. **Cold outreach without personalization**: Always reference something specific about the prospect before pitching
-6. **No CTA**: Every post should have a clear call-to-action (comment, share, click link, DM)
+2. **Product-first mentality** 🔴 **最严重的错误**: 帖子开头就讲产品参数、规格、价格优势。正确做法：先谈客户痛点 → 我们的独到解决方案 → 最后才轻描淡写提到产品
+3. **过度推销**: The 90/10 rule — 90% 客户价值内容，10% 产品提及。没人会关注一个在 LinkedIn 上只会贴产品目录的账号
+4. **空洞话术**: 不要说「质量好」「价格优」「服务好」——每个供应商都这么说。具体讲「我们的出货检验包含 X 项测试」「48 小时打样承诺」「拉美市场 CE 认证我们有专门文件团队」
+5. **Ignoring engagement**: Respond to comments within 24 hours. Engagement drives algorithmic reach
+6. **Inconsistent posting**: Better to post 3x/week consistently than 10x one week and none the next
+7. **Cold outreach without personalization**: Always reference something specific about the prospect before pitching
+8. **No CTA**: Every post should have a clear call-to-action (comment, share, click link, DM)
 
 ## LinkedIn SEO Optimization
 

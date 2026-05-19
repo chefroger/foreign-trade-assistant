@@ -7,16 +7,13 @@ HTTP 层测试通过 run_server_smoke 验证即可。
 
 from __future__ import annotations
 
-import json
-import os
 import sqlite3
-import tempfile
+import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
@@ -69,7 +66,7 @@ def test_db(monkeypatch, tmp_path, setup_mocks):
     original_db = _db._get_db_path
     _db._get_db_path = lambda: db_path
 
-    from trade.database import get_connection, SCHEMA_SQL, _add_spare_columns
+    from trade.database import SCHEMA_SQL, _add_spare_columns
     conn = sqlite3.connect(str(db_path))
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA_SQL)
@@ -115,16 +112,18 @@ class TestDeps:
 
     def test_require_company_missing(self, setup_mocks):
         """缺失 header → 401。"""
-        from trade.api.deps import require_company
         from fastapi import HTTPException
+
+        from trade.api.deps import require_company
         with pytest.raises(HTTPException) as exc_info:
             require_company("")
         assert exc_info.value.status_code == 401
 
     def test_require_company_invalid(self, setup_mocks):
         """无效 header → 401。"""
-        from trade.api.deps import require_company
         from fastapi import HTTPException
+
+        from trade.api.deps import require_company
         with pytest.raises(HTTPException) as exc_info:
             require_company("not-an-int")
         assert exc_info.value.status_code == 401
@@ -353,7 +352,7 @@ class TestLibraryEndpoints:
         assert any(l["id"] == lib["id"] for l in libs)
 
     def test_company_scoped_access(self, test_db, company_id, setup_mocks):
-        from trade import library, company
+        from trade import company, library
         other = company.create(name="Other Co", slug="other-co-lib")
         lib = library.create("My Lib", "/tmp/mylib", company_id=company_id)
 

@@ -7,7 +7,6 @@ OSINT 模块测试 — 各层检测功能 + orchestrator 编排。
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
@@ -16,15 +15,14 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from trade.osint import (
-    domain_whois,
-    verify_corporate_email,
     check_sanctions,
-    detect_tech_stack,
-    linkedin_company_verify,
     compute_risk_score,
+    detect_tech_stack,
+    domain_whois,
     generate_recommendations,
+    linkedin_company_verify,
+    verify_corporate_email,
 )
-
 
 # ── Layer 2: WHOIS ──────────────────────────────────────────────────────────
 

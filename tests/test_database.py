@@ -6,24 +6,19 @@
 
 from __future__ import annotations
 
-import os
 import sqlite3
-import tempfile
-from pathlib import Path
-
-import pytest
 
 # 将 trade 加入 PYTHONPATH（如果通过 pytest 直接运行）
 import sys
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from trade.database import (
-    get_connection,
     SCHEMA_SQL,
     _add_spare_columns,
     _migrate_from_v0,
-    init_db,
-    _get_db_path,
+    get_connection,
 )
 
 

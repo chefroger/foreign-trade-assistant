@@ -6,15 +6,12 @@
 
 from __future__ import annotations
 
-import json
-import os
 import sqlite3
-import tempfile
+import sys
 from pathlib import Path
 
 import pytest
 
-import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
@@ -29,7 +26,7 @@ def test_db(monkeypatch, tmp_path):
     original_db = _db._get_db_path
     _db._get_db_path = lambda: db_path
 
-    from trade.database import get_connection, SCHEMA_SQL, _add_spare_columns
+    from trade.database import SCHEMA_SQL, _add_spare_columns
     conn = sqlite3.connect(str(db_path))
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA_SQL)
@@ -128,7 +125,7 @@ class TestCompanyCRUD:
 
     def test_delete_company_cascade(self, test_db, company_id):
         """删除公司应级联删除其库/客户/对话。"""
-        from trade import company, library, customer, chat_memory
+        from trade import chat_memory, company, customer, library
 
         lib = library.create("Test Lib", "/tmp/test", company_id=company_id)
         cust = customer.create("Test Cust", company_id=company_id)
@@ -339,7 +336,7 @@ class TestChatMemory:
 
     def test_conversation_isolation(self, test_db):
         """不同公司的对话应隔离。"""
-        from trade import company, chat_memory
+        from trade import chat_memory, company
         c1 = company.create(name="C1", slug="co1")
         c2 = company.create(name="C2", slug="co2")
 
@@ -392,7 +389,7 @@ class TestOnboarding:
 
     def test_create_first_company(self, test_db):
         """首次创建公司应成功。"""
-        from trade import onboarding, company
+        from trade import onboarding
         # 重置标志
         onboarding.reset_onboarding_flag()
 
