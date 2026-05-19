@@ -447,7 +447,7 @@ body {
     <div id="license-bar" style="padding:6px 16px;font-size:11px;text-align:center;display:none;"></div>
     <div class="sidebar-footer">
         <button onclick="doTradeUpdate()" title="一键更新系统（git pull + skills + db）">⬆️ 系统更新</button>
-        <button onclick="doTradeBackup()" title="备份数据到桌面 tar.gz">💾 备份</button>
+        <button onclick="doRestartTrade()" title="重启 Trade 服务">🔄 重启</button>
         <button onclick="updateSkills()" title="从 GitHub 更新 B2B skills 到最新版本">🔄 Skills</button>
     </div>
 
@@ -711,26 +711,34 @@ async function doTradeUpdate() {
 }
 
 // ── 数据备份 ──
-async function doTradeBackup() {
+async function doRestartTrade() {
     const btn = event.target;
     btn.disabled = true;
-    btn.textContent = '⏳ 备份中...';
-    toast('💾 正在备份数据...');
+    btn.textContent = '⏳ 重启中...';
+    toast('🔄 正在重启 Trade 服务...');
     try {
-        const resp = await api('POST', '/api/trade/system/backup');
+        const resp = await api('POST', '/api/trade/system/restart');
         if (resp && resp.ok) {
-            const file = resp.file || '';
-            toast('✅ 备份完成！' + (file ? '文件: ' + file.split('/').pop() : ''));
-            console.log(resp.output);
+            toast('✅ 重启命令已发送，页面将在几秒后刷新');
         } else {
-            toast('❌ 备份失败: ' + (resp?.error || '未知错误'));
+            toast('❌ 重启失败: ' + (resp?.error || '未知错误'));
         }
     } catch(e) {
-        toast('❌ 备份出错: ' + e.message);
-    } finally {
-        btn.disabled = false;
-        btn.textContent = '💾 备份';
+        // 重启后服务器可能立即断开，请求抛异常属正常
+        toast('🔄 服务正在重启，页面即将刷新...');
     }
+    let attempts = 0;
+    const checkAndReload = async () => {
+        attempts++;
+        try {
+            const r = await fetch('/api/status');
+            if (r.ok) { location.reload(); return; }
+        } catch(e) {}
+        if (attempts < 30) setTimeout(checkAndReload, 2000);
+        else { toast('⚠️ 服务重启超时，请手动刷新页面'); btn.disabled = false; btn.textContent = '🔄 重启'; }
+    };
+    setTimeout(checkAndReload, 3000);
+}
 }
 
 // ── Skills 更新 ──

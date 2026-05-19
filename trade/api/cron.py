@@ -161,6 +161,41 @@ def api_backup_trade():
     return _capture_output(_do_backup)
 
 
+@router.post("/system/restart")
+def api_restart_trade():
+    """重启 Trade 服务。支持 macOS (launchd)、Linux (systemd)、Windows (手动)。
+
+    返回后立即触发重启，此请求的响应可能在中途断开（正常现象）。
+    """
+    import platform
+    import subprocess as _sp
+
+    sys_name = platform.system()
+
+    def _do_restart():
+        if sys_name == "Darwin":
+            plist = Path.home() / "Library" / "LaunchAgents" / "com.trade.assistant.plist"
+            if plist.exists():
+                _sp.run(["launchctl", "unload", str(plist)], capture_output=True)
+                _sp.run(["launchctl", "load", str(plist)], capture_output=True)
+                return
+        elif sys_name == "Linux":
+            for cmd in (
+                ["systemctl", "--user", "restart", "com.trade.assistant"],
+                ["sudo", "systemctl", "restart", "com.trade.assistant"],
+            ):
+                r = _sp.run(cmd, capture_output=True)
+                if r.returncode == 0:
+                    return
+        elif sys_name == "Windows":
+            # Windows 没有标准服务管理器，提示用户
+            print("Windows 请手动重启 Trade: 关闭当前窗口后重新运行 trade 命令")
+            return
+
+    _do_restart()
+    return {"ok": True, "message": "重启命令已执行"}
+
+
 def _find_cron_output(task_name: str, today: str) -> str | None:
     if not _CRON_OUTPUT.is_dir():
         return None
