@@ -489,7 +489,7 @@ def backup_trade(output_dir: str | None = None) -> str:
     if not sources:
         # 没有找到任何可备份的数据
         print("[backup] WARNING: No data found to backup.")
-        return ""
+        sys.exit(1)
 
     print(f"[backup] Packaging {len(sources)} files ...")
     with tarfile.open(out_path, "w:gz") as tar:
