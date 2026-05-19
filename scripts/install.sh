@@ -110,7 +110,7 @@ TRADE_DIR="$HOME/.trade/foreign-trade-assistant"
 
 if [ -d "$TRADE_DIR" ]; then
     log_info "更新已有仓库..."
-    git -C "$TRADE_DIR" pull --ff-only origin main 2>/dev/null || true
+    git -C "$TRADE_DIR" pull --ff-only origin main 2>/dev/null || log_warn "git pull 可能失败（本地修改或网络问题），但已有数据不受影响"
 else
     mkdir -p "$TRADE_DIR"
     git clone --branch main "$TRADE_REPO" "$TRADE_DIR" 2>/dev/null || {

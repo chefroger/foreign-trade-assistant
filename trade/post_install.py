@@ -353,9 +353,13 @@ def update_trade() -> None:
         cwd=str(trade_dir), capture_output=True, text=True,
     )
     if result.returncode != 0:
-        # git pull 失败（如网络问题或冲突），继续后续步骤
-        print(f"  ⚠ git pull failed: {result.stderr.strip()}")
-        print("  (继续后续步骤...)")
+        # git pull 失败（如网络问题或本地修改冲突），继续后续步骤
+        err_text = result.stderr.strip()
+        print(f"  ⚠ git pull failed: {err_text}")
+        if "not something we can merge" in err_text or "uncommitted" in err_text:
+            print("  💡 原因：本地代码有修改，无法自动合并。如需强制更新：")
+            print("     cd ~/.trade/foreign-trade-assistant && git stash && git pull --ff-only origin main")
+        print("  (继续后续步骤...数据不受影响)")
         ok = False
     else:
         print(f"  ✓ {result.stdout.strip().split(chr(10))[-1] if result.stdout.strip() else 'Already up-to-date.'}")
