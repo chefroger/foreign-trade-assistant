@@ -218,24 +218,21 @@ def _is_gateway_running() -> bool:
     """检查是否有 Hermes Gateway 进程在运行（跨平台）。"""
     try:
         if os.name == "nt":
-            # Windows: tasklist /FI 过滤进程名
-            result = _sp.run(
-                ["tasklist", "/FI", "IMAGENAME eq python.exe", "/FO", "CSV", "/NH"],
-                capture_output=True, text=True, timeout=5,
-            )
-            # 检查输出中是否有 hermes gateway 相关命令行
-            # tasklist 只列进程名，用 wmic 更精确但需要管理员权限
-            # 降级策略：检查 hermes 命令是否可用 + 端口 8642 是否在监听
+            # Windows: 直接检查端口 8642 是否在监听（tasklist 无法精确匹配命令行参数）
             import socket as _sock
+            _s = _sock.socket(_sock.AF_INET, _sock.SOCK_STREAM)
             try:
-                s = _sock.socket(_sock.AF_INET, _sock.SOCK_STREAM)
-                s.settimeout(1)
-                s.connect(("127.0.0.1", 8642))
-                s.close()
+                _s.settimeout(1)
+                _s.connect(("127.0.0.1", 8642))
+                _s.close()
                 return True
-            except Exception:
+            except OSError:
+                # 端口不可达 → gateway 未运行
                 return False
+            finally:
+                _s.close()
         else:
+            # Unix: pgrep -f 匹配 hermes gateway 进程
             result = _sp.run(
                 ["pgrep", "-f", "hermes.*gateway"],
                 capture_output=True, text=True, timeout=3,

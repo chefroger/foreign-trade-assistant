@@ -140,9 +140,8 @@ CREATE INDEX IF NOT EXISTS idx_conversations_created  ON conversations(created_a
 def _add_spare_columns(conn: sqlite3.Connection) -> None:
     """Add spare TEXT columns (extra1/extra2/extra3) to all tables if missing.
 
-    Idempotent — safe to call on any schema version. Uses ALTER TABLE ADD COLUMN
-    which is a no-op if the column already exists.
-    Gracefully skips tables that don't exist yet (e.g. during v0→v1 migration).
+    幂等操作 — 先查询已存在列再决定是否添加，避免 ALTER TABLE ADD COLUMN 重复报错。
+    安全跳过尚未存在的表（如 v0→v1 迁移过程中）。
     """
     # 获取当前存在的所有表
     existing_tables = {

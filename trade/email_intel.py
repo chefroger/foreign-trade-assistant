@@ -102,7 +102,6 @@ _SITE_DISPLAY_NAME: dict[str, str] = {
     "pinterest.com": "Pinterest",
     "snapchat.com": "Snapchat",
     "threads.net": "Threads",
-    "mastodon.social": "Mastodon",
     "medium.com": "Medium",
     "quora.com": "Quora",
     "stackoverflow.com": "Stack Overflow",
@@ -357,7 +356,6 @@ def email_background_check(email: str) -> dict:
 
     try:
         import subprocess
-        import sys
 
         # 在子进程中运行 holehe，彻底隔离 trio/asyncio event loop
         # holehe 使用 trio，与 asyncio 的 event loop 不兼容

@@ -130,7 +130,9 @@ async def osint_full_check(
 
     # ── Layer 6: LinkedIn 验证（生成 browser_navigate 指令）─────────────
     if include_linkedin and lookup_domain:
-        linkedin_result = linkedin_company_verify(lookup_domain, target)
+        # 当 target 不是公司名时（如 email），用域名作为公司名线索
+        _company_hint = target if target_type == "company" else lookup_domain
+        linkedin_result = linkedin_company_verify(lookup_domain, _company_hint)
         report["layers"]["linkedin"] = linkedin_result
         # LinkedIn 验证通过 Hermes browser_navigate 执行，无网络请求风险
         # 此处不做自动评分（需 Agent 实际执行后人工/LLM 判断）

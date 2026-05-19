@@ -1,10 +1,10 @@
 """
-Trade AI Assistant — Document library management.
+Trade AI Assistant — 文档库管理.
 
-CRUD operations for B2B document libraries (directories of PDF/XLSX/DOCX files).
-Each library maps to a file-system directory that the agent can scan and read.
+B2B 文档库（PDF/XLSX/DOCX 文件目录）的 CRUD 操作。
+每个文档库对应一个文件系统目录，AI 智能体可以扫描并读取其中的文件。
 
-All operations are scoped to a company_id for multi-tenancy isolation.
+所有操作都限定在公司范围内，实现多租户隔离。
 """
 
 from pathlib import Path
@@ -18,7 +18,7 @@ def create(
     description: str = "",
     company_id: int | None = None,
 ) -> dict:
-    """Create a document library scoped to a company. Returns the new row as a dict."""
+    """创建归属于指定公司的文档库，返回新记录行的字典。"""
     conn = get_connection()
     try:
         cur = conn.execute(
@@ -33,14 +33,16 @@ def create(
 
 
 def list_by_company(company_id: int | None = None) -> list[dict]:
-    """Return all libraries for a company, newest first. company_id=None means unassigned."""
+    """返回某个公司的所有文档库，按 id 降序排列（最新的在前）。company_id=None 表示未分配。"""
     conn = get_connection()
     try:
         if company_id is None:
+            # 未指定公司，查询所有未分配公司的文档库
             rows = conn.execute(
                 "SELECT * FROM libraries WHERE company_id IS NULL ORDER BY id DESC"
             ).fetchall()
         else:
+            # 按指定公司 ID 查询文档库
             rows = conn.execute(
                 "SELECT * FROM libraries WHERE company_id = ? ORDER BY id DESC",
                 (company_id,),
@@ -51,15 +53,17 @@ def list_by_company(company_id: int | None = None) -> list[dict]:
 
 
 def get(library_id: int, company_id: int | None = None) -> dict | None:
-    """Get a single library by id, optionally scoped to a company."""
+    """根据 id 获取单个文档库，可选地按公司范围限定。"""
     conn = get_connection()
     try:
         if company_id is not None:
+            # 指定了公司，需同时校验公司 ID 以隔离多租户数据
             row = conn.execute(
                 "SELECT * FROM libraries WHERE id = ? AND company_id = ?",
                 (library_id, company_id),
             ).fetchone()
         else:
+            # 未指定公司，仅按 id 查询
             row = conn.execute("SELECT * FROM libraries WHERE id = ?", (library_id,)).fetchone()
         return _row_to_dict(row) if row else None
     finally:
@@ -71,10 +75,11 @@ def update(
     company_id: int | None = None,
     **kwargs,
 ) -> dict | None:
-    """Update library fields (name, root_path, description)."""
+    """更新文档库字段（name, root_path, description）。"""
     allowed = {"name", "root_path", "description"}
     updates = {k: v for k, v in kwargs.items() if k in allowed}
     if not updates:
+        # 没有可更新的字段时，直接返回当前记录
         return get(library_id, company_id)
 
     set_clause = ", ".join(f"{k} = ?" for k in updates)
@@ -83,12 +88,14 @@ def update(
     conn = get_connection()
     try:
         if company_id is not None:
+            # 指定了公司，需同时校验公司 ID 以隔离多租户数据
             n = conn.execute(
                 f"UPDATE libraries SET {set_clause}, updated_at = datetime('now','localtime') "
                 "WHERE id = ? AND company_id = ?",
                 values + [company_id],
             ).rowcount
         else:
+            # 未指定公司，仅按 id 更新
             n = conn.execute(
                 f"UPDATE libraries SET {set_clause}, updated_at = datetime('now','localtime') "
                 "WHERE id = ?",
@@ -96,6 +103,7 @@ def update(
             ).rowcount
         conn.commit()
         if n == 0:
+            # 没有行被更新，说明指定的 id 不存在或不属于该公司
             return None
         return get(library_id, company_id)
     finally:
@@ -103,15 +111,17 @@ def update(
 
 
 def delete(library_id: int, company_id: int | None = None) -> bool:
-    """Delete a library scoped to a company. Returns True if a row was deleted."""
+    """删除归属于指定公司的文档库。如果确实删除了某行则返回 True。"""
     conn = get_connection()
     try:
         if company_id is not None:
+            # 指定了公司，需同时校验公司 ID 以确保只能删除本公司文档库
             cur = conn.execute(
                 "DELETE FROM libraries WHERE id = ? AND company_id = ?",
                 (library_id, company_id),
             )
         else:
+            # 未指定公司，仅按 id 删除
             cur = conn.execute("DELETE FROM libraries WHERE id = ?", (library_id,))
         conn.commit()
         return cur.rowcount > 0
@@ -120,16 +130,18 @@ def delete(library_id: int, company_id: int | None = None) -> bool:
 
 
 def count_files(library_id: int, company_id: int | None = None) -> int:
-    """Count files in the library's root_path directory (non-recursive).
+    """统计文档库根目录中的文件数量（非递归）。
 
-    company_id is optional for backward compatibility but should always be
-    passed by API callers to enforce multi-tenant isolation.
+    company_id 参数为向后兼容而设为可选，但 API 调用方应始终传入
+    以确保多租户隔离。
     """
     lib = get(library_id, company_id=company_id)
     if not lib:
+        # 文档库不存在或不属于该公司，返回 0
         return 0
     root = Path(lib["root_path"])
     if not root.is_dir():
+        # 根路径不是有效目录，返回 0
         return 0
     return sum(1 for p in root.iterdir() if p.is_file())
 

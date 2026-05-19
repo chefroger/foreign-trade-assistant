@@ -60,7 +60,7 @@ def linkedin_company_verify(domain: str, company_name: str) -> dict:
             "请使用 browser_navigate 工具访问 LinkedIn 搜索公司页，验证以下信息：\n"
             f"1. 公司 '{company_name}'（域名 {domain_clean}）是否有 LinkedIn 公司主页\n"
             "2. 如果有，公司规模（员工数）、所属行业、成立年份\n"
-            "3. 公司主页域名是否与 {domain_clean} 一致\n"
+            f"3. 公司主页域名是否与 {domain_clean} 一致\n"
             "4. 综合评估公司在线存在的真实性\n\n"
             "将验证结果填入 OSINT 报告的 ## LinkedIn 部分。"
         ),
