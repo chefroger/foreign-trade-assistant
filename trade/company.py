@@ -222,13 +222,19 @@ def _setup_work_directory(company_name: str, slug: str, suggested_name: str = ""
                 break
             suffix += 1
             if suffix > 99:
-                # 极端情况：1-99 后缀全被占用，使用 slug 作为后备
-                work_dir = base / slug
+                # 极端情况：1-99 后缀全被占用，使用时间戳确保唯一
+                import time
+                ts = int(time.time())
+                work_dir = base / f"{dir_name}-{ts}"
+                # 防止同一秒内多次创建冲突
+                while work_dir.exists():
+                    ts += 1
+                    work_dir = base / f"{dir_name}-{ts}"
                 break
         is_new = False
 
     # 创建目录结构
-    work_dir.mkdir(parents=True, exist_ok=True)
+    work_dir.mkdir(parents=True, exist_ok=False)
     for cat_name, _ in _WORK_DIR_CATEGORIES:
         (work_dir / cat_name).mkdir(parents=True, exist_ok=True)
 

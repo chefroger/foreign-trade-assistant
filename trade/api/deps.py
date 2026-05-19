@@ -65,8 +65,8 @@ def require_company(
         )
     try:
         cid = int(x_company_id.strip())
-    except ValueError:
-        raise HTTPException(status_code=401, detail="X-Company-ID must be an integer.")
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail="X-Company-ID must be an integer.") from e
 
     # 验证公司存在且激活
     tc = company_module.get_trade_company(cid)
@@ -92,5 +92,5 @@ def opt_company(
         return None
     try:
         return int(x_company_id.strip())
-    except ValueError:
-        raise HTTPException(status_code=401, detail="X-Company-ID must be an integer.")
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail="X-Company-ID must be an integer.") from e
