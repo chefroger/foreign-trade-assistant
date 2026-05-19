@@ -69,6 +69,22 @@ if _HERMES_CHECKOUT:
     if _HERMES_CHECKOUT not in sys.path:
         sys.path.insert(1, _HERMES_CHECKOUT)
 
+# ── 子命令优先处理 ───────────────────────────────────────────────────────
+# trade update / trade backup / trade skills-update 不需要启动服务器
+# 需要在这尽早分发，跳过 Hermes 版本检查、skills 同步、DB 初始化等
+_cmd = sys.argv[1] if len(sys.argv) > 1 else ""
+if _cmd in ("update", "backup", "skills-update"):
+    if _cmd == "update":
+        from trade.post_install import update_trade
+        update_trade()
+    elif _cmd == "backup":
+        from trade.post_install import backup_trade
+        print(backup_trade())
+    else:  # skills-update
+        from trade.post_install import update_skills
+        update_skills()
+    sys.exit(0)
+
 # ── Hermes version check ────────────────────────────────────────────────
 _MIN_HERMES_VERSION = "0.13.0"
 _MAX_HERMES_VERSION = "0.15.0"  # exclusive upper bound: bumped 2026-05-18 for v0.14.0 compatibility
@@ -306,6 +322,7 @@ def _ensure_gateway_running() -> None:
 # ── Entry point ───────────────────────────────────────────────────────────
 def main() -> None:
     """`trade` console script 入口 + `python server.py` 入口。"""
+
     parser = argparse.ArgumentParser(description="Foreign Trade Assistant")
     parser.add_argument("--port", type=int, default=9119)
     parser.add_argument("--host", default="127.0.0.1")
