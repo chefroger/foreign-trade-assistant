@@ -31,8 +31,17 @@ _sanctions_cache: dict[str, list[dict]] = {
     "EU": [],
 }
 
-# 文件缓存目录
-_CACHE_DIR = Path(os.environ.get("TRADE_HOME", Path.home() / ".trade")) / "cache" / "sanctions"
+# 文件缓存目录（跨平台默认路径）
+def _resolve_cache_dir() -> Path:
+    val = os.environ.get("TRADE_HOME", "").strip()
+    if val:
+        return Path(val) / "cache" / "sanctions"
+    if os.name == "nt":
+        _local = os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))
+        return Path(_local) / "trade" / "cache" / "sanctions"
+    return Path.home() / ".trade" / "cache" / "sanctions"
+
+_CACHE_DIR = _resolve_cache_dir()
 _CACHE_TTL_SECONDS = 86400  # 24 小时
 
 

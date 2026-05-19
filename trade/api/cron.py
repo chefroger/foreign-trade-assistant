@@ -16,7 +16,14 @@ from fastapi import APIRouter
 
 router = APIRouter(tags=["cron"])
 
-_HERMES_HOME = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
+_hermes_val = os.environ.get("HERMES_HOME", "").strip()
+if _hermes_val:
+    _HERMES_HOME = Path(_hermes_val)
+elif os.name == "nt":
+    _local = os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))
+    _HERMES_HOME = Path(_local) / "hermes"
+else:
+    _HERMES_HOME = Path.home() / ".hermes"
 _CRON_OUTPUT = _HERMES_HOME / "cron" / "output"
 _JOBS_FILE = _HERMES_HOME / "cron" / "jobs.json"
 

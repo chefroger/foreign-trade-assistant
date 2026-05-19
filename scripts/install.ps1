@@ -164,9 +164,16 @@ New-Item -ItemType Directory -Path $LocalBin -Force | Out-Null
 
 @"
 @echo off
-set HERMES_HOME=%HERMES_HOME%;$HermesHome
+set HERMES_HOME=$HermesHome
 "$PyCmd" "$TradeDir\server.py" %*
 "@ | Out-File -FilePath "$LocalBin\trade.cmd" -Encoding ASCII
+
+# 检测 PATH 中是否已包含 $LocalBin
+$currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+if ($currentPath -notlike "*$LocalBin*") {
+    [Environment]::SetEnvironmentVariable("PATH", "$LocalBin;$currentPath", "User")
+    Write-Host "  ✓ 已将 trade 命令加入 PATH（新终端生效）" -ForegroundColor Green
+}
 
 Write-Host ""
 Write-Host "══ 安装完成 ══" -ForegroundColor Green

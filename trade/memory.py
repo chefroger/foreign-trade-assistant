@@ -254,8 +254,11 @@ def retain_to_hermes_memory(
     import datetime as _dt
     from pathlib import Path as _Path
 
-    MEMORY_FILE = _Path.home() / ".hermes/memories/MEMORY.md"
-    LOCK_FILE = _Path.home() / ".hermes/memories/MEMORY.md.lock"
+    _hermes_root = _Path(os.environ.get("HERMES_HOME", ""))
+    if not _hermes_root.is_absolute():
+        _hermes_root = _Path.home() / ".hermes"
+    MEMORY_FILE = _hermes_root / "memories" / "MEMORY.md"
+    LOCK_FILE = _hermes_root / "memories" / "MEMORY.md.lock"
 
     # 如果查询内容为空或只有空白字符，不执行写入操作
     if not query or not query.strip():
@@ -293,10 +296,14 @@ def retain_to_hermes_memory(
     try:
         # 跨平台文件锁：fcntl.flock (Unix) / msvcrt.locking (Windows)
         # 替代之前的 TOCTOU 竞态（LOCK_FILE.exists() + write_text）
-        import fcntl as _fcntl_module
         import time as _time
 
-        lock_dir = _Path.home() / ".hermes/memories"
+        # fcntl 是 Unix 专有模块，必须在 os.name 分支内延迟导入
+        if os.name != "nt":
+            import fcntl as _fcntl_module
+
+        _hermes_root = _Path(os.environ.get("HERMES_HOME", _Path.home() / ".hermes"))
+        lock_dir = _hermes_root / "memories"
         lock_dir.mkdir(parents=True, exist_ok=True)
         lock_fd = open(str(LOCK_FILE), "w")
         # 最多重试 5 次获取文件锁，避免死锁

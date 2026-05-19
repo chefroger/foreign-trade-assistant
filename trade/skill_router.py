@@ -37,9 +37,12 @@ _INJECTION_CACHE: OrderedDict[str, tuple[float, str]] = OrderedDict()
 def _get_hermes_skills_dir() -> Path:
     """解析 Hermes skills 目录路径（优先 HERMES_HOME 环境变量）。"""
     val = os.environ.get("HERMES_HOME", "").strip()
-    # 环境变量不为空时使用自定义路径，否则使用默认 ~/.hermes 路径
     if val:
         return Path(val) / "skills"
+    # Windows: %LOCALAPPDATA%\hermes\skills, macOS/Linux: ~/.hermes/skills
+    if os.name == "nt":
+        _appdata = os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))
+        return Path(_appdata) / "hermes" / "skills"
     return Path.home() / ".hermes" / "skills"
 
 
