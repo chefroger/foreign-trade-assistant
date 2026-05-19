@@ -1536,6 +1536,122 @@ function renderTasksViewInto(container) {
             </div>
         </div>
         <div class="panel-body" style="overflow-y:auto;padding:16px 20px;">
+            <!-- 定时任务使用说明书 -->
+            <details style="margin-bottom:16px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+                <summary style="cursor:pointer;padding:12px 16px;font-weight:600;font-size:14px;background:var(--bg);user-select:none;">
+                    📖 定时任务使用说明书（点击展开 / 收起）
+                </summary>
+                <div style="padding:16px 20px;font-size:13px;line-height:1.8;color:var(--text-secondary);">
+
+                <h4 style="margin:0 0 10px 0;color:var(--text-primary);">一、什么是定时任务？</h4>
+                <p>定时任务就像一个闹钟。你告诉它「每天几点要做什么事」，时间一到，系统会自动帮你去执行。</p>
+                <p>比如你可以设置：每天早上 9 点自动搜索当日汇率、每周五下午 5 点生成周报。</p>
+
+                <h4 style="margin:18px 0 10px 0;color:var(--text-primary);">二、Cron 表达式是什么？</h4>
+                <p>Cron 表达式是用来描述「什么时候执行」的一串代码。它由 <b>5 个数字</b>组成，用空格隔开：</p>
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px 16px;font-family:monospace;font-size:14px;text-align:center;margin:8px 0;">
+                    <b>分钟 小时 日 月 星期</b>
+                </div>
+                <p>看不懂没关系，下面逐个解释 👇</p>
+
+                <table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:13px;">
+                <thead>
+                <tr style="background:var(--bg);">
+                    <th style="padding:8px 12px;text-align:left;border:1px solid var(--border);">位置</th>
+                    <th style="padding:8px 12px;text-align:left;border:1px solid var(--border);">叫什么</th>
+                    <th style="padding:8px 12px;text-align:left;border:1px solid var(--border);">可以填什么</th>
+                    <th style="padding:8px 12px;text-align:left;border:1px solid var(--border);">什么意思</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr><td style="padding:8px 12px;border:1px solid var(--border);"><b>第 1 个</b></td><td style="padding:8px 12px;border:1px solid var(--border);">分钟</td><td style="padding:8px 12px;border:1px solid var(--border);">0 ~ 59</td><td style="padding:8px 12px;border:1px solid var(--border);">在每小时的第几分运行。填 0 代表整点，填 30 代表半点</td></tr>
+                <tr><td style="padding:8px 12px;border:1px solid var(--border);"><b>第 2 个</b></td><td style="padding:8px 12px;border:1px solid var(--border);">小时</td><td style="padding:8px 12px;border:1px solid var(--border);">0 ~ 23</td><td style="padding:8px 12px;border:1px solid var(--border);">在几点运行。0=半夜12点，8=早上8点，14=下午2点，20=晚上8点</td></tr>
+                <tr><td style="padding:8px 12px;border:1px solid var(--border);"><b>第 3 个</b></td><td style="padding:8px 12px;border:1px solid var(--border);">日</td><td style="padding:8px 12px;border:1px solid var(--border);">1 ~ 31</td><td style="padding:8px 12px;border:1px solid var(--border);">在每月第几天运行。填 * 代表每天都行</td></tr>
+                <tr><td style="padding:8px 12px;border:1px solid var(--border);"><b>第 4 个</b></td><td style="padding:8px 12px;border:1px solid var(--border);">月</td><td style="padding:8px 12px;border:1px solid var(--border);">1 ~ 12</td><td style="padding:8px 12px;border:1px solid var(--border);">在几月运行。填 * 代表每月都行</td></tr>
+                <tr><td style="padding:8px 12px;border:1px solid var(--border);"><b>第 5 个</b></td><td style="padding:8px 12px;border:1px solid var(--border);">星期</td><td style="padding:8px 12px;border:1px solid var(--border);">0 ~ 7</td><td style="padding:8px 12px;border:1px solid var(--border);">星期几运行。0=周日，1=周一...6=周六。填 * 代表每天</td></tr>
+                </tbody>
+                </table>
+
+                <h4 style="margin:18px 0 10px 0;color:var(--text-primary);">三、常用写法速查表</h4>
+                <table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:13px;">
+                <thead>
+                <tr style="background:var(--bg);">
+                    <th style="padding:8px 12px;text-align:left;border:1px solid var(--border);">你想要的</th>
+                    <th style="padding:8px 12px;text-align:left;border:1px solid var(--border);">Cron 表达式</th>
+                    <th style="padding:8px 12px;text-align:left;border:1px solid var(--border);">大白话解释</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr><td style="padding:8px 12px;border:1px solid var(--border);">每天上午 9:00</td><td style="padding:8px 12px;border:1px solid var(--border);font-family:monospace;">0 9 * * *</td><td style="padding:8px 12px;border:1px solid var(--border);">每天 9 点整触发</td></tr>
+                <tr><td style="padding:8px 12px;border:1px solid var(--border);">每天下午 3:30</td><td style="padding:8px 12px;border:1px solid var(--border);font-family:monospace;">30 15 * * *</td><td style="padding:8px 12px;border:1px solid var(--border);">每天 15:30 触发</td></tr>
+                <tr><td style="padding:8px 12px;border:1px solid var(--border);">每个工作日（周一到周五）9:00</td><td style="padding:8px 12px;border:1px solid var(--border);font-family:monospace;">0 9 * * 1-5</td><td style="padding:8px 12px;border:1px solid var(--border);">周一至周五的早上 9 点</td></tr>
+                <tr><td style="padding:8px 12px;border:1px solid var(--border);">每周一早上 8:30</td><td style="padding:8px 12px;border:1px solid var(--border);font-family:monospace;">30 8 * * 1</td><td style="padding:8px 12px;border:1px solid var(--border);">只在每周一 8:30 触发</td></tr>
+                <tr><td style="padding:8px 12px;border:1px solid var(--border);">每周五下午 5:30</td><td style="padding:8px 12px;border:1px solid var(--border);font-family:monospace;">30 17 * * 5</td><td style="padding:8px 12px;border:1px solid var(--border);">只在每周五 17:30 触发</td></tr>
+                <tr><td style="padding:8px 12px;border:1px solid var(--border);">每月 1 号上午 10:00</td><td style="padding:8px 12px;border:1px solid var(--border);font-family:monospace;">0 10 1 * *</td><td style="padding:8px 12px;border:1px solid var(--border);">每个月 1 号触发</td></tr>
+                <tr><td style="padding:8px 12px;border:1px solid var(--border);">每隔 30 分钟</td><td style="padding:8px 12px;border:1px solid var(--border);font-family:monospace;">*/30 * * * *</td><td style="padding:8px 12px;border:1px solid var(--border);">每 30 分钟跑一次</td></tr>
+                </tbody>
+                </table>
+
+                <h4 style="margin:18px 0 10px 0;color:var(--text-primary);">四、特殊符号说明</h4>
+                <table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:13px;">
+                <thead>
+                <tr style="background:var(--bg);">
+                    <th style="padding:8px 12px;text-align:left;border:1px solid var(--border);">符号</th>
+                    <th style="padding:8px 12px;text-align:left;border:1px solid var(--border);">名字</th>
+                    <th style="padding:8px 12px;text-align:left;border:1px solid var(--border);">怎么用</th>
+                    <th style="padding:8px 12px;text-align:left;border:1px solid var(--border);">举例</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr><td style="padding:8px 12px;border:1px solid var(--border);font-family:monospace;">*</td><td style="padding:8px 12px;border:1px solid var(--border);">星号（通配）</td><td style="padding:8px 12px;border:1px solid var(--border);">代表「所有可能的值」。填在小时位置就是每小时，填在日位置就是每天</td><td style="padding:8px 12px;border:1px solid var(--border);"><code>0 9 * * *</code> = 每天 9 点</td></tr>
+                <tr><td style="padding:8px 12px;border:1px solid var(--border);font-family:monospace;">,</td><td style="padding:8px 12px;border:1px solid var(--border);">逗号（列举）</td><td style="padding:8px 12px;border:1px solid var(--border);">列出多个值，用逗号隔开</td><td style="padding:8px 12px;border:1px solid var(--border);"><code>0 9,14,18 * * *</code> = 每天 9点、14点、18点各跑一次</td></tr>
+                <tr><td style="padding:8px 12px;border:1px solid var(--border);font-family:monospace;">-</td><td style="padding:8px 12px;border:1px solid var(--border);">横线（范围）</td><td style="padding:8px 12px;border:1px solid var(--border);">从 A 到 B 的所有值</td><td style="padding:8px 12px;border:1px solid var(--border);"><code>0 9 * * 1-5</code> = 周一到周五</td></tr>
+                <tr><td style="padding:8px 12px;border:1px solid var(--border);font-family:monospace;">/</td><td style="padding:8px 12px;border:1px solid var(--border);">斜杠（间隔）</td><td style="padding:8px 12px;border:1px solid var(--border);">每隔多少就触发一次</td><td style="padding:8px 12px;border:1px solid var(--border);"><code>*/15 * * * *</code> = 每 15 分钟跑一次</td></tr>
+                </tbody>
+                </table>
+
+                <h4 style="margin:18px 0 10px 0;color:var(--text-primary);">五、执行时间怎么填？</h4>
+                <p>在模板中，<b>「执行时间」</b>字段不需要写 Cron 表达式，直接写时间就行：</p>
+                <ul style="margin:4px 0;padding-left:20px;">
+                    <li>写 <code>09:00</code> — 系统会自动生成 <code>0 9 * * 1-5</code>（工作日早 9 点）</li>
+                    <li>写 <code>09:00-10:30</code> — 代表一个时间段，系统会用开始时间 09:00</li>
+                    <li>写 <code>周五 17:30</code> — 如果你在 Cron 表达式里填了覆盖值，则以 Cron 表达式为准</li>
+                </ul>
+                <p>如果你想精确控制，直接改右边的 <b>「Cron 表达式」</b>框。</p>
+
+                <h4 style="margin:18px 0 10px 0;color:var(--text-primary);">六、执行 Prompt 怎么写？</h4>
+                <p>Prompt 就是告诉 Agent「你要帮我做什么」的一段话。用大白话写就行，就像你在聊天框里打字一样。</p>
+                <p><b>写好 Prompt 的 3 个要点：</b></p>
+                <ol style="margin:4px 0;padding-left:20px;">
+                    <li><b>说清楚目标</b>：不要写「帮我查资料」，要写「帮我查今天的 USD/CNY 汇率、铜价、铝价」</li>
+                    <li><b>说清楚格式</b>：不要写「生成简报」，要写「用表格列出，包含实时数值、变化幅度、数据来源」</li>
+                    <li><b>说清楚要求</b>：不要写「写开发信」，要写「用英语写，100 字以内，先提客户痛点再讲我们的解决方案」</li>
+                </ol>
+                <p>💡 <b>重要提醒</b>：Prompt 要写<b>任务本身做什么</b>，不要写多余的话。Agent 会自动执行，不需要你说「请」、「谢谢」。</p>
+
+                <h4 style="margin:18px 0 10px 0;color:var(--text-primary);">七、操作步骤</h4>
+                <ol style="margin:4px 0;padding-left:20px;">
+                    <li><b>钩选</b>你想要的任务模板（或点「➕ 自定义模板」写自己的）</li>
+                    <li><b>编辑执行时间</b>和<b>Cron 表达式</b>（用上面速查表参考）</li>
+                    <li>点「✏️ 编辑 Prompt」检查或修改任务指令</li>
+                    <li>点<b>「⚡ 批量生成选中任务」</b>，Agent 自动创建定时任务</li>
+                    <li>下方「📡 已激活的定时任务」会显示当前所有运行中的任务</li>
+                    <li>如果需要马上执行，点任务旁的「▶ 执行一次」按钮</li>
+                </ol>
+
+                <h4 style="margin:18px 0 10px 0;color:var(--text-primary);">八、常见问题</h4>
+                <p><b>Q: 任务会在我关掉浏览器后执行吗？</b></p>
+                <p>A: 会的。定时任务由后台服务独立运行，不需要你一直开着浏览器。只要电脑开着、Trade 系统在运行就行。</p>
+                <p><b>Q: 我能把电脑关了吗？</b></p>
+                <p>A: 不能。Trade 系统需要运行时电脑保持开机。可以设置 Trade 开机自启动（安装脚本会提示配置），这样每次开机自动运行。</p>
+                <p><b>Q: 任务执行结果在哪看？</b></p>
+                <p>A: 结果会发送到聊天界面中。如果你在早上 9 点前打开界面，可以看到早安简报自动推送。</p>
+                <p><b>Q: Cron 表达式写错了怎么办？</b></p>
+                <p>A: 不会造成损害，只是任务不会按时执行或不执行。删掉重建就行。</p>
+
+                </div>
+            </details>
+
             <!-- 模板库 -->
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                 <div style="font-size:13px;font-weight:600;color:var(--text-secondary);">📋 任务模板库（钩选 → 编辑时间 → 批量生成）</div>
