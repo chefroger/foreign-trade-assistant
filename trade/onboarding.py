@@ -167,12 +167,12 @@ def create_first_company(
     )
 
     # Step 3: 将 agent_identity 写入公司目录下的标准文件
-    # 路径：~/.trade/{slug}/companies/{slug}/agent_identity.md
+    # 路径：~/.trade/{slug}/companies/{slug}/agent-identity.md
     # 同时写 DB（DB 作为运行时缓存）
     tc = _company_module.get_trade_company(company["id"])
     if tc and tc.get("data_dir"):
         slug = company.get("slug", "")
-        identity_path = Path(tc["data_dir"]) / "companies" / slug / "agent_identity.md"
+        identity_path = Path(tc["data_dir"]) / "companies" / slug / "agent-identity.md"
         identity_path.parent.mkdir(parents=True, exist_ok=True)
         identity_path.write_text(agent_identity, encoding="utf-8")
 
