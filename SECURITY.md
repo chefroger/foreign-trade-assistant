@@ -32,8 +32,8 @@ We do not currently run a bug bounty program.
 
 | Version | Supported |
 |---------|-----------|
-| 0.3.x   | ✅ Active |
-| < 0.3   | ❌ Unsupported |
+| 0.4.x   | ✅ Active |
+| < 0.4   | ❌ Unsupported |
 
 ## Reporting
 

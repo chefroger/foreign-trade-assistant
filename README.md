@@ -180,6 +180,7 @@ trade/                     B2B 业务层
 │   ├── conversations.py     对话记录
 │   ├── memory.py            Hindsight 记忆 + LLM 提供商
 │   ├── onboarding.py        首次引导
+│   ├── cron.py               定时任务 API
 │   ├── deps.py              共享依赖 + session token 校验
 │   └── models.py             Pydantic 请求/响应模型
 ├── osint/                 客户背调模块（6 层检测）
@@ -206,7 +207,7 @@ trade/                     B2B 业务层
 └── post_install.py         Skills 安装到 Hermes
 
 skills/                     14 个 B2B skills（安装到 ~/.hermes/skills/）
-tests/                      126 个测试（database/business/api/osint/smoke）
+tests/                      127 个测试（database/business/api/osint/smoke）
 static/trade_chat.html      Chat SPA 前端
 scripts/
 ├── install.sh              一键安装脚本（macOS/Linux）
@@ -226,7 +227,10 @@ server.py                   FastAPI 入口
 
 ```bash
 pip install -e ".[dev]"
-python -m pytest tests/ -v       # 运行 126 个测试
+python -m pytest tests/ -v       # 运行 127 个测试
+ruff check trade/ server.py      # 代码检查
+ruff check --fix .               # 自动修复
+coverage run -m pytest tests/ -v # 测试覆盖
 python -m trade.database          # 初始化/检查数据库
 ```
 
