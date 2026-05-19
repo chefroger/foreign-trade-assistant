@@ -631,9 +631,12 @@ async function loadLicenseStatus() {
 function showLicenseExpired(msg) {
     const div = document.createElement('div');
     div.className = 'modal-backdrop';
-    div.innerHTML = `<div class="modal" style="text-align:center;">
+    div.innerHTML = `<div class="modal" style="text-align:center;max-width:420px;">
         <h3>⏰ ${msg || '试用期已到期'}</h3>
-        <p style="margin:12px 0;color:var(--text-secondary);">请联系 lauroge@gmail.com 获取激活码继续使用。</p>
+        <p style="margin:8px 0;color:var(--text-secondary);">请联系 Roger Lococo 获取激活码继续使用</p>
+        <img src="/static/wechat-contact.jpeg" alt="微信扫码联系" style="width:200px;border-radius:8px;margin:8px 0;">
+        <p style="font-size:11px;color:var(--text-muted);">微信扫码 · 备注「Trade」</p>
+        <p style="font-size:11px;color:var(--text-muted);">📧 lauroge@gmail.com</p>
         <button class="btn btn-primary" onclick="showActivateModal()">🔑 输入激活码</button>
         <button class="btn" onclick="this.closest('.modal-backdrop').remove()" style="margin-top:8px;">关闭</button>
     </div>`;
