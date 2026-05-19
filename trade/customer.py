@@ -30,15 +30,14 @@ def create(
     source: str = "",
 ) -> dict:
     """创建一条归属于指定公司的客户记录。返回新行的字典表示。"""
-    import json as _json
-    extra1 = _json.dumps({
+    extra1 = json.dumps({
         "country": country,
         "tier": tier,
         "linkedin_url": linkedin_url,
         "company_website": company_website,
         "social_media": social_media or {},
     }, ensure_ascii=False)
-    extra2 = _json.dumps({
+    extra2 = json.dumps({
         "title": title,
         "email": email,
         "backup_email": backup_email,
@@ -107,8 +106,6 @@ def update(
     extra1 字段: country, tier, linkedin_url, company_website, social_media
     extra2 字段: email, backup_email, phone, whatsapp, wechat, source, last_contact_at
     """
-    import json as _json
-
     extra1_keys = {"country", "tier", "linkedin_url", "company_website", "social_media"}
     extra2_keys = {"title", "email", "backup_email", "phone", "whatsapp", "wechat", "source", "last_contact_at"}
     basic_allowed = {"name", "contact", "note"}
@@ -140,8 +137,8 @@ def update(
             # 客户不存在，回滚事务并返回 None
             conn.rollback()
             return None
-        current_extra1 = _json.loads(row["extra1"]) if row["extra1"] else {}
-        current_extra2 = _json.loads(row["extra2"]) if row["extra2"] else {}
+        current_extra1 = json.loads(row["extra1"]) if row["extra1"] else {}
+        current_extra2 = json.loads(row["extra2"]) if row["extra2"] else {}
 
         # 构造 WHERE 子句（company_id 贯穿所有写操作）
         where_clause = "id = ? AND company_id = ?" if company_id is not None else "id = ?"
@@ -153,7 +150,7 @@ def update(
             current_extra1.update(extra1_updates)
             conn.execute(
                 f"UPDATE customers SET extra1 = ?, updated_at = datetime('now','localtime') WHERE {where_clause}",
-                (_json.dumps(current_extra1, ensure_ascii=False), *where_params),
+                (json.dumps(current_extra1, ensure_ascii=False), *where_params),
             )
 
         # 合并 extra2
@@ -162,7 +159,7 @@ def update(
             current_extra2.update(extra2_updates)
             conn.execute(
                 f"UPDATE customers SET extra2 = ?, updated_at = datetime('now','localtime') WHERE {where_clause}",
-                (_json.dumps(current_extra2, ensure_ascii=False), *where_params),
+                (json.dumps(current_extra2, ensure_ascii=False), *where_params),
             )
 
         # 基础字段

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Depends
 
 from trade import chat_memory
 from trade.api.deps import opt_company
@@ -22,13 +22,13 @@ router = APIRouter(tags=["memory"])
 # ── Hindsight 长期记忆 ────────────────────────────────────────────────────
 
 @router.get("/memory/status")
-def memory_status(x_company_id: str | None = Header(None, alias="X-Company-ID")):
+def memory_status(cid: int | None = Depends(opt_company)):
     """检查 Hindsight 长期记忆是否可用。"""
     try:
         from trade.memory import is_available as hindsight_available
         return {
             "hindsight_available": hindsight_available(),
-            "company_id": opt_company(x_company_id),
+            "company_id": cid,
         }
     except ImportError:
         return {"hindsight_available": False, "company_id": None}
@@ -37,7 +37,7 @@ def memory_status(x_company_id: str | None = Header(None, alias="X-Company-ID"))
 @router.get("/memory/recall")
 def memory_recall(
     query: str,
-    x_company_id: str | None = Header(None, alias="X-Company-ID"),
+    cid: int | None = Depends(opt_company),
 ):
     """搜索 Hindsight 长期记忆中的相关历史对话。"""
     result = chat_memory.recall_context(query)

@@ -89,7 +89,7 @@ def _get_client():
         config_path = get_hermes_home() / "hindsight" / "config.json"
         # 如果配置文件存在，用其中的值覆盖环境变量（环境变量优先）
         if config_path.exists():
-            cfg = json.load(config_path.read_text())
+            cfg = json.loads(config_path.read_text())
             api_key = api_key or cfg.get("apiKey", "") or cfg.get("api_key", "")
             api_url = cfg.get("api_url", api_url)
             timeout = int(cfg.get("timeout", timeout))

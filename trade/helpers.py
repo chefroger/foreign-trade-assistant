@@ -204,14 +204,40 @@ def create_agent(
 def _estimate_tokens(text: str) -> int:
     """估算文本的 token 数（用于上下文窗口预算）。
 
-    经验值：中文约 1.5 字/token → token = 字数 / 1.5 ≈ 字数 × 0.67
-            英文约 4 字符/token → token = 字符数 / 4 = 字符数 × 0.25
+    CJK/日韩/全角：约 1.5 字/token → 系数 0.67
+    其他（英文/数字）：约 4 字符/token → 系数 0.25
+    优先使用 tiktoken 以获得准确估算（缺包时回退到启发式）。
     """
     if not text:
         return 0
-    chinese_chars = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
-    non_chinese = len(text) - chinese_chars
-    return int(chinese_chars / 1.5 + non_chinese / 4.0)
+
+    # 优先用 tiktoken
+    try:
+        import tiktoken
+        enc = tiktoken.get_encoding("cl100k_base")
+        return len(enc.encode(text))
+    except Exception:
+        pass
+
+    # fallback 启发式：扩展 CJK 范围（含标点、全角、日韩）
+    cjk_ranges = (
+        (0x3000, 0x303F),   # CJK 标点
+        (0x3040, 0x30FF),   # 日语假名
+        (0x3400, 0x4DBF),   # CJK 扩展 A
+        (0x4E00, 0x9FFF),   # CJK 基本块
+        (0xAC00, 0xD7AF),   # 韩语音节
+        (0xFF00, 0xFFEF),   # 全角符号
+    )
+
+    def _is_cjk(code: int) -> bool:
+        for lo, hi in cjk_ranges:
+            if lo <= code <= hi:
+                return True
+        return False
+
+    cjk_chars = sum(1 for c in text if _is_cjk(ord(c)))
+    other_chars = len(text) - cjk_chars
+    return int(cjk_chars / 1.5 + other_chars / 4.0)
 
 
 def _get_history_block(company_id: int, total_prompt_chars: int) -> tuple[str, int]:
