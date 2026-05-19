@@ -52,6 +52,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import sys
 import typing
 from collections.abc import AsyncIterator
 
@@ -448,13 +449,28 @@ class EmailBackgroundChecker:
             yield {"type": "error", "message": f"holehe not installed: {_holehe_import_error or 'unknown'}"}
             return
 
+        # 在子进程中运行 holehe，彻底隔离 trio/asyncio event loop
         try:
-            raw_results = await asyncio.wait_for(
-                _run_holehe_async(email),
-                timeout=self.timeout,
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable, "-c", _HOLEHE_WORKER_SCRIPT, email,
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             )
-        except TimeoutError:
-            yield {"type": "error", "message": f"Timeout after {self.timeout}s"}
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=self.timeout,
+                )
+            except TimeoutError:
+                proc.kill()
+                await proc.wait()
+                yield {"type": "error", "message": f"Timeout after {self.timeout}s"}
+                return
+            if proc.returncode != 0:
+                err_text = stderr.decode().strip() if stderr else "unknown"
+                yield {"type": "error", "message": f"holehe error: {err_text}"}
+                return
+            raw_results = json.loads(stdout)
+        except json.JSONDecodeError as exc:
+            yield {"type": "error", "message": f"holehe parse error: {exc}"}
             return
         except Exception as exc:
             yield {"type": "error", "message": f"holehe error: {exc}"}

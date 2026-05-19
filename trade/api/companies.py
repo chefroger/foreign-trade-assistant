@@ -79,8 +79,13 @@ def update_company(
 
 
 @router.delete("/companies/{company_id}")
-def delete_company(company_id: int):
+def delete_company(
+    company_id: int,
+    x_company_id: int = Depends(require_company),
+):
     """删除公司及级联删除其所有库、客户、对话记录。"""
+    if x_company_id != company_id:
+        raise HTTPException(status_code=403, detail="Cannot delete another company.")
     if not company_module.delete(company_id):
         raise HTTPException(status_code=404, detail="Company not found")
     return {"ok": True}

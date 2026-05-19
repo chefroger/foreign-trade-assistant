@@ -180,6 +180,7 @@ def update_skills() -> None:
     用法：trade-skills-update（或 python -m trade.post_install update）
     """
     import hashlib
+    import urllib.error
     import urllib.request
 
     hermes_home = _get_hermes_home()
