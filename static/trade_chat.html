@@ -514,8 +514,7 @@ body {
             <div class="form-group"><label>电话</label><input type="text" id="cust-phone" placeholder="+1 555-0123"></div>
         </div>
         <div class="form-row">
-            <div class="form-group"><label>WhatsApp</label><input type="text" id="cust-whatsapp" placeholder="+1 555-0123"></div>
-            <div class="form-group"><label>微信</label><input type="text" id="cust-wechat" placeholder="WeChat ID"></div>
+            <div class="form-group" style="flex:1;"><label>WhatsApp</label><input type="text" id="cust-whatsapp" placeholder="+1 555-0123"></div>
         </div>
         <div class="form-row">
             <div class="form-group"><label>LinkedIn URL</label><input type="text" id="cust-linkedin" placeholder="https://linkedin.com/..."></div>
@@ -1205,8 +1204,8 @@ async function renderCustomersViewInto(container) {
         <div class="panel-body">
             <table class="data-table" id="customers-table">
                 <thead><tr>
-                    <th style="width:36px;"><input type="checkbox" id="select-all-customers" onchange="toggleSelectAllCustomers(this)" title="全选"></th>
-                    <th>客户名称</th><th>等级</th><th>国家</th><th>联系方式</th><th>关联文档库</th><th>最近跟进</th><th>操作</th>
+                    <th style="width:30px;"><input type="checkbox" id="select-all-customers" onchange="toggleSelectAllCustomers(this)" title="全选"></th>
+                    <th>客户信息</th><th style="width:50px;">操作</th>
                 </tr></thead>
                 <tbody id="customers-tbody"></tbody>
             </table>
@@ -1231,6 +1230,7 @@ async function loadCustomersData() {
 }
 
 function _parseExtra1(c) { try { return JSON.parse(c.extra1||'{}'); } catch(e) { return {}; } }
+function _parseExtra2(c) { try { return JSON.parse(c.extra2||'{}'); } catch(e) { return {}; } }
 
 function renderCustomersTable(data) {
     const tbody = $('customers-tbody');
@@ -1243,7 +1243,6 @@ function renderCustomersTable(data) {
     }
     empty.classList.add('hidden');
 
-    // Sort
     const sortBy = ($('cust-sort')?.value) || 'name';
     const sorted = [...data].sort((a, b) => {
         if (sortBy === 'updated_at') return (b.updated_at || '').localeCompare(a.updated_at || '');
@@ -1252,21 +1251,30 @@ function renderCustomersTable(data) {
 
     tbody.innerHTML = sorted.map(c => {
         const ex1 = _parseExtra1(c);
+        const ex2 = _parseExtra2(c);
         const tier = ex1['tier'] || '';
-        const country = ex1['country'] || '';
-        const tierClass = tier==='A'?'level-a':tier==='B'?'level-b':'level-c';
         const tierLabel = tier || '--';
-        const libCount = (c._libraries||[]).length;
-        const contactInfo = c.contact || '--';
-        return `<tr>
-            <td onclick="event.stopPropagation()"><input type="checkbox" class="cust-checkbox" value="${c.id}" onchange="updateBatchDeleteBtn()"></td>
-            <td style="font-weight:500;cursor:pointer;" onclick="showCustomerDetail(${c.id})">${esc(c.name)}</td>
-            <td onclick="showCustomerDetail(${c.id})"><span class="level-badge ${tierClass}">${tierLabel}</span></td>
-            <td onclick="showCustomerDetail(${c.id})">${esc(country||'--')}</td>
-            <td onclick="showCustomerDetail(${c.id})">${esc(contactInfo)}</td>
-            <td onclick="showCustomerDetail(${c.id})">${libCount} 个</td>
-            <td onclick="showCustomerDetail(${c.id})" style="color:var(--text-muted);font-size:12px;">${esc((c.updated_at||'').slice(0,10))}</td>
-            <td><button class="btn-xs" onclick="event.stopPropagation();showCustomerEditModal(${c.id})">编辑</button></td>
+        const tierColor = tier === 'A' ? 'var(--accent-green)' : tier === 'B' ? 'var(--accent)' : tier === 'C' ? 'var(--accent-red)' : 'var(--text-muted)';
+        const country = ex1['country'] || '';
+        const contact = c.contact || '';
+        const title = ex2['title'] || '';
+        const email = ex2['email'] || '';
+        const phone = ex2['phone'] || ex2['whatsapp'] || '';
+        const note = (c.note || '').slice(0, 40);
+        const updated = (c.updated_at || c.created_at || '').slice(0, 10);
+        const subLine = [title, country, email, phone].filter(Boolean).join(' · ');
+        return `<tr style="cursor:pointer;" onclick="showCustomerDetail(${c.id})">
+            <td style="width:30px;" onclick="event.stopPropagation()"><input type="checkbox" class="cust-checkbox" value="${c.id}" onchange="updateBatchDeleteBtn()"></td>
+            <td style="padding:8px 10px;">
+                <div style="font-weight:600;font-size:13px;color:var(--text-primary);">${esc(c.name)}${contact ? '<span style="font-weight:400;color:var(--text-muted);margin-left:6px;">' + esc(contact) + '</span>' : ''}</div>
+                <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;display:flex;align-items:center;gap:8px;">
+                    <span style="color:${tierColor};font-weight:600;">● ${tierLabel} 级</span>
+                    ${subLine ? '<span>' + esc(subLine) + '</span>' : ''}
+                    ${note ? '<span style="color:var(--text-muted);">📝 ' + esc(note) + '</span>' : ''}
+                    <span style="color:var(--text-muted);margin-left:auto;font-size:10px;white-space:nowrap;">${esc(updated)}</span>
+                </div>
+            </td>
+            <td style="width:50px;text-align:right;padding-right:8px;" onclick="event.stopPropagation()"><button class="btn-xs" onclick="showCustomerEditModal(${c.id})">编辑</button></td>
         </tr>`;
     }).join('');
 
@@ -1330,7 +1338,6 @@ async function showCustomerDetail(cid) {
     const email = extra2['email'] || '';
     const phone = extra2['phone'] || '';
     const whatsapp = extra2['whatsapp'] || '';
-    const wechat = extra2['wechat'] || '';
     const backupEmail = extra2['backup_email'] || '';
 
     const libs = c._libraries || await (async () => {
@@ -1385,7 +1392,6 @@ async function showCustomerDetail(cid) {
             </div>
             <div class="panel-field-row">
                 <div class="panel-field"><label>WhatsApp</label><input type="text" value="${esc(whatsapp)}" id="detail-whatsapp"></div>
-                <div class="panel-field"><label>微信</label><input type="text" value="${esc(wechat)}" id="detail-wechat"></div>
             </div>
             <div class="panel-field-row">
                 <div class="panel-field"><label>LinkedIn</label><input type="text" value="${esc(linkedin)}" id="detail-linkedin"></div>
@@ -1452,12 +1458,11 @@ async function saveCustomerDetail(cid) {
     const email = $('detail-email')?.value?.trim()||'';
     const phone = $('detail-phone')?.value?.trim()||'';
     const whatsapp = $('detail-whatsapp')?.value?.trim()||'';
-    const wechat = $('detail-wechat')?.value?.trim()||'';
     const website = $('detail-website')?.value?.trim()||'';
     const backupEmail = $('detail-backup-email')?.value?.trim()||'';
 
     await api('PUT', `/api/trade/customers/${cid}`, {name, contact, note, country, tier, linkedin_url: linkedin,
-        title, email, phone, whatsapp, wechat, company_website: website, backup_email: backupEmail});
+        title, email, phone, whatsapp, company_website: website, backup_email: backupEmail});
     toast('已保存');
     closeCustomerDetail();
     await loadCustomersData();
@@ -1499,7 +1504,7 @@ function showCustomerEditModal(cid) {
         $('cust-email').value = extra2['email']||c.contact||'';
         $('cust-phone').value = extra2['phone']||'';
         $('cust-whatsapp').value = extra2['whatsapp']||'';
-        $('cust-wechat').value = extra2['wechat']||'';
+        $('cust-contact').value = c.contact||'';
         $('cust-linkedin').value = extra1['linkedin_url']||'';
         $('cust-website').value = extra1['company_website']||'';
         $('cust-tier').value = extra1['tier']||'';
@@ -1508,7 +1513,7 @@ function showCustomerEditModal(cid) {
     } else {
         $('customer-modal-title').textContent = '添加客户';
         $('cust-edit-id').value = '';
-        ['cust-name','cust-title','cust-country','cust-email','cust-phone','cust-whatsapp','cust-wechat','cust-linkedin','cust-website','cust-tier','cust-backup-email','cust-note'].forEach(id => $(id).value='');
+        ['cust-name','cust-contact','cust-title','cust-country','cust-email','cust-phone','cust-whatsapp','cust-linkedin','cust-website','cust-tier','cust-backup-email','cust-note'].forEach(id => $(id).value='');
     }
     showModal('customer-modal');
 }
@@ -1527,12 +1532,11 @@ async function saveCustomer() {
     const email = $('cust-email').value.trim();
     const phone = $('cust-phone').value.trim();
     const whatsapp = $('cust-whatsapp').value.trim();
-    const wechat = $('cust-wechat').value.trim();
     const website = $('cust-website').value.trim();
     const backupEmail = $('cust-backup-email').value.trim();
 
     const body = {name, contact, note, country, tier, linkedin_url: linkedin,
-        title, email, phone, whatsapp, wechat, company_website: website, backup_email: backupEmail};
+        title, email, phone, whatsapp, company_website: website, backup_email: backupEmail};
     if (editId) {
         await api('PUT', `/api/trade/customers/${editId}`, body);
     } else {
