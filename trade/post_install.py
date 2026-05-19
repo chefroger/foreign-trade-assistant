@@ -264,6 +264,66 @@ def update_skills() -> None:
         print("Hermes will pick up the updated skills on the next request.")
 
 
+def _restart_trade_service() -> None:
+    """尝试重启 Trade 后台服务。
+
+    macOS launchd 用户：reload plist
+    systemd 用户：restart trade 服务
+    如果都不是（手动运行），打印提示。
+
+    重启失败不阻塞更新流程——只是提示。
+    """
+    import platform
+    import shutil
+    import subprocess as _sp
+
+    sys_name = platform.system()
+    label = "com.trade.assistant"
+
+    if sys_name == "Darwin":
+        # macOS launchd — bootstrap + unload + load
+        plist = Path.home() / "Library" / "LaunchAgents" / f"{label}.plist"
+        if plist.exists():
+            try:
+                _sp.run(
+                    ["launchctl", "unload", str(plist)],
+                    capture_output=True, timeout=5,
+                )
+                _sp.run(
+                    ["launchctl", "load", str(plist)],
+                    capture_output=True, timeout=5,
+                )
+                print("  ↻ Trade 后台服务已自动重启（页面更新已生效）")
+            except Exception:
+                print("  ⚠ 自动重启失败，请手动执行: launchctl unload ~/Library/LaunchAgents/com.trade.assistant.plist && launchctl load ~/Library/LaunchAgents/com.trade.assistant.plist")
+            return
+
+    if sys_name == "Linux":
+        # systemd 或手动
+        if shutil.which("systemctl"):
+            try:
+                _sp.run(["systemctl", "--user", "restart", label], capture_output=True, timeout=5)
+                print("  ↻ Trade 后台服务已自动重启")
+                return
+            except Exception:
+                pass
+        # 尝试 systemctl（全局）
+        if shutil.which("systemctl"):
+            try:
+                _sp.run(["sudo", "systemctl", "restart", label], capture_output=True, timeout=5)
+                print("  ↻ Trade 后台服务已自动重启")
+                return
+            except Exception:
+                pass
+
+    # 无法自动重启 — 提醒用户
+    print("  💡 请在终端中重启 Trade 服务以应用前端页面更新：")
+    if sys_name == "Darwin":
+        print(f"     launchctl unload ~/Library/LaunchAgents/{label}.plist")
+        print(f"     launchctl load ~/Library/LaunchAgents/{label}.plist")
+        print("     或手动运行: trade")
+
+
 def update_trade() -> None:
     """一键更新 Foreign Trade Assistant 系统。
 
@@ -332,7 +392,8 @@ def update_trade() -> None:
 
     if ok:
         # 所有步骤成功完成
-        print("\n✅ Trade update complete. Restart the server to apply changes.")
+        print("\n✅ Trade update complete.")
+        _restart_trade_service()
     else:
         # 部分步骤失败，提示用户检查输出
         print("\n⚠️  Trade update completed with warnings. Check the output above.")
