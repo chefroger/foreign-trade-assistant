@@ -444,6 +444,7 @@ body {
         </div>
     </nav>
 
+    <div id="license-bar" style="padding:6px 16px;font-size:11px;text-align:center;display:none;"></div>
     <div class="sidebar-footer">
         <button onclick="doTradeUpdate()" title="一键更新系统（git pull + skills + db）">⬆️ 系统更新</button>
         <button onclick="doTradeBackup()" title="备份数据到桌面 tar.gz">💾 备份</button>
@@ -585,6 +586,7 @@ async function api(method, path, body) {
             const err = await r.json().catch(() => ({}));
             const msg = err.detail || `请求失败 (${r.status})`;
             if (r.status === 401) toast('请先选择公司');
+            else if (r.status === 402) showLicenseExpired(msg);
             else if (r.status === 404) toast(msg);
             else if (r.status === 409) toast(msg);
             else toast(msg);
@@ -595,6 +597,91 @@ async function api(method, path, body) {
         clearTimeout(tid);
         if (e.name === 'AbortError') { toast('请求超时'); return null; }
         throw e;
+    }
+}
+
+// ── 许可证 ──
+
+async function loadLicenseStatus() {
+    try {
+        const r = await fetch('/api/trade/license/status');
+        const data = await r.json();
+        const bar = document.getElementById('license-bar');
+        if (!bar) return;
+
+        if (data.status === 'expired') {
+            bar.style.display = 'block';
+            bar.style.background = '#FEF2F2';
+            bar.style.color = '#991B1B';
+            bar.innerHTML = '⚠️ 试用期已到期 · <a href="#" onclick="showActivateModal()" style="color:#DC2626;text-decoration:underline;">输入激活码</a>';
+        } else if (data.status === 'active') {
+            bar.style.display = 'block';
+            bar.style.background = '#F0FDF4';
+            bar.style.color = '#166534';
+            bar.innerHTML = `✅ 已激活${data.expires_at ? ' · 有效期至 ' + data.expires_at.substring(0,10) : ''}`;
+        } else if (data.status === 'trial' && data.days_remaining <= 7) {
+            bar.style.display = 'block';
+            bar.style.background = '#FFFBEB';
+            bar.style.color = '#92400E';
+            bar.innerHTML = `⏳ 试用剩余 ${data.days_remaining} 天 · <a href="#" onclick="showActivateModal()" style="color:#D97706;text-decoration:underline;">输入激活码</a>`;
+        }
+    } catch(e) { /* license API 不可用时静默 */ }
+}
+
+function showLicenseExpired(msg) {
+    const div = document.createElement('div');
+    div.className = 'modal-backdrop';
+    div.innerHTML = `<div class="modal" style="text-align:center;">
+        <h3>⏰ ${msg || '试用期已到期'}</h3>
+        <p style="margin:12px 0;color:var(--text-secondary);">请联系 lauroge@gmail.com 获取激活码继续使用。</p>
+        <button class="btn btn-primary" onclick="showActivateModal()">🔑 输入激活码</button>
+        <button class="btn" onclick="this.closest('.modal-backdrop').remove()" style="margin-top:8px;">关闭</button>
+    </div>`;
+    document.body.appendChild(div);
+}
+
+function showActivateModal() {
+    // 关掉现有弹窗
+    document.querySelectorAll('.modal-backdrop').forEach(e => e.remove());
+    const div = document.createElement('div');
+    div.className = 'modal-backdrop';
+    div.innerHTML = `<div class="modal" style="text-align:center;">
+        <h3>🔑 激活 Trade Assistant</h3>
+        <p style="margin:8px 0;color:var(--text-secondary);">请输入您获取的激活码</p>
+        <input type="text" id="activate-code-input" placeholder="TRADE-XXXX-XXXX-XXXX" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:monospace;font-size:16px;text-align:center;text-transform:uppercase;margin:12px 0;">
+        <button class="btn btn-primary" onclick="doActivate()" style="margin-top:8px;">✅ 激活</button>
+        <button class="btn" onclick="this.closest('.modal-backdrop').remove()">取消</button>
+        <p id="activate-msg" style="margin-top:10px;font-size:12px;"></p>
+    </div>`;
+    document.body.appendChild(div);
+    setTimeout(() => document.getElementById('activate-code-input')?.focus(), 100);
+}
+
+async function doActivate() {
+    const input = document.getElementById('activate-code-input');
+    const msg = document.getElementById('activate-msg');
+    const code = input.value.trim();
+    if (!code) { msg.textContent = '请输入激活码'; msg.style.color = 'var(--accent-red)'; return; }
+    try {
+        const r = await fetch('/api/trade/license/activate', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({code})
+        });
+        const data = await r.json();
+        if (data.ok) {
+            msg.textContent = data.message;
+            msg.style.color = 'var(--accent-green)';
+            setTimeout(() => {
+                document.querySelectorAll('.modal-backdrop').forEach(e => e.remove());
+                loadLicenseStatus();
+            }, 1500);
+        } else {
+            msg.textContent = data.error || '激活失败';
+            msg.style.color = 'var(--accent-red)';
+        }
+    } catch(e) {
+        msg.textContent = '网络错误，请重试';
+        msg.style.color = 'var(--accent-red)';
     }
 }
 
@@ -2191,6 +2278,9 @@ async function saveCompanyIdentity() {
 
 // ═════════════════════ INIT ═════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
+    // 许可证状态检查
+    loadLicenseStatus();
+
     try {
         await loadCompanies();
     } catch(e) {

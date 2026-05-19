@@ -79,7 +79,8 @@ CREATE TABLE IF NOT EXISTS trade_companies (
     created_at        TEXT    DEFAULT (datetime('now', 'localtime')),
     extra1            TEXT    DEFAULT '{}',  -- spare: {"max_iterations":90, "temperature":0.7, ...}
     extra2            TEXT    DEFAULT '{}',  -- spare: {"model":"", "provider":"", ...}
-    extra3            TEXT    DEFAULT '{}'   -- spare: reserved for future use
+    extra3            TEXT    DEFAULT '{}',  -- spare: reserved for future use
+    license_data      TEXT    DEFAULT '{}'   -- {"first_launch_at":"","activated":false,"expires_at":null}
 );
 
 CREATE TABLE IF NOT EXISTS libraries (
@@ -154,7 +155,7 @@ def _add_spare_columns(conn: sqlite3.Connection) -> None:
 
     for table, extras in [
         ("companies",        ["extra1", "extra2", "extra3"]),
-        ("trade_companies",  ["extra1", "extra2", "extra3"]),
+        ("trade_companies",  ["extra1", "extra2", "extra3", "license_data"]),
         ("libraries",       ["extra1", "extra2", "extra3"]),
         ("customers",       ["extra1", "extra2", "extra3"]),
         ("customer_libraries", ["extra1", "extra2", "extra3"]),

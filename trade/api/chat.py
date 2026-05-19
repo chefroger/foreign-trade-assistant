@@ -35,6 +35,11 @@ async def trade_chat(
     cid: int = Depends(require_company),
 ):
     """同步聊天。"""
+    from trade.license import check_license
+    lic_ok, lic_msg = check_license()
+    if not lic_ok:
+        raise HTTPException(status_code=402, detail=lic_msg)
+
     query = payload.query.strip()
     if not query:
         raise HTTPException(status_code=400, detail="query is required")
@@ -87,6 +92,11 @@ async def trade_chat_stream(
     使用 asyncio.Queue + call_soon_threadsafe 替代 queue.Queue + executor 轮询，
     每条 SSE 连接只占用 1 条线程。客户端断连时通过 CancelledError 取消 agent。
     """
+    from trade.license import check_license
+    lic_ok, lic_msg = check_license()
+    if not lic_ok:
+        raise HTTPException(status_code=402, detail=lic_msg)
+
     query = payload.query.strip()
     if not query:
         raise HTTPException(status_code=400, detail="query is required")

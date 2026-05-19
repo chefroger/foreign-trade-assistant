@@ -219,12 +219,24 @@ _sync_b2b_skills()
 from trade.database import init_db as _init_db
 
 _db_path = _init_db()
+
+# ── License check ───────────────────────────────────────────────────────────
+from trade.license import check_license as _check_license
+
+_lic_ok, _lic_msg = _check_license()
+if not _lic_ok:
+    print(f"  ⚠️  {_lic_msg}")
 print(f"  Database: {_db_path}")
 
 # ── Inject session token before mounting routes ───────────────────────────
 from trade.api.deps import set_session_token
 
 set_session_token(_SESSION_TOKEN)
+
+# ── License endpoints (无需 session token) ────────────────────────────────
+from trade.api.license import router as license_router
+
+app.include_router(license_router, prefix="/api/trade")
 
 # ── Mount Trade API ───────────────────────────────────────────────────────
 from trade.api import router as trade_router
