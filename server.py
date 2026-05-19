@@ -44,15 +44,30 @@ if _TRADE_ROOT not in sys.path:
     # 如果项目根路径不在 sys.path 中，插入到最前面以优先于 Hermes 的同名包
     sys.path.insert(0, _TRADE_ROOT)
 
-_HERMES_CHECKOUT = os.environ.get(
-    "HERMES_HOME",
-    str(Path(__file__).resolve().parent.parent / "trade_ai_assistant"),
-)
-if _HERMES_CHECKOUT and Path(_HERMES_CHECKOUT).is_dir():
-    # 如果 Hermes 的本地开发目录存在，将其加入 sys.path
+# Hermes 源码路径优先级：
+#   1. HERMES_HOME 环境变量（通常指向 ~/.hermes/hermes-agent/，即 pip install 的源码目录）
+#   2. 与 Trade 平级的 trade_ai_assistant 开发目录（兼容旧开发环境）
+#   3. 如果都不存在，依赖 pip 安装的 hermes-agent 包（无需 sys.path 调整）
+_HERMES_CHECKOUT = os.environ.get("HERMES_HOME", "").strip()
+if not _HERMES_CHECKOUT:
+    # 如果没有设置 HERMES_HOME，尝试默认的 pip 安装目录
+    _default_hermes = Path.home() / ".hermes" / "hermes-agent"
+    if _default_hermes.is_dir():
+        _HERMES_CHECKOUT = str(_default_hermes)
+if not _HERMES_CHECKOUT:
+    # 最后兜底：与 Trade 平级的 trade_ai_assistant 目录（旧开发环境）
+    _dev_hermes = str(Path(__file__).resolve().parent.parent / "trade_ai_assistant")
+    if Path(_dev_hermes).is_dir():
+        _HERMES_CHECKOUT = _dev_hermes
+
+if _HERMES_CHECKOUT:
+    # 确保 Hermes 在 sys.path 中（放在最前面，优先于 Trade 根路径）
+    # 注意：Trade 自己的 _TRADE_ROOT 已在上面 insert 到第 0 位，
+    #       这里 Hermes 放在第 0 位会覆盖 trade/ 包的查找。
+    #       由于 Hermes 的 trade/ 包名和 Trade 的 trade/ 冲突，
+    #       我们用 insert 把 Hermes 放在第 1 位，Trade 仍在第 0 位。
     if _HERMES_CHECKOUT not in sys.path:
-        # 使用 append 而非 insert，确保我们的 trade/ 包优先级高于 Hermes 的 trade/ 包
-        sys.path.append(_HERMES_CHECKOUT)
+        sys.path.insert(1, _HERMES_CHECKOUT)
 
 # ── Hermes version check ────────────────────────────────────────────────
 _MIN_HERMES_VERSION = "0.13.0"

@@ -67,9 +67,9 @@ try {
     $hermesVer = & $PyCmd -c "import hermes_cli; print(hermes_cli.__version__)" 2>$null
     Write-Host "  ✓ hermes-agent 已安装 (v$hermesVer)" -ForegroundColor Green
 } catch {
-    Write-Host "  → 正在安装 hermes-agent (chefroger fork)..." -ForegroundColor Cyan
+    Write-Host "  → 正在安装 hermes-agent ..." -ForegroundColor Cyan
 
-    $HermesRepo = "https://github.com/chefroger/hermes-agent.git"
+    $HermesRepo = "https://github.com/NousResearch/hermes-agent.git"
     $HermesDir = "$HermesHome\hermes-agent"
 
     if (Test-Path $HermesDir) {
@@ -133,7 +133,7 @@ Write-Host ""
 Write-Host "Step 4/5: 安装 B2B skills" -ForegroundColor White
 
 try {
-    & $PyCmd -m trade.post_install 2>$null
+    & $PyCmd -m trade.post_install install 2>$null
     Write-Host "  ✓ B2B skills 安装完成" -ForegroundColor Green
 } catch {
     Write-Host "  ⚠ B2B skills 安装可能不完整（首次启动时会自动同步）" -ForegroundColor Yellow

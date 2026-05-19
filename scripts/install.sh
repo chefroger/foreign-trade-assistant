@@ -63,7 +63,7 @@ PY="$VENV_DIR/bin/python"
 log_ok "虚拟环境就绪 ($VENV_DIR)"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 2: 安装 hermes-agent (chefroger fork)
+# Step 2: 安装 hermes-agent 
 # ─────────────────────────────────────────────────────────────────────────────
 log_step "Step 2/5: 安装 hermes-agent"
 
@@ -73,8 +73,8 @@ if "$PY" -c "import hermes_cli" 2>/dev/null; then
     hermes_ver=$("$PY" -c "import hermes_cli; print(hermes_cli.__version__)" 2>/dev/null || echo "unknown")
     log_ok "hermes-agent 已安装 (v$hermes_ver)"
 else
-    log_info "正在安装 hermes-agent (chefroger fork)..."
-    HERMES_REPO="https://github.com/chefroger/hermes-agent.git"
+    log_info "正在安装 hermes-agent..."
+    HERMES_REPO="https://github.com/NousResearch/hermes-agent.git"
     HERMES_DIR="$HERMES_HOME/hermes-agent"
 
     if [ -d "$HERMES_DIR" ]; then
@@ -132,7 +132,7 @@ log_ok "Foreign Trade Assistant 安装完成"
 # ─────────────────────────────────────────────────────────────────────────────
 log_step "Step 4/5: 安装 B2B skills"
 
-if "$PY" -m trade.post_install 2>/dev/null; then
+if "$PY" -m trade.post_install install 2>/dev/null; then
     log_ok "B2B skills 安装完成"
 else
     log_warn "B2B skills 安装可能不完整（首次启动时会自动同步）"
