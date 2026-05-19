@@ -6,7 +6,7 @@
 
 外贸公司的 AI 销售助手 — 覆盖「引流 → 转化」全链路的智能销售系统。
 
-基于 [Hermes Agent](https://github.com/chefroger/hermes-agent)（chefroger fork），
+基于 [Hermes Agent](https://github.com/NousResearch/hermes-agent)，
 为外贸业务员提供 B2B 平台诊断、社媒获客、客户背调、开发信生成、报价谈判、文档分析、
 定时任务自动化等 14 项专业能力。
 
@@ -24,7 +24,7 @@ curl -fsSL https://raw.githubusercontent.com/chefroger/foreign-trade-assistant/m
 
 脚本会自动完成：
 1. 检查 Python >= 3.11
-2. 安装 hermes-agent（chefroger fork）
+2. 安装 hermes-agent
 3. 安装 foreign-trade-assistant
 4. 安装 14 个 B2B skills 到 Hermes
 5. 初始化数据库和数据目录
@@ -42,8 +42,8 @@ curl -fsSL https://raw.githubusercontent.com/chefroger/foreign-trade-assistant/m
 #### 步骤
 
 ```bash
-# 1. 安装 hermes-agent（必须使用 chefroger fork）
-git clone --branch main https://github.com/chefroger/hermes-agent.git ~/.hermes/hermes-agent
+# 1. 安装 hermes-agent
+git clone --branch main https://github.com/NousResearch/hermes-agent.git ~/.hermes/hermes-agent
 cd ~/.hermes/hermes-agent
 pip install -e "."
 
@@ -70,7 +70,7 @@ python server.py
 ```powershell
 # PowerShell（以普通用户运行，无需管理员）
 # 1. 安装 hermes-agent
-git clone --branch main https://github.com/chefroger/hermes-agent.git $env:LOCALAPPDATA\hermes\hermes-agent
+git clone --branch main https://github.com/NousResearch/hermes-agent.git $env:LOCALAPPDATA\hermes\hermes-agent
 cd $env:LOCALAPPDATA\hermes\hermes-agent
 pip install -e "."
 hermes setup

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "foreign-trade-assistant"
-version = "0.3.0"
+version = "0.4.0"
 description = "Foreign Trade Assistant — AI sales assistant for B2B trade companies. Lead generation, customer due diligence, document analysis, social media, and daily automation."
 readme = "README.md"
 requires-python = ">=3.11"
