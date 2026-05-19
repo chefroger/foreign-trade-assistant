@@ -7,19 +7,31 @@ version: 1.0.0
 author: 
 injection_prompt: |
   你是 b2b-lead-generation 技能。当用户需要开发客户、写开发信、做客户分析、处理询盘、报价、谈判或成交时，请执行以下步骤：
-  
+
+  ## 核心原则：客户价值导向
+
+  外贸买家每天收到几十封开发信，99% 都是「我们是XX工厂，生产YY产品，价格好质量优」。
+  要让客户回复，**必须让客户在 5 秒内感受到"这封信和我有关，能帮我解决实际问题"**。
+
+  写任何内容前，先回答：
+  1. 这个客户最可能面临的三个问题是什么？（交期不稳？质量波动？认证不全？语言沟通成本高？）
+  2. 我有什么能力是同行没有或不愿做的？（48h 打样？专属跟单？目标国市场准入经验？）
+  3. 选择我之后，他每个月能省多少时间/少操多少心/少损失多少钱？
+
+  **铁律**：一封开发信中，70% 篇幅讲客户可能遇到的问题和你能提供的解决方案，最多 30% 提你的公司和产品。
+
   1. 加载 skill: b2b-lead-generation
   2. 根据用户需求执行对应子任务：
      - 找客户：使用 b2b-platform/LinkedIn/海关数据等来源
-     - 写开发信：先加载 b2b-email-intel 查邮箱背景，再撰写个性化邮件
+     - 写开发信：先加载 b2b-email-intel 查邮箱背景，再撰写个性化邮件。邮件以客户痛点为开头，不讲产品
      - 客户分析：提取客户名称/公司/地区，从对话或文档中获取信息
-     - 报价/谈判：参考 b2b-customer-mgmt 的报价单管理流程
+     - 报价/谈判：强调差异化服务价值，不陷入价格战
   3. 按以下格式返回：
      - 客户分类：高价值（A）/ 中等（B）/ 潜力（C）
      - 具体行动建议：第一步做什么、第二步做什么
-     - 开发信/邮件模板（个性化，非通用）
+     - 开发信/邮件模板（个性化，以客户痛点开头，非产品广告）
      - 跟进时间表：Day1 / Day3 / Day7 / Day14
-  
+
   如果用户没有明确说明产品或市场，请先询问这两个关键信息。
 
   4. 【重要】如果用户要求整理或保存客户信息到系统中，请使用 execute_code 工具执行以下 Python 代码：
@@ -65,27 +77,27 @@ CTA (1 sentence):         ← Clear next step
 
 ### Cold Email Templates
 
-#### Template 1: Problem-Aware Outreach
+#### Template 1: Problem-Aware Outreach（客户痛点导向）
 
 ```
-Subject: Quick question about [their company]'s [industry] sourcing
+Subject: [Their company] + [their likely pain point]
 
 Hi [Name],
 
-I noticed [specific observation — e.g., "your company just expanded into the European market"].
+[具体观察 — 不要泛泛而谈，要针对这个客户的实际情况]。
+比如："I noticed your product line requires CE-certified components, which many suppliers struggle to deliver consistently."
 
-The challenge we solve for companies like yours: [specific problem — e.g., "inconsistent product quality from current suppliers"].
+我们帮 [X]+ 家 [industry] 公司解决了 [具体问题]，让他们：
+→ [客户得到的具体好处 1，如 "月度返工率从 8% 降到 1.5%"]
+→ [客户得到的具体好处 2，如 "验货通过率提升到 99%，不再被海关扣货"]
 
-We've helped [X]+ [industry] companies reduce [specific metric — e.g., "quality issues by 40%"] while [secondary benefit — e.g., "cutting lead times from 45 to 25 days"].
+关键是我们做了同行不做的：[你独有的服务/能力，如 "每批货附完整检测报告 + 实验室签字" 或 "48h 打样 + 免费寄样到您的手上"]
 
-One thing we'd like to explore: Is [specific question related to their situation]?
-
-Would you have 15 minutes this week for a brief call?
+想聊聊你们的 [具体话题] 吗？15 分钟就行。
 
 Best regards,
 [Your name]
 [Title] | [Company]
-[Contact info]
 ```
 
 #### Template 2: Referral Warm Outreach
@@ -108,7 +120,7 @@ Best,
 #### Template 3: LinkedIn Connection Note (≤300 chars)
 
 ```
-Hi [Name]! Noticed you're in the [industry] space. I help B2B companies source [product] from verified manufacturers — similar to what [their company] might be looking for. Would love to connect!
+Hi [Name]! I help [industry] buyers avoid [specific pain point — e.g., "inconsistent quality across shipments"]. Built a process that [your unique value]. Open to connecting!
 ```
 
 ### SPAM Filter Words to Avoid
@@ -400,11 +412,12 @@ Best regards,
 
 ## Common Pitfalls
 
-1. **One-size-fits-all outreach**: Always personalize — mass messages get ignored
-2. **Giving up too early**: 80% of customers are closed after the 4th follow-up
-3. **Neglecting existing customers**: Easier to get repeat orders than find new customers
-4. **Ignoring time zones**: Respect the prospect's working hours
-5. **Weak subject lines**: The subject line determines if your email gets opened
-6. **No clear CTA**: Always tell the prospect what to do next
-7. **Price-only negotiation**: Never compete on price alone — compete on value
-8. **Skipping sample phase**: Always insist on sample approval before bulk orders
+1. **Product-first mentality** 🔴 **最致命**: 开发信第一句就介绍公司和产品。正确做法：先谈客户的难处 → 你能怎么帮 → 最后才一句话带过产品
+2. **One-size-fits-all outreach**: Always personalize — mass messages get ignored
+3. **Giving up too early**: 80% of customers are closed after the 4th follow-up
+4. **空洞话术**: 不说"质量好价格优服务好"，具体说"每批货附 X 项检测数据""从下单到出货最快 Y 天""欧美 CE/FDA 认证我们在行"
+5. **Ignoring time zones**: Respect the prospect's working hours
+6. **Weak subject lines**: The subject line determines if your email gets opened
+7. **No clear CTA**: Always tell the prospect what to do next
+8. **Price-only negotiation**: Never compete on price alone — compete on the unique value only you provide
+9. **Skipping sample phase**: Always insist on sample approval before bulk orders

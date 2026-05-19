@@ -7,23 +7,39 @@ version: 1.0.0
 author: 
 injection_prompt: |
   你是 b2b-social-media 技能。当用户需要制定 Facebook、Instagram、TikTok 或 YouTube 的社媒营销策略时，请执行以下步骤：
-  
+
+  ## 核心原则：客户价值导向（最重要规则！）
+
+  外贸 B2B 的社媒关注者不是来逛网店的——他们是来寻找**能帮自己解决供应链难题的伙伴**。
+  每发布一条内容前，先问：**「看到这条的人，会觉得这跟他的工作有关吗？」**
+
+  内容围绕以下四个方向展开（按重要性排序）：
+  1. **帮客户避坑**：你见过的行业常见问题、采购陷阱、验货秘诀
+  2. **展示你的独到之处**：同行做不到的事——48h 打样？非标定制？实验室级检测？目标国认证一条龙？
+  3. **客户成功故事**：你帮客户解决了什么棘手问题、创造了什么价值
+  4. **建立信任**：工厂实拍、团队日常、质量管控体系、认证资质
+
+  **绝对禁止**：
+  - 纯产品参数贴（规格/价格/MOQ 罗列 — 做产品目录，不是社媒内容）
+  - 「质量好价格低服务优」一类的空洞话术
+  - 重复发布同一产品的照片
+
   1. 加载 skill: b2b-social-media
   2. 确认平台组合（可多平台）：
-     - Facebook：B2B 长文、图文帖、案例研究、Group 运营
-     - Instagram：高质量图片、Reels短视频、Stories互动
-     - TikTok：工厂/产品幕后视频、行业知识趣味化
-     - YouTube：产品演示视频、客户案例长视频、FAQ视频
+     - Facebook：B2B 长文、案例分析、行业洞察、Group 运营
+     - Instagram：工厂纪实、品质瞬间、客户故事、Reels 过程展示
+     - TikTok：采购冷知识、行业避坑、工厂日常、产品背后的技术
+     - YouTube：客户案例纪录片、品质管控全流程、行业趋势分析
   3. 内容日历（周计划）：
      - 建议发布频率（每个平台）
-     - 内容类型配比（产品/教育/互动/促销）
+     - 内容类型配比（客户价值 70% / 信任建设 20% / 公司动态 10%）
      - 发布时间（按目标市场时区）
   4. 每条帖子包含：
-     - 标题/文案（含 hashtag 建议）
+     - 标题/文案（以客户视角切入，不含产品参数堆砌）
      - 配图/视频描述
-     - CTA（点赞/评论/私信/访问链接）
+     - CTA（引发讨论/索要资料/访问链接）
   5. 竞品分析：找出3个同行动议参考的账号，分析其内容策略
-  6. 返回：完整月历（每条帖子含：日期/平台/内容类型/文案摘要）
+  6. 返回：完整月历（每条帖子含：日期/平台/内容主题/核心价值点）
 ---
 
 Platform: [Facebook/Instagram/TikTok/YouTube]
@@ -62,31 +78,32 @@ Content Gaps:
 ### Facebook B2B Strategy
 
 **Content Mix (Recommended)**:
-- 40% Product/industry content
-- 30% Engagement content (polls, questions, quotes)
-- 20% Behind-the-scenes/company culture
-- 10% Promotion (special offers, new products)
+- 35% 帮客户避坑 / 行业洞察（采购陷阱、验货技巧、认证解读、趋势分析）
+- 25% 你的独到服务能力（非标定制案例、打样速度、检测实力、目标国经验）
+- 20% 客户成功故事（你帮客户解决了什么难题、具体省了多少钱/时间/风险）
+- 15% 互动讨论（投票、提问、行业话题讨论）
+- 5% 公司动态（展会、新认证、团队建设）
 
 **Best Practices**:
 - Post during business hours (8-10 AM, 2-4 PM local time)
-- Use Facebook Live for product demos or Q&A sessions
+- Use Facebook Live for Q&A sessions or factory walk-throughs
 - Join relevant industry groups and participate
 - Share long-form articles (800+ words) for thought leadership
 - Use high-quality images (1200 x 630 px for feed)
 
 **Facebook-Specific Hashtags**:
 ```
-#B2B #ForeignTrade #Manufacturing #[Product] #Sourcing #[Industry] #Exporter #[Country]
+#B2B #ForeignTrade #Manufacturing #Sourcing #SupplyChain #Exporter
 ```
 
 ### Instagram B2B Strategy
 
 **Content Mix (Recommended)**:
-- 30% Product showcase (high-quality photos)
-- 25% Behind-the-scenes (factory, team, process)
-- 20% User-generated content / testimonials
-- 15% Engagement (polls in stories, Q&A)
-- 10% Company culture / team
+- 25% 客户想知道的质量细节（检测过程、验货实拍、出厂前最后一关）
+- 25% 差异化服务展示（定制包装、非标件的处理、特殊需求响应）
+- 20% 工厂纪实（生产工艺、原材料把控、团队协作）
+- 20% 客户反馈 / 成功案例（帮客户省了多少、解决了什么）
+- 10% 互动（Stories 投票、问答、行业讨论）
 
 **Best Practices**:
 - Post at peak times (11 AM-1 PM, 7-9 PM)
@@ -109,10 +126,10 @@ Content Gaps:
 ### TikTok B2B Strategy
 
 **Content Mix (Recommended)**:
-- 35% Factory authenticity (real production footage)
-- 30% Product demos (quick, engaging)
-- 20% Trending sounds adapted to B2B context
-- 15% Behind-the-scenes (team, office, culture)
+- 35% 采购避坑 / 行业冷知识（买家最常踩的坑、验货盲区、谈判技巧）
+- 25% 工厂纪实（真实生产线、质量问题怎么拦截、急单怎么处理）
+- 25% 独到服务揭秘（你的特殊工艺、非标定制能力、加急流程）
+- 15% 客户案例 / 行业趋势（用有趣的方式讲述）
 
 **Best Practices**:
 - Post 1-3x daily for best reach
@@ -155,10 +172,10 @@ Comment what you want to see next! 👇
 ### YouTube B2B Strategy
 
 **Content Mix (Recommended)**:
-- 40% Product demos and tutorials
-- 25% Company/factory tours
-- 20% Industry explainer videos
-- 15% Client testimonials and case studies
+- 35% 客户案例纪录片（帮客户解决了什么棘手问题、全过程记录）
+- 30% 品质管控全流程（从原材料进厂到出货检验的完整链路）
+- 20% 行业趋势分析 / 采购指南（如何评估供应商、如何避免常见坑）
+- 15% 工厂与团队纪实（真实的人和流程，不是摆拍）
 
 **Best Practices**:
 - Consistent upload schedule (same day/time each week)
@@ -230,25 +247,28 @@ Week 4: Trust Building
 
 ## Phase 4: Content Templates
 
-### Product Showcase Post
+### 客户价值帖（替代产品展示帖）
+
+不用产品参数堆砌，而是用客户视角：这个能力帮客户省了什么心？
 
 ```
-[High-quality product image/video]
+[高质量图片/视频 — 展示服务过程、检测环节、特殊工艺，而非纯产品摆拍]
 
-✨ [Product Name]: [Short, punchy description]
+🔍 [一个客户常遇到的问题，用问句开头]
+比如："What's the #1 reason your shipments get rejected at customs?"
 
-Why Businesses Choose This:
-✅ [Benefit 1 with specific detail]
-✅ [Benefit 2 with specific detail]
-✅ [Benefit 3 with specific detail]
+大多数供应商会告诉你 [常见但不靠谱的做法]
 
-📦 MOQ: [X] pieces
-⏱️ Lead Time: [X] days
-💰 Starting at: [Price]
+我们做的不一样：
+→ [你的独特做法 1] — 这意味着客户不用 [省了什么麻烦]
+→ [你的独特做法 2] — 这意味着客户能 [获得什么好处]
+→ [你的独特做法 3] — 这意味着客户不会 [避免什么风险]
 
-💬 Interested? Drop a comment or DM us!
+这不是我们"服务好"——这是 9 年来被客户逼出来的标准流程。
 
-#[Product] #[Industry] #B2B #Manufacturing #Exporter #[YourCountry] #[Sourcing]
+💬 你们遇到过这个问题吗？评论区聊聊
+
+#SupplyChain #QualityControl #B2B #Manufacturing #Sourcing
 ```
 
 ### Behind-the-Scenes Post
@@ -283,20 +303,26 @@ Ready to experience the difference? Let's talk! 💬
 #[Testimonial] #[Client] #[B2B] #[Product] #[Industry]
 ```
 
-### Industry Insight/Article Post
+### 行业洞察 / 采购避坑帖
 
 ```
-📊 [Statistic or surprising fact about industry]
+📊 [一个令人意外的行业数据或现象]
 
-This matters because [explain why it matters to your audience].
+大多数 [industry] 采购经理不知道的是：[揭露一个常见盲点]
 
-At [Company], we've [what you've done about it / what this means for your clients].
+上周一个客户告诉我，他之前的供应商 [踩坑经历]，结果 [损失了什么]。
+后来我们帮他 [你怎么解决的]，三个月后 [量化的改善结果]。
 
-Key takeaway: [1 sentence summary]
+如果你也在采购 [产品类型]，建议问供应商这三个问题：
+1. [能揭示供应商真实水平的问题]
+2. [同上]
+3. [同上]
 
-👇 What's your experience with this? Comment below!
+如果对方答不上来——你懂的 👀
 
-#[Industry] #[Insight] #[B2B] #[Manufacturing] #[Sourcing] #[Data]
+👇 你们采购时最踩过什么坑？评论区见
+
+#SupplyChain #Procurement #B2B #Manufacturing #Sourcing
 ```
 
 ### Engagement Poll/Question (FB/Insta)
@@ -380,11 +406,11 @@ Tag a friend who needs to see this! 👇
 
 ## Common Pitfalls
 
-1. **Overly promotional**: B2B audiences unfollow accounts that only sell. Provide value first
-2. **Ignoring platform differences**: Don't post the same content everywhere — adapt for each platform
-3. **Inconsistent posting**: Use content calendar to maintain regular posting schedule
-4. **Poor visuals**: Grainy photos and shaky videos hurt credibility. Invest in basic equipment
-5. **No strategy**: Random posting without analysis and planning wastes effort
-6. **Neglecting analytics**: Track what works and what doesn't. Adjust strategy based on data
-7. **Ignoring comments**: Respond to all comments/messages promptly and professionally
+1. **产品广告当内容** 🔴 **最致命**: 社媒不是产品目录。关注你的买家想看的是「谁最能帮我解决问题」，不是「谁的产品参数最详细」
+2. **空洞话术**: 不说"质量好服务优"，说"每批货有人蹲在产线盯、出货前拍视频给你确认"
+3. **Ignoring platform differences**: Don't post the same content everywhere — adapt for each platform
+4. **Inconsistent posting**: Use content calendar to maintain regular posting schedule
+5. **Poor visuals**: Grainy photos and shaky videos hurt credibility. Invest in basic equipment
+6. **No strategy**: Random posting without analysis and planning wastes effort
+7. **Neglecting analytics**: Track what works and what doesn't. Adjust strategy based on data
 8. **Copying competitors exactly**: Learn from them, but find your unique angle and voice
