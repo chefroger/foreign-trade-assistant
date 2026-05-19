@@ -62,6 +62,13 @@ def is_available() -> bool:
     return _hindsight_available
 
 
+def reset_cache() -> None:
+    """清空 Hindsight 可用性与客户端缓存。仅供测试或重新配置时使用。"""
+    global _hindsight_available, _client
+    _hindsight_available = None
+    _client = None
+
+
 # ── 客户端（懒初始化，复用单例）────────────────────────────────────────────
 
 _client: Any = None

@@ -135,7 +135,7 @@ def get_agent_kwargs() -> dict:
         # provider 已知时绝不回退到 LLM_API_KEY，避免错配
     else:
         # 仅在 provider 完全未配置时才用通用 LLM_API_KEY 兜底
-        api_key = os.getenv("LLM_API_KEY", "").strip() or ""
+        api_key = os.getenv("LLM_API_KEY", "").strip()
 
     return {"provider": provider, "model": model,
             "base_url": base_url, "api_key": api_key}

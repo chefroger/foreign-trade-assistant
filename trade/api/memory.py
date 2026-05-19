@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends
 
 from trade import chat_memory
 from trade.api.deps import opt_company
+from trade.helpers import _parse_model_config_str
 
 router = APIRouter(tags=["memory"])
 
@@ -42,31 +43,13 @@ def memory_recall(
     """搜索 Hindsight 长期记忆中的相关历史对话。"""
     result = chat_memory.recall_context(query)
     if not result:
-        return {"results": [], "query": query}
-    return {"results": [result], "query": query}
+        return {"results": [], "query": query, "company_id": cid}
+    return {"results": [result], "query": query, "company_id": cid}
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────
 
-def _parse_model_string(raw: str) -> dict:
-    """Parse v0.14 flat model string back to provider/model dict.
-
-    Supports formats:
-      - "provider:model"  (colon-separated)
-      - "provider/model"  (slash-separated, e.g. openrouter/anthropic/claude-sonnet-4)
-
-    Returns {"provider": str, "model": str}.
-    """
-    if "/" in raw:
-        parts = raw.split("/", 1)
-        provider = parts[0]
-        model = parts[1] if len(parts) > 1 else ""
-    elif ":" in raw:
-        provider, _, model = raw.partition(":")
-    else:
-        provider = ""
-        model = raw
-    return {"provider": provider or "", "model": model or raw}
+# _parse_model_string 已删除，统一使用 trade.helpers._parse_model_config_str
 
 
 # ── LLM 提供商 ────────────────────────────────────────────────────────────
@@ -91,10 +74,8 @@ def list_providers():
             active_provider = model_cfg.get("provider", "")
             active_model = model_cfg.get("default", "")
         elif isinstance(model_cfg, str) and model_cfg.strip():
-            # v0.14 flat format: "provider:model" 或 "provider/model"
-            parsed = _parse_model_string(model_cfg)
-            active_provider = parsed["provider"]
-            active_model = parsed["model"]
+            # v0.14 flat format — 复用 helpers 的统一解析函数
+            active_provider, active_model, _ = _parse_model_config_str(model_cfg)
 
         providers = []
         for pid, pconfig in PROVIDER_REGISTRY.items():
