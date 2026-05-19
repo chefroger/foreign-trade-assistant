@@ -197,3 +197,60 @@ echo -e "    Hermes 配置: ${CYAN}$HERMES_HOME/${NC}"
 echo ""
 echo -e "  帮助: ${CYAN}trade --help${NC}"
 echo ""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 配置 macOS 开机自启动（launchd，后台静默运行，无终端窗口）
+# ─────────────────────────────────────────────────────────────────────────────
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    PLIST_DIR="$HOME/Library/LaunchAgents"
+    PLIST_FILE="$PLIST_DIR/com.trade.assistant.plist"
+    mkdir -p "$PLIST_DIR"
+
+    if [ ! -f "$PLIST_FILE" ]; then
+        cat > "$PLIST_FILE" << PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.trade.assistant</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$HOME/.local/bin/trade</string>
+        <string>--no-browser</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>$TRADE_HOME/logs/launchd-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>$TRADE_HOME/logs/launchd-stderr.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HERMES_HOME</key>
+        <string>$HERMES_HOME</string>
+        <key>TRADE_HOME</key>
+        <string>$TRADE_HOME</string>
+        <key>PATH</key>
+        <string>$VENV_DIR/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>
+PLIST
+        # 确保日志目录存在
+        mkdir -p "$TRADE_HOME/logs"
+        # 加载到当前会话（用户级，无需 sudo）
+        launchctl bootstrap gui/$(id -u) "$PLIST_FILE" 2>/dev/null || \
+        launchctl load "$PLIST_FILE" 2>/dev/null || true
+        echo -e "  ${GREEN}✓${NC} macOS 开机自启动已配置（后台运行，无终端窗口）"
+        echo -e "    管理命令:"
+        echo -e "      停止:  ${CYAN}launchctl unload $PLIST_FILE${NC}"
+        echo -e "      重启:  ${CYAN}launchctl unload $PLIST_FILE && launchctl load $PLIST_FILE${NC}"
+        echo -e "      查看日志: ${CYAN}tail -f $TRADE_HOME/logs/launchd-stdout.log${NC}"
+    else
+        echo -e "  ${GREEN}✓${NC} macOS 开机自启动已配置"
+    fi
+fi
+echo ""
